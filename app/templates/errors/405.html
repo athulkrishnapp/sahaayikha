@@ -1,0 +1,12 @@
+{% set error_page = true %}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container text-center py-5">
+  <h1 class="display-3 text-warning">405</h1>
+  <p class="lead">The method is not allowed for this page.</p>
+  <a href="{{ url_for('main.home') }}" class="btn btn-primary mt-3">
+    <i class="fas fa-home"></i> Go Home
+  </a>
+</div>
+{% endblock %}

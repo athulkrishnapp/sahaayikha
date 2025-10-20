@@ -1,0 +1,71 @@
+{# templates/dashboard/admin_profile.html #}
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .profile-container {
+        max-width: 800px;
+        margin: auto;
+        background-color: var(--bs-card-bg);
+        border-radius: 1rem;
+        border: 1px solid var(--bs-border-color);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+    }
+    .profile-header {
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    .profile-header h3 {
+        font-weight: 700;
+    }
+    .profile-form {
+        padding: 2rem;
+    }
+</style>
+
+<div class="container my-5">
+    <div class="profile-container">
+        <div class="profile-header">
+            <h3 class="mb-0">Administrator Profile</h3>
+        </div>
+        <div class="profile-form">
+            <form method="POST" novalidate>
+                {{ form.hidden_tag() }}
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.first_name.label(class="form-label") }}
+                        {{ form.first_name(class="form-control") }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.last_name.label(class="form-label") }}
+                        {{ form.last_name(class="form-control") }}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    {{ form.email.label(class="form-label") }}
+                    {{ form.email(class="form-control") }}
+                </div>
+
+                <hr class="my-4">
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        {{ form.password.label(class="form-label") }}
+                        {{ form.password(class="form-control") }}
+                        <small class="text-muted">Leave blank to keep current password</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        {{ form.confirm_password.label(class="form-label") }}
+                        {{ form.confirm_password(class="form-control") }}
+                    </div>
+                </div>
+
+                <div class="d-grid mt-3">
+                    <button type="submit" class="btn btn-primary btn-lg">Update Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

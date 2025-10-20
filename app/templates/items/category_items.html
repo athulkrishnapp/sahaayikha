@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Items in {{ category.name }}</h2>
+  <div class="row g-4">
+    {% for item in items %}
+      <div class="col-md-4">
+        <div class="card shadow h-100">
+          <img src="{{ url_for('static', filename='images/item_placeholder.jpg') }}" class="card-img-top" alt="{{ item.title }}">
+          <div class="card-body">
+            <h5 class="card-title">{{ item.title }}</h5>
+            <p class="card-text small text-muted">{{ item.condition }} • {{ item.urgency_level }}</p>
+            <p class="card-text">{{ item.description[:100] }}{% if item.description|length > 100 %}…{% endif %}</p>
+            <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="btn btn-outline-primary btn-sm">View</a>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="col-12"><p class="text-muted">No items in this category.</p></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

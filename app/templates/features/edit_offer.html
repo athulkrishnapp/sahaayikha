@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    {# --- Safety checks for need/org --- #}
+    <h1 class="fw-bold">Edit Your Offer for: {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</h1>
+    <p class="text-muted">Requested by {% if offer.need and offer.need.organization %}{{ offer.need.organization.name }}{% else %}[Unknown Organization]{% endif %}</p>
+    <div class="card card-body mb-4">
+        {% if offer.need %}{{ offer.need.description }}{% else %}The original need for this offer has been removed.{% endif %}
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" novalidate>
+        {{ form.hidden_tag() }}
+        {# Pass the static base URL to JavaScript via data attribute #}
+        <div id="item-forms-container" data-static-base-url="{{ url_for('static', filename='') }}">
+            {# Item forms will be dynamically added here by JavaScript #}
+        </div>
+        <button type="button" id="add-item-btn" class="btn btn-outline-secondary mt-3"><i class="fas fa-plus"></i> Add Another Item</button>
+        <hr>
+        <div class="d-grid">
+            {{ form.submit(class="btn btn-primary btn-lg", value="Update Offer") }}
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('item-forms-container');
+    const addItemBtn = document.getElementById('add-item-btn');
+    let itemIndex = 0; // Tracks the next index to use for new items
+    const staticBaseUrl = container.dataset.staticBaseUrl || '/static/'; // Get base URL
+
+    const criticalCategories = ['Medicines', 'Food & Snacks', 'Baby Products', 'Health & Wellness'];
+    const categoryOptions = `
+        {% for value, label in form.offered_items[0].category.choices %}
+            <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+    `;
+
+    function createItemForm(index, data = {}) {
+        const wrapper = document.createElement('div');
+        wrapper.classList.add('card', 'card-body', 'mb-3', 'item-form');
+
+        // Initialize preview HTML string
+        let imagePreviewHtml = `
+            <div class="mt-2" id="preview-wrapper-${index}">
+                <p class="small text-muted mb-1">No current image.</p>
+            </div>
+        `;
+
+        // ## REVISED: Construct preview HTML if image URL exists ##
+        if (data.image_url && data.image_url.trim() !== '') {
+            // Construct the full URL, assuming data.image_url is relative to static/
+            const imageUrl = staticBaseUrl + data.image_url;
+            imagePreviewHtml = `
+                <div class="mt-2" id="preview-wrapper-${index}">
+                    <p class="small text-muted mb-1">Current Image:</p>
+                    <img src="${imageUrl}"
+                         style="height: 60px; width: auto; border-radius: 0.25rem; border: 1px solid #ccc;"
+                         alt="Current Image Preview"
+                         onerror="this.style.display='none'; document.getElementById('preview-wrapper-${index}').innerHTML = '<p class=\\'small text-danger mb-1\\'>Error loading image (${data.image_url}).</p>';"> {# Added error handling #}
+                </div>
+            `;
+        }
+
+        // Hidden input to store the ID of the existing item, if applicable
+        // File input label changed to clarify replacement behavior
+        wrapper.innerHTML = `
+            <input type="hidden" name="offered_items-${index}-offered_item_id" value="${data.offered_item_id || ''}">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Item <span class="item-number">${index + 1}</span></h5>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-item-btn" title="Remove this item">Remove</button>
+            </div>
+            <div class="row g-3">
+                {# Item Name #}
+                <div class="col-md-6">
+                    <label for="offered_items-${index}-title" class="form-label">Item Name <span class="text-danger">*</span></label>
+                    <input type="text" id="offered_items-${index}-title" name="offered_items-${index}-title" class="form-control" value="${data.title || ''}" required>
+                </div>
+                {# Category #}
+                <div class="col-md-6">
+                    <label for="offered_items-${index}-category" class="form-label">Category <span class="text-danger">*</span></label>
+                    <select id="offered_items-${index}-category" name="offered_items-${index}-category" class="form-select item-category-select" required>
+                        ${categoryOptions}
+                    </select>
+                </div>
+                {# Description #}
+                <div class="col-12">
+                    <label for="offered_items-${index}-description" class="form-label">Description</label>
+                    <textarea id="offered_items-${index}-description" name="offered_items-${index}-description" class="form-control" rows="1">${data.description || ''}</textarea>
+                </div>
+                {# Quantity #}
+                <div class="col-md-6">
+                    <label for="offered_items-${index}-quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                    <input type="number" id="offered_items-${index}-quantity" name="offered_items-${index}-quantity" class="form-control" value="${data.quantity || 1}" min="1" required>
+                </div>
+                {# Condition #}
+                <div class="col-md-6">
+                    <label for="offered_items-${index}-condition" class="form-label">Condition <span class="text-danger">*</span></label>
+                    <select id="offered_items-${index}-condition" name="offered_items-${index}-condition" class="form-select" required>
+                        <option value="New" ${data.condition === 'New' ? 'selected' : ''}>New</option>
+                        <option value="Used" ${data.condition === 'Used' ? 'selected' : ''}>Used</option>
+                    </select>
+                </div>
+                {# Image Upload #}
+                <div class="col-12">
+                    <label for="offered_items-${index}-image" class="form-label">Upload New Image (Replaces current image if provided)</label>
+                    <input type="file" id="offered_items-${index}-image" name="offered_items-${index}-image" class="form-control" accept="image/*">
+                    ${imagePreviewHtml} {# Inject the generated preview HTML #}
+                </div>
+                {# Critical Info Wrapper #}
+                <div class="col-12 critical-info-wrapper" style="display: none;">
+                    <hr>
+                    <p class="small text-muted mb-2">Please provide details for this critical item:</p>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="offered_items-${index}-manufacture_date" class="form-label">Manufacture Date <span class="text-danger critical-required" style="display: none;">*</span></label>
+                            <input type="date" id="offered_items-${index}-manufacture_date" name="offered_items-${index}-manufacture_date" class="form-control" value="${data.manufacture_date || ''}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="offered_items-${index}-expiry_date" class="form-label">Expiry Date <span class="text-danger critical-required" style="display: none;">*</span></label>
+                            <input type="date" id="offered_items-${index}-expiry_date" name="offered_items-${index}-expiry_date" class="form-control" value="${data.expiry_date || ''}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // --- JavaScript logic for category select and critical fields ---
+        const categorySelect = wrapper.querySelector('.item-category-select');
+        const criticalWrapper = wrapper.querySelector('.critical-info-wrapper');
+        const expDateInput = wrapper.querySelector(`[name="offered_items-${index}-expiry_date"]`);
+        const criticalAsterisks = wrapper.querySelectorAll('.critical-required');
+
+        // Pre-select category if data provided
+        if(data.category) {
+            categorySelect.value = data.category;
+        }
+
+        function toggleCriticalFields() {
+            const isCritical = criticalCategories.includes(categorySelect.value);
+            criticalWrapper.style.display = isCritical ? 'block' : 'none';
+            expDateInput.required = isCritical; // Expiry date IS required
+            criticalAsterisks.forEach(el => el.style.display = isCritical ? 'inline' : 'none');
+        }
+
+        categorySelect.addEventListener('change', toggleCriticalFields);
+        toggleCriticalFields(); // Run on creation
+
+        // --- Remove button logic ---
+        wrapper.querySelector('.remove-item-btn').addEventListener('click', () => {
+            wrapper.remove();
+            // Re-number remaining items
+            document.querySelectorAll('.item-form .item-number').forEach((span, i) => {
+                span.textContent = i + 1;
+            });
+        });
+
+        return wrapper;
+    }
+
+    // Function to add a new (or existing) item form
+    function addItemForm(data = {}) {
+        const newItemForm = createItemForm(itemIndex, data);
+        container.appendChild(newItemForm);
+        itemIndex++; // Increment index for the next potential new item
+    }
+
+    // --- Load existing data passed from Flask ---
+    const existingData = {{ form.offered_items.data|tojson|safe }};
+
+    // Populate forms for existing items
+    if (existingData && existingData.length > 0) {
+        existingData.forEach(itemData => addItemForm(itemData));
+    } else {
+        // Fallback: add one blank form if no existing data
+        addItemForm();
+    }
+
+    // --- Add New Item Button Logic ---
+    addItemBtn.addEventListener('click', () => addItemForm()); // Add a blank form
+});
+</script>
+{% endblock %}

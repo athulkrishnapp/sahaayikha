@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    <h1 class="fw-bold">Edit Disaster Need</h1>
+    <p class="text-muted">Update the details for your request.</p>
+
+    <form method="POST" novalidate>
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            {{ form.title(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.categories.label(class="form-label") }}
+            {{ form.categories(class="form-select", id="categories-edit") }}
+        </div>
+        <div class="mb-3">
+            {{ form.description.label(class="form-label") }}
+            {{ form.description(class="form-control", rows="4") }}
+        </div>
+        <div class="mb-3">
+            {{ form.location.label(class="form-label") }}
+            {{ form.location(class="form-select") }}
+        </div>
+        <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg">Update Need</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    new TomSelect('#categories-edit', {
+        plugins: ['remove_button'],
+        create: false
+    });
+});
+</script>
+{% endblock %}

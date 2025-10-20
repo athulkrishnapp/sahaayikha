@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* These styles are specific to this page and work with your existing style.css.
+      They override the default body background for this page only.
+    */
+
+    /* Light Mode Styles (Default) */
+    .auth-page-wrapper {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .auth-container {
+        background: rgba(255, 255, 255, 0.6);
+        padding: 40px;
+        border-radius: 20px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 800px;
+        width: 100%;
+    }
+
+    .auth-container .top-icon {
+        background: rgba(86, 61, 124, 0.1);
+        color: #563d7c;
+        font-size: 2rem;
+        border-radius: 10px;
+        padding: 10px;
+        display: inline-block;
+        margin-bottom: 20px;
+    }
+
+    .auth-container h1 { color: #212529; font-size: 2.5rem; font-weight: 700; }
+    .auth-container > p { color: #6c757d; margin-bottom: 30px; }
+
+    .roles-grid {
+        display: grid;
+        /* Adjusted for two columns */
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+
+    .role-card {
+        background: rgba(248, 249, 250, 0.7);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 15px;
+        padding: 30px 20px;
+        text-decoration: none;
+        color: #212529;
+        transition: all 0.3s ease;
+    }
+    
+    .role-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .role-card i { font-size: 2rem; margin-bottom: 15px; }
+    .role-card h3 { font-size: 1.2rem; margin: 10px 0 5px 0; color: #212529; }
+    .role-card span { font-size: 0.9rem; color: #6c757d; }
+    .register-link { color: #6c757d; }
+    .register-link a { color: #0069d9; font-weight: bold; text-decoration: none; }
+    .register-link a:hover { text-decoration: underline; }
+
+    /* Dark Mode Overrides */
+    .dark-mode .auth-page-wrapper {
+        background: linear-gradient(135deg, #120e2a, #2c1a4d);
+    }
+
+    .dark-mode .auth-container {
+        background: rgba(22, 22, 36, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #e0e0e0;
+    }
+    
+    .dark-mode .auth-container .top-icon {
+        background: rgba(138, 43, 226, 0.1);
+        color: #8a2be2;
+    }
+
+    .dark-mode .auth-container h1,
+    .dark-mode .role-card h3,
+    .dark-mode .role-card {
+        color: #ffffff;
+    }
+
+    .dark-mode .auth-container > p,
+    .dark-mode .role-card span,
+    .dark-mode .register-link {
+        color: #a9a9d8;
+    }
+
+    .dark-mode .role-card {
+        background: rgba(38, 38, 63, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dark-mode .role-card:hover {
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+
+    .dark-mode .register-link a {
+        color: #7b7bff;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .roles-grid {
+            /* Stacks the cards vertically on small screens */
+            grid-template-columns: 1fr;
+        }
+        .auth-container {
+            padding: 30px 20px;
+        }
+    }
+</style>
+
+<div class="auth-page-wrapper">
+    <div class="auth-container">
+        <div class="top-icon">
+            <i class="fas fa-user-plus"></i>
+        </div>
+
+        <h1>Create an Account</h1>
+        <p>Select your role to create an account:</p>
+
+        <div class="roles-grid">
+            <a href="{{ url_for('main.register') }}" class="role-card">
+                <i class="fas fa-user"></i>
+                <h3>User Registration</h3>
+                <span>Create a personal account to get started.</span>
+            </a>
+
+            <a href="{{ url_for('main.org_register') }}" class="role-card">
+                <i class="fas fa-building"></i>
+                <h3>Organization Registration</h3>
+                <span>Register your business or organization.</span>
+            </a>
+        </div>
+
+        <p class="register-link">
+            Already have an account? 
+            <a href="{{ url_for('main.auth_login_selector') }}">Login here</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

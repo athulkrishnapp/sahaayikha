@@ -1,0 +1,382 @@
+/* ===========================
+   Base Light Theme
+=========================== */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* ===========================
+   Navbar
+=========================== */
+.navbar {
+    background: #ffffffcc; /* semi-transparent */
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: background 0.3s ease;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0069d9;
+}
+
+.navbar-nav .nav-link {
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+    color: #0056b3;
+}
+
+/* ===========================
+   Hero Section
+=========================== */
+.hero-section {
+    background: linear-gradient(120deg, #6a11cb, #2575fc);
+    color: white;
+    padding: 6rem 2rem;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.hero-section h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.hero-section p {
+    font-size: 1.2rem;
+    opacity: 0.85;
+}
+
+/* ===========================
+   Role Cards
+=========================== */
+.card {
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.12);
+}
+
+.card-body h4 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.card-body p {
+    font-size: 0.95rem;
+    color: #6c757d;
+}
+
+/* Buttons */
+.btn {
+    border-radius: 50px;
+    font-weight: 500;
+    padding: 0.55rem 1.5rem;
+    transition: all 0.25s ease;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+    transform: translateY(-2px);
+}
+
+.btn-outline-primary:hover {
+    background: #0069d9;
+    color: #fff;
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+}
+
+/* ===========================
+   Trending Items / Item Cards
+=========================== */
+#gallery .card-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.item-card {
+    border-radius: 16px;
+    overflow: hidden;
+    background: #ffffff;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, filter 0.3s ease;
+    cursor: pointer;
+}
+
+.item-card:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+    filter: brightness(1.05);
+}
+
+.item-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.item-card:hover img {
+    transform: scale(1.05);
+}
+
+.item-card .card-body h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+}
+
+.item-card .card-body p {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+/* ===========================
+   Footer
+=========================== */
+footer {
+    background: #f8f9fa;
+    color: #6c757d;
+    font-size: 0.9rem;
+    padding: 1rem 0;
+    margin-top: auto;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* ===========================
+   Dark Mode Styles
+=========================== */
+.dark-mode {
+    background: #1e1e2f !important;
+    color: #e0e0e0 !important;
+}
+
+.dark-mode nav.navbar {
+    background: #2b2b3acc !important;
+    backdrop-filter: blur(10px);
+}
+
+.dark-mode .card,
+.dark-mode .item-card {
+    background: #2c2c3a !important;
+    color: white !important;
+    border: none;
+}
+
+.dark-mode .form-control,
+.dark-mode .form-select {
+    background: #3a3a4a !important;
+    color: white !important;
+    border: none;
+}
+
+.dark-mode footer {
+    background: #2c2c3a !important;
+    color: #b0b0b0;
+}
+
+/* ===========================
+   Forms
+=========================== */
+form .form-control,
+form .form-select {
+    border-radius: 12px;
+    box-shadow: none;
+    transition: all 0.25s ease;
+}
+
+form .form-control:focus,
+form .form-select:focus {
+    border-color: #0069d9;
+    box-shadow: 0 0 0 0.2rem rgba(0,105,217,0.2);
+}
+
+/* ===========================
+   Chat Box
+=========================== */
+.chat-box {
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    transition: background 0.3s ease, border 0.3s ease;
+}
+
+.dark-mode .chat-box {
+    background: #2c2c3a;
+    border: none;
+}
+
+/* ===========================
+   Lists / Reports / Feedback
+=========================== */
+.list-group-item {
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: all 0.25s ease;
+}
+
+.list-group-item:hover {
+    transform: translateY(-2px);
+    background: #f1f1f1;
+}
+
+.dark-mode .list-group-item {
+    background: #2c2c3a;
+    color: white;
+}
+
+/* ===========================
+   Utility Classes
+=========================== */
+.hover-effect {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.hover-effect:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+}
+
+/* ===========================
+   Responsive Tweaks
+=========================== */
+@media (max-width: 768px) {
+    .item-card img {
+        height: 160px;
+    }
+
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+
+    .hero-section p {
+        font-size: 1rem;
+    }
+
+    .navbar-brand {
+        font-size: 1.3rem;
+    }
+}
+
+/* ===========================
+   Smooth Animations / Transitions
+=========================== */
+* {
+    transition: all 0.25s ease;
+}
+
+
+
+/* ===========================
+   Dashboard Item Cards
+=========================== */
+.item-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+/* Image wrapper enforces 3:1 height-to-width ratio */
+.item-image-wrapper {
+    width: 100%;
+    aspect-ratio: 3 / 1;   /* Height : Width = 3:1 */
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f8f9fa;
+}
+
+.item-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Description text height clamp */
+.description-text {
+    max-height: 4.5em;        /* ~3 lines */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;    /* max 3 lines */
+    -webkit-box-orient: vertical;
+}
+
+/* ===========================
+   Fix for Links & Navbar Text in Dark Mode
+=========================== */
+.dark-mode a,
+.dark-mode .navbar-nav .nav-link,
+.dark-mode .navbar-brand {
+    color: #e0e0e0 !important;   /* light text */
+}
+
+.dark-mode a:hover,
+.dark-mode .navbar-nav .nav-link:hover,
+.dark-mode .navbar-brand:hover {
+    color: #ffffff !important;   /* brighter on hover */
+}
+
+/* ===========================
+   Fix for Buttons in Dark Mode
+=========================== */
+.dark-mode .btn-primary,
+.dark-mode .btn-success,
+.dark-mode .btn-danger,
+.dark-mode .btn-outline-primary,
+.dark-mode .btn-outline-success {
+    color: #fff !important;
+    border-color: transparent !important;
+}
+
+.dark-mode .btn-primary { background-color: #0069d9 !important; }
+.dark-mode .btn-success { background-color: #28a745 !important; }
+.dark-mode .btn-danger  { background-color: #dc3545 !important; }
+
+.dark-mode .btn-outline-primary { background-color: #0069d9 !important; }
+.dark-mode .btn-outline-success { background-color: #28a745 !important; }
+
+@keyframes floatAnimation {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-8px); /* Adjust float height here */
+    }
+}
+.modern-hero-content {
+    position: relative; 
+    z-index: 2; 
+    text-align: center; 
+    padding: 3rem;
+    border-radius: 24px; 
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px); 
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    
+    /* Add this line */
+    animation: floatAnimation 6s ease-in-out infinite; 
+}

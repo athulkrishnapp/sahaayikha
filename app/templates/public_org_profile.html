@@ -1,0 +1,75 @@
+{# app/templates/public_org_profile.html #}
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    .profile-header {
+        background-color: var(--bs-tertiary-bg);
+        padding: 3rem 1.5rem;
+        border-radius: 0.75rem;
+        margin-bottom: 3rem;
+    }
+    .profile-header img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid var(--bs-body-bg);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+    }
+    .profile-header h2 {
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    .profile-header p {
+        color: var(--bs-secondary-color);
+    }
+    .profile-description {
+        max-width: 700px;
+        margin: 0 auto 2rem auto;
+        line-height: 1.7;
+    }
+    .list-group-item-action:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.07);
+    }
+</style>
+
+<div class="container py-5">
+    <div class="profile-header text-center">
+        <img src="{{ url_for('static', filename=organization.profile_picture or 'images/orgs_placeholder.png') }}" alt="{{ organization.name }}">
+        <h2>{{ organization.name }}</h2>
+        <p><i class="fas fa-map-marker-alt me-2"></i>{{ organization.location }}</p>
+    </div>
+
+    {% if organization.description %}
+    <div class="profile-description text-center">
+        <h4 class="fw-bold mb-3">About Us</h4>
+        <p class="text-muted">{{ organization.description }}</p>
+    </div>
+    {% endif %}
+
+    <h3 class="mb-4 text-center">Active Disaster Needs</h3>
+
+    {% if needs %}
+        <div class="list-group col-lg-8 mx-auto">
+            {% for need in needs %}
+                <a href="{{ url_for('main.make_donation_offer', need_id=need.need_id) }}" class="list-group-item list-group-item-action flex-column align-items-start mb-3 rounded-3 shadow-sm">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ need.title }}</h5>
+                        <small>{{ need.posted_at.strftime('%b %d, %Y') }}</small>
+                    </div>
+                    <p class="mb-1 text-muted">{{ need.description|truncate(150) }}</p>
+                    <small>Categories: {{ need.categories }}</small>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center text-muted border rounded p-5 col-lg-8 mx-auto">
+            <i class="fas fa-check-circle fs-3 mb-3"></i>
+            <p>{{ organization.name }} has no active disaster needs at the moment.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,291 @@
+{# app/templates/features/_deal_panel.html - CORRECTED Name Display #}
+<style>
+    /* ---------------------------------- */
+    /* --- Modern Deal Panel Styles --- */
+    /* ---------------------------------- */
+    :root {
+        --border-color: #dee2e6;
+        --border-color-dark: rgba(255, 255, 255, 0.15);
+        --subtle-bg: #f8f9fa;
+        --subtle-bg-dark: rgba(255, 255, 255, 0.03);
+        --success-color: #198754;
+        --danger-color: #dc3545;
+        --secondary-color: #6c757d;
+        --success-bg: rgba(25, 135, 84, 0.1);
+        --danger-bg: rgba(220, 53, 69, 0.1);
+        --radius: 0.75rem;
+    }
+
+    .dark-mode {
+        --success-color: #20c997;
+        --danger-color: #fd7e14;
+        --secondary-color: #adb5bd;
+        --success-bg: rgba(32, 201, 151, 0.1);
+        --danger-bg: rgba(253, 126, 20, 0.1);
+    }
+
+    .deal-panel-modern {
+        background: var(--subtle-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius, 0.75rem);
+        padding: 1rem;
+    }
+    .dark-mode .deal-panel-modern {
+        background: var(--subtle-bg-dark);
+        border-color: var(--border-color-dark);
+    }
+
+    /* Status Bar */
+    .deal-status-bar-modern {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 1.5rem 0 2rem 0;
+    }
+    .deal-status-line {
+        position: absolute;
+        top: 20px;
+        left: 30px;
+        right: 30px;
+        height: 2px;
+        background-color: var(--border-color);
+        z-index: 1;
+        overflow: hidden; /* Keep overflow hidden */
+    }
+    .dark-mode .deal-status-line { /* Dark mode line */
+        background-color: var(--border-color-dark);
+    }
+
+    /* Green Progress Bars */
+    .deal-status-progress {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        background-color: var(--success-color);
+        width: 0%; /* Start at 0% */
+        transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    .deal-status-progress.progress-owner { left: 0; }
+    .deal-status-progress.progress-proposer { right: 0; }
+    .deal-status-progress.confirmed { width: 50%; } /* Apply 50% width when confirmed */
+
+    /* Red Rejection Bars */
+    .deal-status-rejection {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        background-color: var(--danger-color); /* Red color */
+        width: 0%; /* Start at 0% */
+        transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    .deal-status-rejection.rejection-owner { left: 0; }
+    .deal-status-rejection.rejection-proposer { right: 0; }
+    .deal-status-rejection.rejected { width: 50%; } /* Apply 50% width when rejected */
+
+    .deal-status-node {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+    }
+    .deal-user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-bottom: 0.5rem;
+        border: 2px solid var(--border-color);
+        background-color: var(--bs-body-bg); /* Use body background for contrast */
+        padding: 2px;
+    }
+    .dark-mode .deal-user-avatar { /* Dark mode avatar border */
+        border-color: var(--border-color-dark);
+    }
+    .deal-user-name {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--bs-body-color); /* Use body color */
+    }
+    .deal-status-icon {
+        font-size: 1rem;
+    }
+
+    /* Status-specific colors */
+    .deal-status-node.status-confirmed .deal-user-avatar { border-color: var(--success-color); }
+    .deal-status-node.status-confirmed .deal-status-icon { color: var(--success-color); }
+    .deal-status-node.status-rejected .deal-user-avatar { border-color: var(--danger-color); }
+    .deal-status-node.status-rejected .deal-status-icon { color: var(--danger-color); }
+    .deal-status-node.status-pending .deal-status-icon { color: var(--secondary-color); }
+
+    /* Alert Box */
+    .deal-finalized-alert-modern {
+        font-size: 0.9rem;
+        border-left-width: 4px;
+        background-color: var(--success-bg);
+        border-color: var(--success-color);
+        color: var(--bs-emphasis-color); /* Use emphasis color for better contrast */
+    }
+    .dark-mode .deal-finalized-alert-modern {
+        color: #c0f5e1; /* Lighter green text for dark mode */
+        background-color: rgba(32, 201, 151, 0.1); /* Match success bg color variable */
+        border-color: var(--success-color);
+    }
+    /* Style for the waiting message */
+    .deal-panel-modern p.text-muted {
+        font-size: 0.85rem;
+        text-align: center;
+        margin-bottom: 1.5rem; /* Add space before buttons */
+    }
+
+    /* Style for chosen/disabled buttons using Bootstrap's active state */
+    .btn-group > .btn.active.disabled {
+        z-index: 2; /* Ensure the active button is visually on top */
+        filter: brightness(0.9); /* Slightly dim the chosen button */
+        cursor: not-allowed;
+    }
+    /* Ensure solid background for active state */
+    .btn-group > .btn-outline-success.active.disabled {
+        background-color: var(--success-color) !important;
+        border-color: var(--success-color) !important;
+        color: white !important;
+    }
+    .btn-group > .btn-outline-danger.active.disabled {
+        background-color: var(--danger-color) !important;
+        border-color: var(--danger-color) !important;
+        color: white !important;
+    }
+    /* Optional: Style for the non-chosen button when disabled */
+    .btn-group > .btn.disabled:not(.active) {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+</style>
+
+{# Determine owner and proposer from context variables passed by the route ('the_item', 'other_user', 'proposer') #}
+{# *** Ensure 'owner' and 'proposer_user' are correctly identified *** #}
+{% set owner = the_item.owner if the_item else none %}
+{% set proposer_user = other_user if other_user else proposer %} {# Use 'other_user' from chat, fallback to 'proposer' from view_item #}
+
+
+{# Determine statuses #}
+{% set owner_status = deal.owner_status if deal else 'pending' %}
+{% set proposer_status = deal.proposer_status if deal else 'pending' %}
+
+{# Determine current user's status within this specific deal #}
+{% set my_status = 'pending' %} {# Default #}
+{% if current_user.is_authenticated and owner and proposer_user %}
+    {% if current_user.user_id == owner.user_id %}
+        {% set my_status = owner_status %}
+    {% elif current_user.user_id == proposer_user.user_id %}
+        {% set my_status = proposer_status %}
+    {% endif %}
+{% endif %}
+
+<div class="sidebar-card deal-panel-modern">
+    {# Dynamic Title #}
+    <h6>{{ the_item.type.capitalize() if the_item else 'Deal' }} Status</h6>
+
+    {# Check if participants can be determined #}
+    {% if owner and proposer_user %}
+
+        {# Dynamic Waiting Message #}
+        {% if not deal and the_item and not the_item.deal_finalized_at %}
+             <p class="text-muted">
+                 <i class="fas fa-info-circle me-1"></i>
+                 {% if the_item.type == 'Share' %}
+                     Chat started! Waiting for both users to confirm or reject the share below.
+                 {% else %} {# Default to Trade #}
+                     Trade accepted! Waiting for both users to confirm or reject the deal below.
+                 {% endif %}
+             </p>
+        {% endif %}
+
+        {# Status Bar (Show if deal object exists OR if the item is finalized) #}
+        {% if deal or (the_item and the_item.deal_finalized_at) %}
+            <div class="deal-status-bar-modern">
+                <div class="deal-status-line">
+                    {# Green progress bars #}
+                    <div class="deal-status-progress progress-owner {{ 'confirmed' if owner_status == 'confirmed' else '' }}"></div>
+                    <div class="deal-status-progress progress-proposer {{ 'confirmed' if proposer_status == 'confirmed' else '' }}"></div>
+                    {# Red rejection bars #}
+                    <div class="deal-status-rejection rejection-owner {{ 'rejected' if owner_status == 'rejected' else '' }}"></div>
+                    <div class="deal-status-rejection rejection-proposer {{ 'rejected' if proposer_status == 'rejected' else '' }}"></div>
+                </div>
+                {# --- Status Nodes - CORRECTED --- #}
+                {# Owner Node #}
+                <div class="deal-status-node status-{{ owner_status }}">
+                    <img src="{{ url_for('static', filename=owner.profile_picture or 'images/users_placeholder.png') }}"
+                         class="deal-user-avatar" alt="{{ owner.first_name }}">
+                    {# Display Owner Name and Role #}
+                    <div class="deal-user-name">{{ owner.first_name }} (Owner)</div>
+                    <div class="deal-status-icon">
+                        {% if owner_status == 'confirmed' %}<i class="fas fa-check-circle" title="Confirmed"></i>
+                        {% elif owner_status == 'rejected' %}<i class="fas fa-times-circle" title="Rejected"></i>
+                        {% else %}<i class="fas fa-hourglass-half" title="Pending"></i>{% endif %}
+                    </div>
+                </div>
+                {# Proposer/Recipient Node #}
+                <div class="deal-status-node status-{{ proposer_status }}">
+                    <img src="{{ url_for('static', filename=proposer_user.profile_picture or 'images/users_placeholder.png') }}"
+                         class="deal-user-avatar" alt="{{ proposer_user.first_name }}">
+                    {# Display Proposer/Recipient Name and Role #}
+                    <div class="deal-user-name">
+                        {{ proposer_user.first_name }}
+                        {% if the_item and the_item.type == 'Share' %} (Recipient)
+                        {% else %} (Proposer)
+                        {% endif %}
+                    </div>
+                    <div class="deal-status-icon">
+                        {% if proposer_status == 'confirmed' %}<i class="fas fa-check-circle" title="Confirmed"></i>
+                        {% elif proposer_status == 'rejected' %}<i class="fas fa-times-circle" title="Rejected"></i>
+                        {% else %}<i class="fas fa-hourglass-half" title="Pending"></i>{% endif %}
+                    </div>
+                </div>
+                {# --- END Status Nodes CORRECTION --- #}
+            </div>
+        {% endif %} {# End if deal or finalized #}
+
+        {# --- Display Finalization Alert OR Action Buttons --- #}
+        {% if the_item %}
+            {% if the_item.deal_finalized_at %}
+                {# Dynamic Finalized Alert #}
+                <div class="alert deal-finalized-alert-modern">
+                    <i class="fas fa-check-circle me-1"></i>
+                    {% if the_item.type == 'Share' %}
+                        Share finalized! Item marked as shared on
+                    {% else %} {# Default to Trade #}
+                        Deal finalized! Item marked as traded on
+                    {% endif %}
+                    {# Call strftime directly on the result of the localdatetime filter #}
+                    {{ (the_item.deal_finalized_at | localdatetime).strftime('%b %d, %Y') }}.
+                </div>
+            {% else %}
+                 {# Action Buttons (Show if session exists and deal not finalized) #}
+                 {% if session %}
+                    <form action="{{ url_for('main.propose_deal', session_id=session.session_id) }}" method="POST" class="w-100">
+                        <div class="btn-group w-100" role="group">
+                            {# Apply active, disabled classes based on my_status #}
+                            <button type="submit" name="decision" value="confirmed"
+                                    class="btn btn-outline-success {% if my_status == 'confirmed' %}active disabled{% endif %}"
+                                    {% if my_status in ['confirmed', 'rejected'] %}disabled{% endif %}> {# Disable if already chosen #}
+                                <i class="fas fa-check"></i> Confirm
+                            </button>
+                            <button type="submit" name="decision" value="rejected"
+                                    class="btn btn-outline-danger {% if my_status == 'rejected' %}active disabled{% endif %}"
+                                    {% if my_status in ['confirmed', 'rejected'] %}disabled{% endif %}> {# Disable if already chosen #}
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </div>
+                    </form>
+                 {% endif %} {# End if session exists #}
+            {% endif %} {# End if item.deal_finalized_at #}
+        {% else %}
+             {# Fallback if item is missing #}
+             <div class="alert alert-warning small">The item associated with this panel could not be found.</div>
+        {% endif %} {# End if the_item exists #}
+
+    {% else %}
+        {# Fallback message if owner or proposer couldn't be determined #}
+        <p class="text-muted small text-center">Could not display status participants.</p>
+    {% endif %} {# End check for owner and proposer_user #}
+</div>

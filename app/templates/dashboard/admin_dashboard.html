@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    /* ---------------------------------- */
+    /* --- Modern Admin Dashboard Styles --- */
+    /* ---------------------------------- */
+    :root {
+        --admin-bg: #f8f9fa;
+        --admin-card-bg: #ffffff;
+        --admin-border-color: #dee2e6;
+        --admin-text-primary: #212529;
+        --admin-text-secondary: #6c757d;
+        --admin-primary-color: #0d6efd;
+        --admin-danger-color: #dc3545;
+        --admin-warning-color: #ffc107;
+        --admin-info-color: #0dcaf0;
+    }
+    .dark-mode {
+        --admin-bg: #121212;
+        --admin-card-bg: #1e1e1e;
+        --admin-border-color: rgba(255, 255, 255, 0.1);
+        --admin-text-primary: #f8f9fa;
+        --admin-text-secondary: #adb5bd;
+    }
+
+    /* Main Layout */
+    .admin-layout {
+        display: flex;
+        gap: 1.5rem;
+        background-color: var(--admin-bg);
+        color: var(--admin-text-primary);
+    }
+    .admin-sidebar {
+        width: 260px;
+        flex-shrink: 0;
+        background-color: var(--admin-card-bg);
+        border-right: 1px solid var(--admin-border-color);
+        padding: 1.5rem 0;
+        height: calc(100vh - 58px); /* Adjust based on your navbar height */
+        position: sticky;
+        top: 58px;
+    }
+    .admin-main-content {
+        flex-grow: 1;
+        padding: 2rem 1rem;
+    }
+
+    /* Sidebar Navigation */
+    .admin-sidebar h5 {
+        padding: 0 1.5rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--admin-text-secondary);
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .admin-nav { list-style: none; padding: 0; margin: 0; }
+    .admin-nav-link {
+        display: flex; align-items: center; gap: 0.75rem;
+        padding: 0.75rem 1.5rem; color: var(--admin-text-secondary);
+        text-decoration: none; font-weight: 500;
+        transition: all 0.2s ease; border-left: 3px solid transparent;
+    }
+    .admin-nav-link:hover { background-color: rgba(0,0,0,0.03); color: var(--admin-primary-color); }
+    .dark-mode .admin-nav-link:hover { background-color: rgba(255,255,255,0.05); }
+    .admin-nav-link.active {
+        background-color: var(--bs-primary-bg-subtle);
+        color: var(--admin-primary-color);
+        border-left-color: var(--admin-primary-color);
+    }
+    .admin-nav-link .icon { width: 20px; text-align: center; }
+    
+    /* KPI Stat Cards */
+    .stat-card {
+        background: var(--admin-card-bg); border: 1px solid var(--admin-border-color);
+        border-radius: 0.75rem; padding: 1.5rem;
+        display: flex; align-items: center; gap: 1rem;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.07);
+    }
+    .dark-mode .stat-card:hover {
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .stat-card .icon {
+        width: 50px; height: 50px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem;
+    }
+    .stat-card .stat-number { font-size: 2.25rem; font-weight: 700; line-height: 1; }
+    .stat-card .stat-label { color: var(--admin-text-secondary); font-weight: 500; }
+
+    /* Chart Containers */
+    .chart-container {
+        background: var(--admin-card-bg); border: 1px solid var(--admin-border-color);
+        border-radius: 0.75rem; padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        height: 40vh; /* Set a fixed height for the container */
+    }
+    .chart-wrapper {
+        position: relative;
+        flex-grow: 1; /* Allow this wrapper to fill the remaining space */
+    }
+
+    /* List Group Items */
+    .list-group-item {
+        background-color: transparent;
+        border-color: var(--admin-border-color);
+        color: var(--admin-text-primary);
+    }
+    .dark-mode .list-group-item-action:hover {
+        background-color: rgba(255,255,255,0.05);
+    }
+    
+    /* Dark Mode Text Fixes */
+    .dark-mode .text-muted {
+        color: var(--admin-text-secondary) !important;
+    }
+    .dark-mode .list-group-item {
+        color: var(--admin-text-primary);
+    }
+    .dark-mode .list-group-item .badge {
+        color: var(--admin-text-primary);
+    }
+
+    @media (max-width: 992px) {
+        .admin-sidebar { display: none; }
+        .admin-layout { flex-direction: column; }
+    }
+</style>
+
+<div class="container-fluid admin-layout">
+    <aside class="admin-sidebar">
+        <h5>Main</h5>
+        <ul class="admin-nav">
+            <li><a href="{{ url_for('main.admin_dashboard') }}" class="admin-nav-link active"><i class="icon fas fa-tachometer-alt"></i> Dashboard</a></li>
+            <li><a href="{{ url_for('main.admin_profile') }}" class="admin-nav-link"><i class="icon fas fa-user-cog"></i> Profile</a></li>
+        </ul>
+        <h5>Management</h5>
+        <ul class="admin-nav">
+            <li><a href="{{ url_for('main.admin_manage_users') }}" class="admin-nav-link"><i class="icon fas fa-users-cog"></i> User Management</a></li>
+            <li><a href="{{ url_for('main.admin_org_approvals') }}" class="admin-nav-link"><i class="icon fas fa-check-circle"></i> Org Approvals</a></li>
+            <li><a href="{{ url_for('main.admin_reports') }}" class="admin-nav-link"><i class="icon fas fa-flag"></i> Reports</a></li>
+            <li><a href="{{ url_for('main.admin_feedbacks') }}" class="admin-nav-link"><i class="icon fas fa-comment-alt"></i> Feedback</a></li>
+        </ul>
+        <h5>System</h5>
+        <ul class="admin-nav">
+            <li><a href="{{ url_for('main.login_logs') }}" class="admin-nav-link"><i class="icon fas fa-history"></i> Login Logs</a></li>
+            <li><a href="{{ url_for('main.system_settings') }}" class="admin-nav-link"><i class="icon fas fa-cog"></i> Settings</a></li>
+        </ul>
+    </aside>
+
+    <main class="admin-main-content">
+        <div class="mb-4">
+            <h1 class="fw-bold">Admin Dashboard</h1>
+            <p class="text-muted">Welcome back, Admin! Here's an overview of the platform's activity.</p>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-xl-3 col-md-6"><div class="stat-card shadow-sm"><div class="icon bg-primary-subtle text-primary"><i class="fas fa-users"></i></div><div><div class="stat-number">{{ users_count }}</div><div class="stat-label">Total Users</div></div></div></div>
+            <div class="col-xl-3 col-md-6"><div class="stat-card shadow-sm"><div class="icon bg-warning-subtle text-warning"><i class="fas fa-sitemap"></i></div><div><div class="stat-number">{{ orgs_count }}</div><div class="stat-label">Total Organizations</div></div></div></div>
+            <div class="col-xl-3 col-md-6"><div class="stat-card shadow-sm"><div class="icon bg-info-subtle text-info"><i class="fas fa-box"></i></div><div><div class="stat-number">{{ items_count }}</div><div class="stat-label">Total Items</div></div></div></div>
+            <div class="col-xl-3 col-md-6"><div class="stat-card shadow-sm"><div class="icon bg-danger-subtle text-danger"><i class="fas fa-flag"></i></div><div><div class="stat-number">{{ reports_count }}</div><div class="stat-label">Open Reports</div></div></div></div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-lg-12">
+                <div class="chart-container shadow-sm">
+                    <div>
+                        <h5 class="fw-bold">User Growth</h5>
+                        <p class="text-muted small">Registrations over the last 7 days.</p>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="userGrowthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="chart-container shadow-sm h-100">
+                     <h5 class="fw-bold mb-3">Pending Actions</h5>
+                     <div class="list-group">
+                        <a href="{{ url_for('main.admin_org_approvals') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Organizations to Approve
+                            <span class="badge bg-warning rounded-pill">View</span>
+                        </a>
+                        <a href="{{ url_for('main.admin_reports') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            User Reports to Review
+                            <span class="badge bg-danger rounded-pill">{{ reports_count }}</span>
+                        </a>
+                     </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container shadow-sm h-100">
+                     <h5 class="fw-bold mb-3">Community Engagement</h5>
+                     <div class="list-group">
+                        <a href="{{ url_for('main.admin_feedbacks') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            View User Feedback
+                            <span class="badge bg-primary rounded-pill">{{ feedback_count }}</span>
+                        </a>
+                     </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    
+    Chart.defaults.font.family = "'Segoe UI', 'Roboto', 'sans-serif'";
+    Chart.defaults.color = isDarkMode ? '#adb5bd' : '#6c757d';
+    
+    const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
+    new Chart(userGrowthCtx, {
+        type: 'line',
+        data: {
+            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Today'],
+            datasets: [{
+                label: 'New Users',
+                data: [5, 8, 15, 12, 19, 25, 31],
+                backgroundColor: isDarkMode ? 'rgba(88, 101, 242, 0.2)' : 'rgba(13, 110, 253, 0.1)',
+                borderColor: isDarkMode ? '#5865F2' : '#0d6efd',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: isDarkMode ? '#5865F2' : '#0d6efd',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    grid: { 
+                        color: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                        drawBorder: false
+                    } 
+                },
+                x: { 
+                    grid: { 
+                        display: false 
+                    } 
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

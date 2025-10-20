@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block content %}
+
+{# Tom Select CSS & JS (assuming it's needed for the DisasterNeedForm categories) #}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+<style>
+    /* Using the user_dashboard styles for consistency */
+    :root {
+        --primary: hsl(260, 84%, 60%);
+        --primary-foreground: hsl(0, 0%, 100%);
+        --secondary: hsl(240, 4.8%, 95.9%);
+        --secondary-foreground: hsl(240, 5.9%, 10%);
+        --background: hsl(0, 0%, 100%);
+        --foreground: hsl(240, 10%, 3.9%);
+        --card: hsl(0, 0%, 100%);
+        --card-foreground: hsl(240, 10%, 3.9%);
+        --border: hsl(240, 5.9%, 90%);
+        --muted: hsl(240, 4.8%, 95.9%);
+        --muted-foreground: hsl(240, 3.8%, 46.1%);
+        --shadow-card: 0 10px 30px -5px hsl(240 10% 50% / 0.1);
+        --shadow-fab: 0 10px 20px -5px hsl(260 84% 60% / 0.4);
+        --radius: 0.75rem;
+    }
+    .dark-mode {
+        --primary: hsl(260, 84%, 70%);
+        --secondary: hsl(240, 3.7%, 15.9%);
+        --secondary-foreground: hsl(0, 0%, 98%);
+        --background: hsl(240, 10%, 3.9%);
+        --foreground: hsl(0, 0%, 98%);
+        --card: hsl(240, 3.7%, 15.9%);
+        --card-foreground: hsl(0, 0%, 98%);
+        --border: hsl(240, 3.7%, 25%);
+        --muted: hsl(240, 3.7%, 15.9%);
+        --muted-foreground: hsl(240, 5%, 64.9%);
+    }
+    .dashboard-container { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem; }
+    .dashboard-header { background: var(--background); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 56px; /* Adjust based on navbar height */ z-index: 40; margin-bottom: 2rem; }
+    .header-content { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 1.5rem 0; }
+    .header-content h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .header-content p { color: var(--muted-foreground); font-size: 0.875rem; }
+    .header-actions { display: flex; gap: 0.5rem; } /* Added actions container */
+    .btn-dashboard { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: var(--radius); font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
+    .btn-primary-dashboard { background: var(--primary); color: var(--primary-foreground); }
+    .btn-primary-dashboard:hover { background: hsl(260, 84%, 55%); }
+    .btn-outline-dashboard { background: transparent; color: var(--foreground); border: 1px solid var(--border); }
+    .btn-outline-dashboard:hover { background: var(--secondary); }
+    .badge-dashboard { padding: 0.25rem 0.6rem; background: var(--secondary); color: var(--secondary-foreground); border-radius: 0.5rem; font-size: 0.75rem; font-weight: 500; }
+    .section { margin-bottom: 3rem; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .section h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0; }
+    .item-grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    @media (min-width: 1400px) { .item-grid { grid-template-columns: repeat(5, 1fr); } }
+    .dashboard-item-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; transition: all 0.3s ease; display: flex; flex-direction: column; height: 100%; text-decoration: none; color: inherit; }
+    .dashboard-item-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-card); }
+    .item-image { aspect-ratio: 16 / 9; background: var(--muted); display: flex; align-items: center; justify-content: center; } /* Flex for placeholder icon */
+    .item-image img { width: 100%; height: 100%; object-fit: cover; }
+    .item-image .placeholder-icon { font-size: 2rem; color: var(--muted-foreground); } /* Style for placeholder */
+    .item-content { padding: 1rem; flex-grow: 1; display: flex; flex-direction: column; }
+    .item-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .item-badges { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .item-actions { display: flex; gap: 0.5rem; align-items: center; margin-top: auto; border-top: 1px solid var(--border); padding-top: 1rem; }
+    .item-actions .btn-primary-dashboard { justify-content: space-between; flex-grow: 1; }
+    .needs-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem; }
+    .needs-list-item { display: flex; flex-wrap: wrap; /* Allow wrap */ align-items: center; padding: 1rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.2s ease; text-decoration: none; color: inherit; }
+    .needs-list-item:hover { border-color: var(--primary); box-shadow: var(--shadow-card); transform: translateY(-3px); }
+    .needs-icon { font-size: 1.5rem; margin-right: 1rem; color: var(--primary); flex-shrink: 0; /* Prevent icon shrinking */ }
+    .item-content-main { flex-grow: 1; min-width: 0; /* Prevent text overflow issues */ }
+    .item-title-main { font-weight: 600; margin-bottom: 0.25rem; }
+    .item-user { font-size: 0.875rem; color: var(--muted-foreground); }
+    .needs-actions { margin-left: auto; /* Push actions to the right */ display: flex; gap: 0.5rem; flex-shrink: 0; padding-top: 0.5rem; /* Add space when wrapped */ width: 100%; justify-content: flex-end; /* Align actions right when wrapped */ }
+     @media (min-width: 576px) { .needs-actions { width: auto; padding-top: 0; } } /* Align inline on larger screens */
+
+    .empty-state { text-align: center; padding: 3rem 0; background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius); }
+    .empty-state i { font-size: 3rem; color: var(--muted-foreground); margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .quick-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .filter-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 50px; font-size: 0.875rem; font-weight: 500; text-decoration: none; border: 1px solid var(--border); color: var(--muted-foreground); background-color: var(--card); transition: all 0.2s ease; }
+    .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .filter-btn.active { background-color: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+    .filter-btn .fas { font-size: 0.8rem; }
+
+    /* FAB Button Styles */
+    .fab-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 1030; } /* Ensure it's above most content */
+    .fab-button { width: 3.75rem; height: 3.75rem; border-radius: 50%; border: none; background: var(--primary); color: white; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-fab); text-decoration: none; }
+    .fab-button:hover { transform: scale(1.1); color: white; }
+    .fab-button-icon { font-size: 1.5rem; transition: transform 0.3s ease; }
+
+    /* Tom Select Styles (for need form in modal) */
+    /* Ensure styles apply correctly inside the modal */
+    #postNeedModal .ts-control {
+        padding: 0.375rem 0.75rem !important;
+        border-radius: var(--bs-border-radius) !important;
+        border: 1px solid var(--border) !important;
+        background-color: var(--bs-body-bg);
+        color: var(--bs-body-color);
+    }
+    .dark-mode #postNeedModal .ts-control {
+        background-color: #3a3a4a !important;
+        border-color: #495057 !important;
+        color: white !important;
+    }
+    /* Dropdown position might need adjustment if inside modal */
+    .ts-dropdown {
+        border-color: var(--border) !important;
+        background-color: var(--card) !important;
+        z-index: 1060; /* Higher than modal backdrop */
+    }
+     .dark-mode .ts-dropdown {
+        background: #2c2c3a !important;
+        border-color: #495057 !important;
+    }
+    .dark-mode .ts-dropdown .option { color: white !important; }
+    .dark-mode .ts-dropdown .active { background-color: #4dabf7 !important; color: black !important; }
+
+    /* Need Card Styles */
+    .need-card { border-top: 4px solid var(--primary); background-color: var(--card); }
+    .need-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+    .need-card-icon { font-size: 1.5rem; color: var(--primary); margin-left: 1rem; }
+    .need-card .item-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .need-card .item-badges { margin-bottom: 1rem; }
+    .need-card .item-actions { border-top: 1px solid var(--border); padding-top: 1rem; margin-top: auto; }
+
+    /* Chat List Styles (Copied from user dashboard) */
+    .chat-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem; }
+    .chat-list-item { display: flex; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.2s ease; }
+    .chat-list-item:hover { border-color: var(--primary); box-shadow: var(--shadow-card); transform: translateY(-3px); }
+    .chat-link-area { display: flex; align-items: center; flex-grow: 1; text-decoration: none; color: inherit; padding: 1rem; }
+    .chat-list-item form { padding-right: 1rem; }
+    .chat-item-img { width: 60px; height: 60px; border-radius: var(--radius); margin-right: 1rem; object-fit: cover; background: var(--muted); }
+    .chat-item-content { flex-grow: 1; }
+    .chat-item-title { font-weight: 600; margin-bottom: 0.25rem; }
+    .chat-item-user { font-size: 0.875rem; color: var(--muted-foreground); }
+    .btn-danger-dashboard { background: hsl(354, 70%, 54%); color: white; } /* Assume style exists */
+    .btn-danger-dashboard:hover { background: hsl(354, 70%, 44%); }
+
+    /* Adjust modal body padding */
+    #postNeedModal .modal-body {
+        padding: 1.5rem;
+    }
+
+</style>
+
+<header class="dashboard-header">
+    <div class="dashboard-container">
+        <div class="header-content">
+            <div>
+                <h1>{{ current_user.name }}</h1>
+                <p>Manage your organization's activities and contributions.</p>
+            </div>
+            <div class="header-actions">
+                 {# *** REMOVED Bookmark Link *** #}
+                <a href="{{ url_for('main.org_dashboard', filter='chats') }}" class="btn-dashboard btn-outline-dashboard position-relative" title="Chats">
+                    <i class="fas fa-comments"></i>
+                    {% if has_unread_chats %}
+                        <span class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"></span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('main.profile') }}" class="btn-dashboard btn-outline-dashboard" title="My Profile"><i class="fas fa-user"></i></a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="dashboard-container">
+    <section class="section">
+        {% set current_filter = request.args.get('filter', 'needs') %}
+        <div class="quick-filters">
+            <a href="{{ url_for('main.org_dashboard', filter='needs') }}" class="filter-btn {{ 'active' if current_filter == 'needs' }}"><i class="fas fa-bullhorn"></i> Our Needs</a>
+            <a href="{{ url_for('main.org_dashboard', filter='incoming') }}" class="filter-btn {{ 'active' if current_filter == 'incoming' }}"><i class="fas fa-inbox"></i> Incoming Offers</a>
+            <a href="{{ url_for('main.org_dashboard', filter='pickup') }}" class="filter-btn {{ 'active' if current_filter == 'pickup' }}"><i class="fas fa-truck-loading"></i> To Be Picked Up</a>
+            <a href="{{ url_for('main.org_dashboard', filter='pending_donation') }}" class="filter-btn {{ 'active' if current_filter == 'pending_donation' }}"><i class="fas fa-hourglass-half"></i> Donation Pending</a>
+            <a href="{{ url_for('main.org_dashboard', filter='completed') }}" class="filter-btn {{ 'active' if current_filter == 'completed' }}"><i class="fas fa-check-circle"></i> Completed</a>
+            {# *** REMOVED Bookmarks Filter *** #}
+        </div>
+    </section>
+
+    {% set view = request.args.get('filter', 'needs') %}
+
+    {# --- Section for Displaying Content Based on Filter --- #}
+    <section class="section pt-0">
+        <div class="section-header">
+            {# Dynamic Heading Based on Filter #}
+            <h2>
+                {% if view == 'needs' %}Your Posted Needs
+                {% elif view == 'incoming' %}Incoming Donation Offers
+                {% elif view == 'pickup' %}Offers Awaiting Pickup
+                {% elif view == 'pending_donation' %}Donations Pending Completion
+                {% elif view == 'completed' %}Completed Donations
+                {# *** REMOVED 'bookmarks' heading *** #}
+                {% elif view == 'chats' %}Chat Sessions
+                {% else %}Your Posted Needs {# Default Heading #}
+                {% endif %}
+            </h2>
+            <span class="badge-dashboard">
+                {% if view in ['incoming', 'pickup', 'pending_donation', 'completed'] %}{{ offers|length }}
+                {% elif view == 'needs' %}{{ my_items|length }} {# my_items holds needs #}
+                {# *** REMOVED 'bookmarks' count *** #}
+                {% elif view == 'chats' %}{{ chat_sessions|length }}
+                {% else %}{{ my_items|length }} {# Default Count #}
+                {% endif %} total
+            </span>
+        </div>
+
+        {# --- Display Needs --- #}
+        {% if view == 'needs' %}
+             {% if my_items %} <ul class="needs-list"> {% for need in my_items %} <li class="needs-list-item"> <i class="fas fa-bullhorn needs-icon"></i> <div class="item-content-main"> <div class="item-title-main">{{ need.title }}</div> <div class="item-user">Posted: {{ need.posted_at.strftime('%b %d, %Y') }} | Location: {{ need.location }}</div> <div class="item-badges mt-2"> {% if need.categories %} {% for cat in need.categories.split(',') %} <span class="badge-dashboard">{{ cat }}</span> {% endfor %} {% endif %} </div> </div> <div class="needs-actions"> <a href="{{ url_for('main.edit_disaster_need', need_id=need.need_id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i> Edit</a> <form action="{{ url_for('main.delete_disaster_need', need_id=need.need_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this need? This cannot be undone if there are no active offers.');"> <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Delete</button> </form> </div> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-bullhorn"></i><h3>No Needs Posted</h3><p>Click the '+' button below to post a new need for disaster relief.</p></div> {% endif %}
+
+        {# --- Display Offers (various statuses) --- #}
+        {% elif view in ['incoming', 'pickup', 'pending_donation', 'completed'] %}
+             {% if offers %} <ul class="needs-list"> {% for offer in offers %} <li class="needs-list-item"> <i class="fas fa-box-heart needs-icon"></i> <div class="item-content-main"> <div class="item-title-main">Offer from {{ offer.user.first_name }} for: {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</div> <div class="item-user">Offered: {{ offer.created_at.strftime('%b %d, %Y') }} | Status: {{ offer.status }} | Items: {{ offer.offered_items|length }}</div> </div> <div class="needs-actions"> {% if view == 'incoming' %} <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-primary"><i class="fas fa-search"></i> Review</a> {% elif view == 'pickup' %} <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Completed" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Pickup OK</button> </form> <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Failed" class="btn btn-sm btn-warning" onclick="return confirm('Confirm pickup failed? {% if offer.pickup_retries >= 1 %}This will cancel the offer.{% else %}You can retry once more later.{% endif %}');"><i class="fas fa-times"></i> Pickup Failed</button> </form> {% elif view == 'pending_donation' %} <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#completeModal{{ offer.offer_id }}"><i class="fas fa-check-double"></i> Mark Complete</button> {% elif view == 'completed' %} <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">View Details</a> {% endif %} {% if view != 'completed' %} <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-info"><i class="fas fa-comments"></i> Chat</a> {% endif %} </div> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-inbox"></i><h3>No offers in this category.</h3></div> {% endif %}
+
+        {# *** REMOVED Bookmark Display Section *** #}
+
+        {# --- Display Chats --- #}
+        {% elif view == 'chats' %}
+             {% if chat_sessions %} <ul class="chat-list"> {% for session in chat_sessions %} <li class="chat-list-item {% if session.session_id in unread_session_ids %}border-primary{% endif %}"> <a href="{{ url_for('main.chat', session_id=session.session_id) }}" class="chat-link-area"> <img src="{{ url_for('static', filename=session.user_one.profile_picture or 'images/users_placeholder.png') }}" alt="{{ session.user_one.first_name }}" class="chat-item-img"> <div class="chat-item-content"> <div class="d-flex justify-content-between"> <span class="chat-item-title">Chat with {{ session.user_one.first_name }}</span> {% if session.session_id in unread_session_ids %}<span class="badge bg-primary">Unread</span>{% endif %} </div> <div class="chat-item-user">Regarding: {% if session.subject %}{{ session.subject.title }}{% else %}[Deleted Item/Need]{% endif %}</div> </div> </a> <form action="{{ url_for('main.delete_chat_session', session_id=session.session_id) }}" method="POST"> <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete Chat" onclick="return confirm('Are you sure you want to delete this chat history?')"> <i class="fas fa-trash-alt"></i> </button> </form> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-comments"></i><h3>No active chats.</h3></div> {% endif %}
+        {% else %} {# Fallback for any unexpected filter value - show needs #}
+             {% if my_items %} <ul class="needs-list"> {% for need in my_items %} <li class="needs-list-item"> <i class="fas fa-bullhorn needs-icon"></i> <div class="item-content-main"> <div class="item-title-main">{{ need.title }}</div> <div class="item-user">Posted: {{ need.posted_at.strftime('%b %d, %Y') }} | Location: {{ need.location }}</div> <div class="item-badges mt-2"> {% if need.categories %} {% for cat in need.categories.split(',') %} <span class="badge-dashboard">{{ cat }}</span> {% endfor %} {% endif %} </div> </div> <div class="needs-actions"> <a href="{{ url_for('main.edit_disaster_need', need_id=need.need_id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i> Edit</a> <form action="{{ url_for('main.delete_disaster_need', need_id=need.need_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this need? This cannot be undone if there are no active offers.');"> <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Delete</button> </form> </div> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-bullhorn"></i><h3>No Needs Posted</h3><p>Click the '+' button below to post a new need for disaster relief.</p></div> {% endif %}
+        {% endif %} {# End main view conditional #}
+    </section>
+</main>
+
+{# --- Modals for Completing Donations (Remains the same) --- #}
+{% if view == 'pending_donation' and offers %} {% for offer in offers %} <div class="modal fade" id="completeModal{{ offer.offer_id }}" tabindex="-1" aria-labelledby="completeModalLabel{{ offer.offer_id }}" aria-hidden="true"> <div class="modal-dialog"> <div class="modal-content"> <form method="POST" action="{{ url_for('main.complete_donation', offer_id=offer.offer_id) }}" enctype="multipart/form-data"> <div class="modal-header"> <h5 class="modal-title" id="completeModalLabel{{ offer.offer_id }}">Complete Donation for {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</h5> <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> </div> <div class="modal-body"> <p>Confirm that the donation process for items offered by {{ offer.user.first_name }} is complete.</p> <div class="mb-3"> <label for="proof_image_{{ offer.offer_id }}" class="form-label">Upload Proof Image (Optional)</label> <input class="form-control" type="file" name="proof_image" id="proof_image_{{ offer.offer_id }}" accept="image/*"> </div> </div> <div class="modal-footer"> <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button> <button type="submit" class="btn btn-success">Confirm Completion</button> </div> </form> </div> </div> </div> {% endfor %} {% endif %}
+
+
+{# --- Modal for Posting Need (Remains the same) --- #}
+<div class="modal fade" id="postNeedModal" tabindex="-1" aria-labelledby="postNeedModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="postNeedModalLabel">Post a New Need</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{{ url_for('main.org_dashboard', filter='needs') }}" novalidate>
+        <div class="modal-body">
+            {% if form.errors %} <div class="alert alert-danger"> Please correct the errors below: <ul> {% for field, errors in form.errors.items() %} {% if field != 'csrf_token' %} <li>{{ form[field].label.text }}: {{ errors|join(', ') }}</li> {% endif %} {% endfor %} </ul> </div> {% endif %}
+            {{ form.hidden_tag() }}
+            <div class="mb-3"> {{ form.title.label(class="form-label") }} {{ form.title(class="form-control") }} </div>
+            <div class="mb-3"> {{ form.categories.label(class="form-label") }} {{ form.categories(class="form-select", id="modalCategories") }} </div>
+            <div class="mb-3"> {{ form.description.label(class="form-label") }} {{ form.description(class="form-control", rows="3") }} </div>
+            <div class="mb-3"> {{ form.location.label(class="form-label") }} {{ form.location(class="form-select") }} </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          {{ form.submit(class="btn btn-primary") }}
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{# --- End Modal --- #}
+
+
+<div class="fab-container">
+    <button class="fab-button" type="button" data-bs-toggle="modal" data-bs-target="#postNeedModal" title="Post a New Need">
+        <i class="fas fa-plus fab-button-icon"></i>
+    </button>
+</div>
+
+<script>
+    // ... (JavaScript for Tom Select and modal validation remains the same) ...
+document.addEventListener('DOMContentLoaded', function () {
+    const postNeedModalElement = document.getElementById('postNeedModal');
+    let tomSelectInstance = null; // Variable to hold the TomSelect instance
+
+    if (postNeedModalElement) {
+        // --- Initialize Tom Select WHEN the modal is shown ---
+        postNeedModalElement.addEventListener('shown.bs.modal', function () {
+            if (!tomSelectInstance) {
+                 const categoriesSelect = document.getElementById('modalCategories');
+                 if (categoriesSelect) {
+                    try {
+                        tomSelectInstance = new TomSelect(categoriesSelect, {
+                            plugins: ['remove_button'],
+                            create: false,
+                            placeholder: 'Select one or more categories...'
+                        });
+                    } catch (e) { console.error("Error initializing TomSelect:", e); }
+                }
+            }
+        });
+
+         // Optional: Destroy TomSelect when the modal is hidden
+         postNeedModalElement.addEventListener('hidden.bs.modal', function () {
+             if (tomSelectInstance) {
+                 tomSelectInstance.destroy();
+                 tomSelectInstance = null;
+             }
+         });
+
+         // --- Keep Modal Open on Validation Error ---
+         {% if form.errors and request.method == 'POST' %}
+            var postNeedModal = new bootstrap.Modal(postNeedModalElement);
+            postNeedModal.show();
+         {% endif %}
+    }
+});
+</script>
+
+{% endblock %}

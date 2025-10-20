@@ -1,0 +1,76 @@
+{# app/templates/auth/org_verify_otp.html #}
+{% extends "base.html" %}
+{% block content %}
+<div class="container my-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow p-4">
+        <h3 class="text-center mb-4">Verify Organization Account</h3>
+        <p class="text-center text-muted">An OTP has been sent to your email address: <strong>{{ email }}</strong></p>
+        <form method="POST">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.otp.label(class="form-label") }}
+            {{ form.otp(class="form-control", placeholder="Enter 6-digit code") }}
+          </div>
+          <div class="d-grid">
+            {{ form.submit(class="btn btn-success") }}
+          </div>
+        </form>
+        <div class="mt-3 text-center">
+          <button id="resendBtn" class="btn btn-link" disabled>Resend OTP</button>
+          <span id="timer" class="text-muted"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const resendBtn = document.getElementById('resendBtn');
+    const timerSpan = document.getElementById('timer');
+    let countdown;
+
+    function startTimer() {
+        let seconds = 30;
+        resendBtn.disabled = true;
+
+        countdown = setInterval(() => {
+            timerSpan.textContent = ` (Resend in ${seconds}s)`;
+            seconds--;
+            if (seconds < 0) {
+                clearInterval(countdown);
+                timerSpan.textContent = '';
+                resendBtn.disabled = false;
+            }
+        }, 1000);
+    }
+
+    resendBtn.addEventListener('click', () => {
+        fetch("{{ url_for('main.org_resend_otp') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: '{{ email }}' })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                startTimer();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An unexpected error occurred. Please try again.');
+        });
+    });
+
+    startTimer();
+});
+</script>
+{% endblock %}

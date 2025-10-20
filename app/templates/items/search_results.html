@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block content %}
+
+{# REMOVED Leaflet CSS & JS includes #}
+
+<style>
+    /* ... (Other existing styles like item-card-image-container, share button, urgent badge remain) ... */
+    .item-card-image-container { width: 100%; padding-top: 56.25%; position: relative; overflow: hidden; }
+    .item-card-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+
+    /* --- Styles for Filter Section --- */
+    :root {
+        --border: hsl(240, 5.9%, 90%);
+        --radius: 0.75rem;
+        --secondary: hsl(240, 4.8%, 95.9%);
+        --card: hsl(0, 0%, 100%);
+        --muted-foreground: hsl(240, 3.8%, 46.1%);
+    }
+    .dark-mode {
+        --border: hsl(240, 3.7%, 25%);
+        --secondary: hsl(240, 3.7%, 15.9%);
+        --card: hsl(240, 3.7%, 15.9%);
+        --muted-foreground: hsl(240, 5%, 64.9%);
+    }
+    .filter-section { margin-bottom: 1.5rem; }
+     .filter-toggle-row { display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+     .filter-toggle-btn { flex-shrink: 0; }
+     .filter-toggle-btn .fa-chevron-down { transition: transform 0.3s ease; }
+     .filter-toggle-btn[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
+
+    .search-filters-collapse {
+        background-color: var(--secondary);
+        padding: 1.5rem;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+    }
+    /* MODIFIED: Simplified grid for filters only */
+    .search-form-main {
+        min-width: 0;
+    }
+     .search-actions { margin-top: 1rem; }
+     /* REMOVED: #mini-map styles */
+
+    /* Share Button */
+    .item-card-share-btn { position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(255, 255, 255, 0.7); color: #333; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; transition: background 0.2s ease, color 0.2s ease; z-index: 3; }
+    .item-card-share-btn:hover { background: rgba(255, 255, 255, 0.9); color: #0d6efd; }
+     .dark-mode .item-card-share-btn { background: rgba(50, 50, 50, 0.7); color: #eee; }
+     .dark-mode .item-card-share-btn:hover { background: rgba(70, 70, 70, 0.9); color: #4dabf7; }
+    .copy-feedback { font-size: 0.8em; color: var(--bs-success); margin-left: 5px; display: none; }
+
+    /* Urgent Item */
+    .card.urgent-item { border-color: var(--bs-danger); position: relative; }
+    .urgent-badge { position: absolute; top: 0.75rem; left: 0.75rem; background-color: var(--bs-danger); color: white; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-weight: bold; z-index: 3; }
+
+    /* Tom Select */
+    .ts-control { border-radius: 0.375rem; border: 1px solid #ced4da; padding: 0.375rem 0.75rem !important; font-size: 0.875rem; }
+    .dark-mode .ts-control { background-color: #3a3a4a; border-color: #495057; color: white; }
+    .dark-mode .ts-dropdown { background: #2c2c3a; border-color: #495057; }
+    .dark-mode .ts-dropdown .option { color: white; }
+     .dark-mode .ts-dropdown .active { background-color: #4dabf7; color: black; }
+
+</style>
+{# --- Tom Select CSS & JS --- #}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+{# --------------------------- #}
+
+
+<div class="container py-4">
+  <h2 class="mb-4">Search Items</h2>
+
+  {# --- Filter Form --- #}
+  <section class="section filter-section">
+      <form method="GET" action="{{ url_for('main.items_list') }}" id="searchForm">
+           <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
+          <div class="filter-toggle-row">
+              <button class="btn btn-outline-secondary btn-sm filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#searchFiltersCollapse" aria-expanded="{% if request.args|length > 1 %}true{% else %}false{% endif %}" aria-controls="searchFiltersCollapse">
+                  <i class="fas fa-filter me-1"></i> Filters <i class="fas fa-chevron-down fa-xs ms-1"></i>
+              </button>
+          </div>
+          <div class="collapse {% if request.args|length > 1 %}show{% endif %}" id="searchFiltersCollapse">
+              <div class="search-filters-collapse">
+                  {# REMOVED .search-grid wrapper #}
+                  <div class="search-form-main"> {# Takes full width now #}
+                       <div class="row g-2"> {# Use row directly #}
+                            <div class="col-md-6">
+                                {{ form.categories.label(class="form-label small") }}
+                                {{ form.categories(class="form-select form-select-sm", id="categories-search") }}
+                            </div>
+                             <div class="col-md-6">
+                                {{ form.location.label(class="form-label small") }}
+                                {{ form.location(class="form-select form-select-sm", id="location-select") }}
+                            </div>
+                            <div class="col-sm-4">
+                                {{ form.radius.label(class="form-label small") }}
+                                {{ form.radius(class="form-select form-select-sm", id="radius-select") }}
+                            </div>
+                            <div class="col-sm-4">
+                                {{ form.urgency.label(class="form-label small") }}
+                                {{ form.urgency(class="form-select form-select-sm") }}
+                            </div>
+                            <div class="col-sm-4">
+                                {{ form.condition.label(class="form-label small") }}
+                                {{ form.condition(class="form-select form-select-sm") }}
+                            </div>
+                             <div class="col-sm-6">
+                                 {{ form.sort_by.label(class="form-label small") }}
+                                 {{ form.sort_by(class="form-select form-select-sm") }}
+                            </div>
+                       </div>
+                  </div>
+                  {# REMOVED Mini Map Area div #}
+
+                  <div class="d-flex gap-2 search-actions"> {# Moved actions outside grid #}
+                      <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Apply Filters</button>
+                      <a href="{{ url_for('main.items_list', search=request.args.get('search', '')) }}" class="btn btn-outline-secondary btn-sm flex-grow-1">Clear Filters</a>
+                  </div>
+              </div>
+          </div>
+      </form>
+  </section>
+  {# --- END Filter Form --- #}
+
+  {# Grid view #}
+  <div id="grid-view">
+       <div class="row g-4">
+        {% for item in items %}
+          <div class="col-lg-3 col-md-4 col-sm-6">
+             {# ... (Item card HTML remains the same) ... #}
+             <div class="card shadow-sm h-100 {% if item.urgency_level == 'Urgent' %}urgent-item{% endif %}">
+              {% if item.urgency_level == 'Urgent' %}<span class="urgent-badge">Urgent</span>{% endif %}
+              <button type="button" class="item-card-share-btn share-button" title="Copy link" data-item-url="{{ url_for('main.view_item', item_id=item.item_id, _external=True) }}" onclick="event.preventDefault(); event.stopPropagation(); copyItemLink(this);"><i class="fas fa-share-alt"></i><span class="copy-feedback ms-1">Copied!</span></button>
+              <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="text-decoration-none">
+                 <div class="item-card-image-container bg-light"><img src="{% if item.images.first() %}{{ url_for('static', filename=item.images.first().image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" class="item-card-image" alt="{{ item.title }}"></div>
+              </a>
+              <div class="card-body d-flex flex-column">
+                <h5 class="card-title fs-6 fw-bold">{{ item.title }}</h5>
+                <p class="card-text small text-muted mb-2">{{ item.condition }} • {{ item.category }} • <span {% if item.urgency_level == 'Urgent' %}class="text-danger fw-bold"{% endif %}>{{ item.urgency_level }}</span> • <i class="fas fa-map-marker-alt fa-fw"></i> {{ item.location }}</p>
+                <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="btn btn-outline-primary btn-sm mt-auto">View Details</a>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="col-12"><div class="alert alert-info text-center">No items found matching your criteria.</div></div>
+        {% endfor %}
+      </div>
+  </div>
+</div>
+
+{# --- REMOVED Mini Map Initialization Script --- #}
+<script>
+    // --- JAVASCRIPT FOR COPYING LINK ---
+    function copyItemLink(buttonElement) {
+        const urlToCopy = buttonElement.dataset.itemUrl;
+        const feedbackSpan = buttonElement.querySelector('.copy-feedback');
+        if (!feedbackSpan) { console.error("Copy feedback span not found"); return; }
+        navigator.clipboard.writeText(urlToCopy).then(() => {
+            feedbackSpan.style.display = 'inline';
+            buttonElement.disabled = true;
+            setTimeout(() => {
+                feedbackSpan.style.display = 'none';
+                buttonElement.disabled = false;
+            }, 1500);
+        }).catch(err => { console.error('Failed to copy link: ', err); alert('Could not copy link.'); });
+    }
+    // --- END JAVASCRIPT FOR COPYING LINK ---
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Initialize TomSelect ---
+        try {
+            const tsControl = document.getElementById('categories-search');
+            if (tsControl) { new TomSelect(tsControl,{ plugins: ['remove_button'], placeholder: 'Any Category' }); }
+            else { console.warn("TomSelect target #categories-search not found."); }
+        } catch (e) { console.error("TomSelect initialization failed:", e); }
+
+        // --- REMOVED Mini Map Logic ---
+
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,272 @@
+{# app/templates/auth/org_profile.html #}
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* Styles are identical to user_profile, adapt if needed */
+    .profile-container {
+        background-color: var(--bs-card-bg);
+        border-radius: 1rem;
+        border: 1px solid var(--bs-border-color);
+    }
+    .profile-sidebar {
+        padding: 2rem;
+        border-right: 1px solid var(--bs-border-color);
+    }
+    .dark-mode .profile-sidebar {
+        border-right-color: var(--bs-border-color-translucent);
+    }
+    .profile-content {
+        padding: 2rem;
+    }
+    @media (max-width: 992px) {
+        .profile-sidebar {
+            border-right: none;
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+        .dark-mode .profile-sidebar {
+            border-bottom-color: var(--bs-border-color-translucent);
+        }
+    }
+    /* Styles from user_profile for consistency */
+    #passwordError {
+        color: var(--bs-danger);
+        font-size: 0.875em;
+        margin-top: 0.5rem;
+        display: none; /* Hidden by default */
+    }
+</style>
+
+<div class="container my-5">
+    {# Display flashed messages first #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mb-4">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="profile-container shadow-sm overflow-hidden">
+        <div class="row g-0">
+            {# --- Left Column: Profile Form --- #}
+            <div class="col-lg-7 profile-sidebar">
+                <h3 class="mb-4 fw-bold">Organization Profile</h3>
+                <form method="POST" enctype="multipart/form-data" novalidate id="profileUpdateForm"> {# Added ID #}
+                    {{ form.hidden_tag() }}
+
+                    {# --- Profile Picture Uploader Include --- #}
+                    {% set form_field = form.profile_picture %}
+                    {% set placeholder_img = 'images/orgs_placeholder.png' %}
+                    {% set current_img = current_user.profile_picture %}
+                    {% set delete_url = url_for('main.delete_profile_picture') %}
+                    {% include 'auth/_profile_uploader.html' %}
+                    {# --- End Profile Picture Uploader --- #}
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control" ~ (' is-invalid' if form.name.errors else ''), **{'data-initial-value': current_user.name or ''}) }} {# Added initial value #}
+                         {% for error in form.name.errors %}
+                          <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.email.label(class="form-label") }}
+                        {# Email is disabled via route logic/render_kw #}
+                        {{ form.email(class="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" ~ (' is-invalid' if form.description.errors else ''), rows="4", placeholder="Tell everyone about your organization's mission...") }}
+                         {% for error in form.description.errors %}
+                          <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.phone.label(class="form-label") }}
+                        {# Added initial value from variable passed by route #}
+                        {{ form.phone(class="form-control" ~ (' is-invalid' if form.phone.errors else ''), **{'data-initial-value': initial_org_phone or ''}) }}
+                         {% for error in form.phone.errors %}
+                          <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.location.label(class="form-label") }}
+                        {{ form.location(class="form-select" ~ (' is-invalid' if form.location.errors else '')) }}
+                        {% for error in form.location.errors %}
+                          <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    {# REMOVED password fields from form display #}
+
+                    <div class="d-grid mt-3">
+                        {# Changed to button triggering JS #}
+                        <button type="button" id="updateProfileBtn" class="btn btn-primary">Update Profile</button>
+                    </div>
+                </form>
+            </div>
+
+            {# --- Right Column: Account Settings --- #}
+            <div class="col-lg-5 profile-content">
+                <h4 class="mb-4 fw-bold">Account Settings</h4>
+                <div class="mb-4">
+                    <h5 class="mb-3">Change Password</h5>
+                    <p class="text-muted small">Use the link below to request a password reset email.</p>
+                    {# Link to ORG password reset, ensuring logout first #}
+                    <a href="{{ url_for('main.logout', next=url_for('main.org_forgot_password')) }}" class="btn btn-outline-warning btn-sm">Send Password Reset Email</a>
+                </div>
+                {# Optionally add other settings here later #}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- Password Confirmation Modal (Copied from user_profile) --- #}
+<div class="modal fade" id="passwordConfirmModal" tabindex="-1" aria-labelledby="passwordConfirmModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="passwordConfirmModalLabel">Confirm Changes</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Please enter your current password to confirm changes to sensitive information (like name or phone number).</p>
+        <div class="mb-3">
+          <label for="modalCurrentPassword" class="form-label">Current Password</label>
+          <input type="password" class="form-control" id="modalCurrentPassword" required>
+          <div id="passwordError" class="mt-2"></div> {# Error message area #}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="modalConfirmBtn">Confirm & Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+{# --- End Modal --- #}
+
+{# --- JavaScript (Adapted from user_profile) --- #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const profileForm = document.getElementById('profileUpdateForm');
+    const updateBtn = document.getElementById('updateProfileBtn');
+    const passwordModalElement = document.getElementById('passwordConfirmModal');
+    const passwordModal = new bootstrap.Modal(passwordModalElement);
+    const modalPasswordField = document.getElementById('modalCurrentPassword');
+    const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+    const passwordErrorDiv = document.getElementById('passwordError');
+
+    // --- Get relevant form inputs ---
+    const nameInput = profileForm.elements['name']; // Org name field
+    const phoneInput = profileForm.elements['phone']; // Org phone field
+
+    // --- Store initial values (use data attributes set in template) ---
+    const initialName = nameInput.dataset.initialValue || '';
+    const initialPhone = phoneInput.dataset.initialValue || '';
+
+    // --- Function to check if sensitive fields changed ---
+    function sensitiveFieldsChanged() {
+        const currentName = nameInput.value.trim();
+        const currentPhone = phoneInput.value.trim();
+
+        // Normalize empty strings/None for comparison
+        const normInitialPhone = initialPhone === 'None' ? '' : initialPhone;
+
+        return currentName !== initialName ||
+               currentPhone !== normInitialPhone;
+    }
+
+    // --- Handle Update Button Click ---
+    updateBtn.addEventListener('click', function(event) {
+        // Clear previous modal errors
+        passwordErrorDiv.style.display = 'none';
+        passwordErrorDiv.textContent = '';
+        modalPasswordField.classList.remove('is-invalid');
+        modalPasswordField.value = ''; // Clear password field
+
+        if (sensitiveFieldsChanged()) {
+            // Show the modal if changes detected
+            passwordModal.show();
+        } else {
+            // No sensitive changes, submit the form directly
+            profileForm.submit();
+        }
+    });
+
+    // --- Handle Modal Confirm Button Click ---
+    modalConfirmBtn.addEventListener('click', function() {
+        const enteredPassword = modalPasswordField.value;
+        passwordErrorDiv.style.display = 'none'; // Hide error initially
+        modalPasswordField.classList.remove('is-invalid');
+
+        if (!enteredPassword) {
+            passwordErrorDiv.textContent = 'Password cannot be empty.';
+            passwordErrorDiv.style.display = 'block';
+            modalPasswordField.classList.add('is-invalid');
+            return;
+        }
+
+        // Disable button during verification
+        modalConfirmBtn.disabled = true;
+        modalConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Verifying...';
+
+        // AJAX call to verify password (uses the same endpoint as user)
+        fetch("{{ url_for('main.verify_profile_password') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': profileForm.elements['csrf_token'].value // Ensure CSRF token exists
+            },
+            body: JSON.stringify({ password: enteredPassword })
+        })
+        .then(response => {
+             if (response.ok) { return response.json(); }
+             // Handle specific errors like 401 (Incorrect password)
+             if (response.status === 401) { return response.json().then(errData => { throw new Error(errData.error || 'Incorrect password.'); }); }
+             // Handle other errors
+             return response.json().then(errData => { throw new Error(errData.error || `HTTP error! status: ${response.status}`); });
+        })
+        .then(data => {
+            if (data.success) {
+                // Password correct, submit the original form
+                passwordModal.hide();
+                profileForm.submit();
+            } else {
+                // This case might not be reached if using HTTP errors correctly
+                passwordErrorDiv.textContent = data.error || 'Verification failed.';
+                passwordErrorDiv.style.display = 'block';
+                modalPasswordField.classList.add('is-invalid');
+            }
+        })
+        .catch(error => {
+            console.error('Password verification error:', error);
+            passwordErrorDiv.textContent = error.message || 'Incorrect password or server error.';
+            passwordErrorDiv.style.display = 'block';
+             modalPasswordField.classList.add('is-invalid');
+        })
+         .finally(() => {
+             // Re-enable button
+             modalConfirmBtn.disabled = false;
+             modalConfirmBtn.innerHTML = 'Confirm & Update';
+         });
+    });
+
+     // Optional: Clear error when modal is hidden<
+     passwordModalElement.addEventListener('hidden.bs.modal', function () {
+         passwordErrorDiv.style.display = 'none';
+         passwordErrorDiv.textContent = '';
+         modalPasswordField.classList.remove('is-invalid');
+         modalPasswordField.value = '';
+     });
+
+});
+</script>
+{# --- End JavaScript --- #}
+
+{% endblock %}

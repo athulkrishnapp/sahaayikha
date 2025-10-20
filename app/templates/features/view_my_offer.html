@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+{% from "includes/_form_macros.html" import render_field %}
+
+{% block content %}
+<style>
+    /* ---------------------------------- */
+    /* --- Modern Offer Details Styles --- */
+    /* ---------------------------------- */
+    :root {
+        --card-bg: var(--bs-body-bg);
+        --border-color: var(--bs-border-color);
+        --subtle-bg: var(--bs-tertiary-bg);
+    }
+    .dark-mode {
+        --card-bg: #2c2c3a;
+        --border-color: rgba(255, 255, 255, 0.1);
+        --subtle-bg: rgba(255, 255, 255, 0.05);
+    }
+    .page-header { margin-bottom: 2.5rem; }
+    .page-header h1 { font-weight: 800; }
+
+    .main-content .card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        background-color: var(--card-bg);
+    }
+    .dark-mode .main-content .card {
+        box-shadow: none;
+        border: 1px solid var(--border-color);
+    }
+    .proof-card img {
+        max-height: 400px;
+        width: 100%;
+        object-fit: cover;
+        border-radius: 0.5rem;
+        cursor: pointer; /* ## Added: Cursor pointer for lightbox ## */
+    }
+
+    /* --- NEW PROFESSIONAL TIMELINE --- */
+    .timeline {
+        list-style: none;
+        padding-left: 0;
+        margin-left: 1rem;
+    }
+    .timeline-item {
+        position: relative;
+        padding-left: 2.5rem;
+        padding-bottom: 2.5rem; /* Increased spacing */
+        border-left: 2px solid var(--border-color);
+    }
+    .timeline-item:last-child {
+        border-left-color: transparent;
+        padding-bottom: 0.5rem;
+    }
+    .timeline-marker {
+        position: absolute;
+        left: -0.7rem;
+        top: 0.1rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background-color: var(--card-bg);
+        border: 2px solid var(--border-color);
+        font-size: 0.7rem;
+        color: transparent;
+        transition: all 0.3s ease;
+    }
+    .timeline-title { font-weight: 600; font-size: 0.95rem; }
+    .timeline-subtitle { font-size: 0.8rem; color: var(--bs-secondary-color); }
+
+    /* Timeline Status States */
+    .timeline-item.completed .timeline-marker {
+        background-color: var(--bs-success);
+        border-color: var(--bs-success);
+        color: white;
+    }
+    .timeline-item.completed .timeline-marker::before {
+        content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+    }
+    .timeline-item.completed { border-left-color: var(--bs-success); }
+
+
+    .timeline-item.active .timeline-marker {
+        border-color: var(--bs-primary);
+        transform: scale(1.1);
+    }
+    .timeline-item.active .timeline-marker::after {
+        content: '';
+        display: block;
+        width: 0.6rem; height: 0.6rem;
+        border-radius: 50%;
+        background-color: var(--bs-primary);
+    }
+
+    .timeline-item.failed .timeline-marker {
+        background-color: var(--bs-danger);
+        border-color: var(--bs-danger);
+        color: white;
+    }
+    .timeline-item.failed .timeline-marker::before {
+        content: '\f00d'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+    }
+
+    /* ## NEW: Styles for Donated Item Cards ## */
+    .donated-item-card {
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        overflow: hidden;
+        text-align: center;
+    }
+    .donated-item-card img {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        cursor: pointer; /* Make image clickable for lightbox */
+        transition: opacity 0.2s ease;
+    }
+     .donated-item-card img:hover {
+        opacity: 0.8;
+    }
+    .donated-item-card .card-body {
+        padding: 0.75rem;
+    }
+    .donated-item-card .card-text {
+        font-size: 0.85rem;
+        margin-bottom: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* ## NEW: Image Lightbox Styles (Copied from review_offer.html) ## */
+    .lightbox-overlay {
+        position: fixed;
+        z-index: 1070;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        backdrop-filter: blur(8px);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .lightbox-overlay.visible {
+        display: flex;
+        opacity: 1;
+    }
+    .lightbox-content-wrapper {
+        position: relative;
+        max-width: 90vw;
+        max-height: 90vh;
+    }
+    .lightbox-content {
+        display: block;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0.5rem;
+    }
+    .lightbox-close-btn {
+        position: absolute;
+        top: 1rem; /* Adjusted position */
+        right: 1rem; /* Adjusted position */
+        background: rgba(30, 30, 30, 0.7); /* Slightly different style */
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        font-size: 1.5rem; /* Adjusted size */
+        cursor: pointer;
+        transition: background 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+    }
+    .lightbox-close-btn:hover {
+         background: rgba(0, 0, 0, 0.9);
+    }
+
+    /* ## NEW: Styles for Item Thumbnail in Table ## */
+    .item-thumbnail {
+        width: 50px; /* Adjust size as needed */
+        height: 50px; /* Adjust size as needed */
+        object-fit: cover;
+        border-radius: 0.375rem; /* Bootstrap's default rounded */
+        margin-right: 0.75rem;
+        vertical-align: middle; /* Align nicely with text */
+        border: 1px solid var(--border-color);
+        cursor: pointer; /* Indicate it's clickable */
+        transition: opacity 0.2s ease;
+    }
+    .item-thumbnail:hover {
+        opacity: 0.8;
+    }
+    .item-thumbnail.placeholder {
+        cursor: default; /* Not clickable if it's a placeholder */
+        opacity: 0.5; /* Dim placeholder slightly */
+    }
+    .item-name-cell {
+        display: flex; /* Use flexbox for alignment */
+        align-items: center; /* Vertically center image and text */
+    }
+</style>
+
+<div class="container py-5">
+    <div class="page-header">
+        <h1 class="display-5">Donation Offer Details</h1>
+        {# ## Added safety checks for deleted need/org ## #}
+        <p class="lead text-muted">Tracking your contribution for the need: <span class="fw-bold">{% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</span> by <span class="fw-bold">{% if offer.organization %}{{ offer.organization.name }}{% else %}[Deleted Organization]{% endif %}</span>.</p>
+    </div>
+
+    <div class="row g-4 main-content">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header bg-transparent border-0 pt-3">
+                    <h5 class="mb-0 fw-bold">Items You Offered</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-borderless table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Item Name</th>
+                                    <th>Category</th>
+                                    <th class="text-center">Qty</th>
+                                    <th>Condition</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in offer.offered_items %}
+                                <tr>
+                                    {# ## MODIFIED: Added image thumbnail ## #}
+                                    <td class="align-middle item-name-cell">
+                                        <img src="{{ url_for('static', filename=item.image_url or 'images/item_placeholder.jpg') }}"
+                                             alt="{{ item.title }} thumbnail"
+                                             class="item-thumbnail {% if item.image_url %}enlargeable-image{% else %}placeholder{% endif %}"> {# Add enlargeable class only if image exists #}
+                                        <span class="fw-medium">{{ item.title }}</span>
+                                    </td>
+                                    {# --- End Modification --- #}
+                                    <td class="align-middle text-muted">{{ item.category }}</td>
+                                    <td class="align-middle text-center">{{ item.quantity }}</td>
+                                    <td class="align-middle">{{ item.condition }}</td>
+                                    <td class="align-middle">
+                                        {% if item.status == 'Accepted' %}<span class="badge rounded-pill text-bg-success">Accepted</span>
+                                        {% elif item.status == 'Rejected' %}<span class="badge rounded-pill text-bg-danger">Rejected</span>
+                                        {% else %}<span class="badge rounded-pill text-bg-secondary">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {% if offer.status == 'Completed' %}
+            <div class="card proof-card mb-4">
+                <div class="card-header bg-transparent border-0 pt-3">
+                    <h5 class="mb-0 fw-bold">Donation Proof</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">The organization has marked this donation as complete. Thank you for your contribution!</p>
+                    {% if offer.proof_image_url %}
+                        {# ## ADDED: enlargeable-image class ## #}
+                        <img src="{{ url_for('static', filename=offer.proof_image_url) }}" class="img-fluid rounded border enlargeable-image">
+                    {% else %}
+                        <p class="text-center text-muted">Proof of donation image was not provided.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-transparent border-0 pt-3">
+                    <h5 class="mb-0 fw-bold">Items You Donated</h5>
+                </div>
+                <div class="card-body">
+                    {# ## MODIFIED: Item preview card structure ## #}
+                    <div class="row g-3">
+                        {% set accepted_items_exist = false %} {# Flag to check if any items were accepted #}
+                        {% for item in offer.offered_items %}
+                            {% if item.status == 'Accepted' %}
+                                {% set accepted_items_exist = true %}
+                                <div class="col-md-4 col-sm-6">
+                                    <div class="card h-100 donated-item-card">
+                                        {# Link to placeholder if no image #}
+                                        <img src="{{ url_for('static', filename=item.image_url or 'images/item_placeholder.jpg') }}"
+                                             class="enlargeable-image" {# Added class for lightbox #}
+                                             alt="{{ item.title }}">
+                                        <div class="card-body">
+                                            <p class="card-text">{{ item.title }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                        {# Display message if no items were accepted #}
+                        {% if not accepted_items_exist %}
+                            <p class="text-muted text-center">No items were accepted for this donation.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-transparent border-0 pt-3">
+                    <h5 class="mb-0 fw-bold">Offer Status</h5>
+                </div>
+                <div class="card-body">
+                    {% set statuses = ['Pending Review', 'Awaiting Pickup', 'Donation Pending', 'Completed'] %}
+                    <div class="timeline">
+                        {% for status in statuses %}
+                            {% set effective_offer_status = 'Awaiting Pickup' if offer.status in ['Accepted', 'Partially Accepted'] else offer.status %}
+
+                            {% set current_status_index = statuses.index(effective_offer_status) if effective_offer_status in statuses else -1 %}
+                            {% set loop_index = loop.index0 %}
+
+                            {% set is_completed = current_status_index > loop_index %}
+                            {% set is_active = current_status_index == loop_index %}
+
+                            {# Special case for the final 'Completed' status #}
+                            {% if offer.status == 'Completed' and status == 'Completed' %}
+                                {% set is_completed = True %}
+                                {% set is_active = False %}
+                            {% endif %}
+
+                            <div class="timeline-item {{ 'completed' if is_completed and offer.status not in ['Rejected', 'Pickup Failed'] }} {{ 'active' if is_active }} {{ 'failed' if offer.status in ['Rejected', 'Pickup Failed'] and loop.last }}">
+                                <div class="timeline-marker"></div>
+                                <div class="timeline-content">
+                                    <div class="timeline-title">{{ status }}</div>
+                                    {# ## Added safety check for organization name ## #}
+                                    <div class="timeline-subtitle">{% if offer.organization %}{{ offer.organization.name }}{% else %}[Deleted Org]{% endif %}</div>
+                                </div>
+                            </div>
+                        {% endfor %}
+
+                        {# Moved failure states outside the main loop for clarity #}
+                        {% if offer.status == 'Pickup Failed' %}
+                        <div class="timeline-item failed">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-title">Pickup Failed</div>
+                                <div class="timeline-subtitle">The offer was cancelled after a retry.</div>
+                            </div>
+                        </div>
+                        {% elif offer.status == 'Rejected' %}
+                        <div class="timeline-item failed">
+                            <div class="timeline-marker"></div>
+                             <div class="timeline-content">
+                                <div class="timeline-title">Offer Rejected</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card-footer bg-transparent border-0 p-3 d-grid gap-2"> {# ## Updated footer for gap ## #}
+                    {% if offer.status == 'Pending Review' %}
+                    <div class="d-flex gap-2"> {# Wrap Edit/Withdraw in their own flex container #}
+                        <a href="{{ url_for('main.edit_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-edit"></i> Edit Offer
+                        </a>
+                        <form action="{{ url_for('main.delete_donation_offer', offer_id=offer.offer_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to withdraw this offer?');" class="w-100">
+                            <button type="submit" class="btn btn-danger w-100">
+                                <i class="fas fa-trash-alt"></i> Withdraw
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                    {# ## NEW: Chat Button ## #}
+                     {% if offer.need and offer.organization and offer.status not in ['Rejected', 'Pickup Failed', 'Completed'] %}
+                         <a href="{{ url_for('main.start_chat_from_offer', offer_id=offer.offer_id) }}" class="btn btn-info w-100">
+                             <i class="fas fa-comments"></i> Chat with Organization
+                         </a>
+                     {% endif %}
+                    <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#reportOrgModal">
+                        <i class="fas fa-flag"></i> Report Organization
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- Report Org Modal (remains the same) --- #}
+<div class="modal fade" id="reportOrgModal" tabindex="-1" aria-labelledby="reportOrgModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                {# ## Safety check for org name ## #}
+                <h5 class="modal-title" id="reportOrgModalLabel">Report {% if offer.organization %}{{ offer.organization.name }}{% else %}[Deleted Org]{% endif %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.report_organization', offer_id=offer.offer_id) }}">
+                <div class="modal-body">
+                    {# ## Safety check for need title ## #}
+                    <p>You are reporting this organization in relation to your offer for "{% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}". Please state your reason clearly.</p>
+                    {{ form.hidden_tag() }}
+                    {{ render_field(form.reason, class="form-control", rows="5") }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    {{ form.submit(class="btn btn-danger") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ## NEW: Image Lightbox HTML (Copied from review_offer.html) ## #}
+<div id="imageLightbox" class="lightbox-overlay">
+    <div class="lightbox-content-wrapper">
+        <img class="lightbox-content" id="lightboxImg">
+        <span class="lightbox-close-btn" title="Close">&times;</span>
+    </div>
+</div>
+
+
+{# ## NEW: Lightbox JavaScript ## #}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const lightbox = document.getElementById('imageLightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const closeBtn = document.querySelector('.lightbox-close-btn');
+    // Select ALL elements that should trigger the lightbox
+    const images = document.querySelectorAll('.enlargeable-image');
+
+    images.forEach(image => {
+        // Skip placeholders
+        if (image.src.includes('item_placeholder.jpg')) return;
+
+        image.addEventListener('click', function() {
+            const imgSrc = this.src;
+            if (!lightbox || !lightboxImg) return; // Add null checks
+            lightbox.classList.add('visible');
+            lightboxImg.src = imgSrc;
+        });
+    });
+
+    const closeLightbox = () => {
+        if (lightbox) {
+            lightbox.classList.remove('visible');
+            // Optional: Reset image src to prevent brief flash of old image
+            if (lightboxImg) lightboxImg.src = '';
+        }
+    };
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeLightbox);
+    }
+    if (lightbox) {
+        // Close lightbox if clicking on the background overlay
+        lightbox.addEventListener('click', function(e) {
+            if (e.target === lightbox) {
+                closeLightbox();
+            }
+        });
+    }
+
+    // Optional: Close lightbox with Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === "Escape" && lightbox && lightbox.classList.contains('visible')) {
+            closeLightbox();
+        }
+    });
+});
+</script>
+{% endblock %}

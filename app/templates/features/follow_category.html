@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    /* ---------------------------------- */
+    /* --- Modern Follow Category Styles --- */
+    /* ---------------------------------- */
+    :root {
+        --card-bg: var(--bs-body-bg);
+        --border-color: var(--bs-border-color);
+        --subtle-bg: var(--bs-tertiary-bg);
+    }
+    .dark-mode {
+        --card-bg: #2c2c3a;
+        --border-color: rgba(255, 255, 255, 0.1);
+        --subtle-bg: rgba(255, 255, 255, 0.05);
+    }
+    .page-header {
+        margin-bottom: 2.5rem;
+    }
+    .page-header h1 {
+        font-weight: 800;
+    }
+
+    .main-content .card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        background-color: var(--card-bg);
+    }
+    .dark-mode .main-content .card {
+        box-shadow: none;
+        border: 1px solid var(--border-color);
+    }
+    .followed-list .list-group-item {
+        background-color: transparent;
+        border-color: var(--border-color);
+        transition: all 0.2s ease;
+    }
+    .dark-mode .followed-list .list-group-item {
+        color: var(--bs-light);
+    }
+    .followed-list .list-group-item:hover {
+        background-color: var(--subtle-bg);
+    }
+    .unfollow-btn {
+        opacity: 0;
+        transform: translateX(10px);
+        transition: all 0.2s ease;
+    }
+    .list-group-item:hover .unfollow-btn {
+        opacity: 1;
+        transform: translateX(0);
+    }
+</style>
+
+<div class="container py-5">
+    <div class="page-header">
+        <h1 class="display-5">Follow Categories</h1>
+        <p class="lead text-muted">Get notifications for new items in categories that interest you.</p>
+    </div>
+
+    <div class="row g-4 main-content">
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header bg-transparent border-0 pt-3">
+                    <h5 class="mb-0 fw-bold">Add a Category</h5>
+                </div>
+                <div class="card-body">
+                    {# This form submits to the current page (follow_category_page) #}
+                    {# which then redirects to the follow/unfollow action route #}
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+                        <div class="mb-3">
+                            {{ form.category.label(class="form-label") }}
+                            {{ form.category(class="form-select") }}
+                            {% for error in form.category.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="d-grid">
+                            {# This button submits the selection form #}
+                            {{ form.submit(class="btn btn-primary", value="Follow Selected Category") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="card followed-list">
+                <div class="card-header bg-transparent border-0 pt-3">
+                    <h5 class="mb-0 fw-bold">Your Followed Categories</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_user.category_follows.all() %}
+                        <div class="list-group">
+                            {% for c in current_user.category_follows %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span class="fw-medium"><i class="fas fa-tag fa-fw me-2 text-muted"></i>{{ c.category }}</span>
+
+                                {# ***** CORRECTION HERE ***** #}
+                                {# Changed <a> tag to a <form> submitting via POST #}
+                                <form action="{{ url_for('main.follow_unfollow_category', category_name=c.category) }}" method="POST" class="d-inline">
+                                    {# Include CSRF token from the main form passed to the template #}
+                                    {{ form.csrf_token }}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger unfollow-btn" title="Unfollow {{ c.category }}">
+                                        <i class="fas fa-times me-1"></i> Unfollow
+                                    </button>
+                                </form>
+                                {# ***** END CORRECTION ***** #}
+
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted p-4">
+                            <i class="fas fa-tags fs-3 mb-3"></i>
+                            <p class="mb-0">You are not following any categories yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

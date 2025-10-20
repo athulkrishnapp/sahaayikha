@@ -1,0 +1,28 @@
+{# templates/features/bookmarks.html #} 
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">My Bookmarks</h2>
+  <div class="row g-4">
+    {% for b in bookmarks %}
+    <div class="col-md-4">
+      <a href="{{ url_for('main.view_item', item_id=b.item.item_id) }}" class="text-decoration-none text-dark">
+        <div class="card shadow h-100">
+          {% if b.item.images.first() %}
+            <img src="{{ url_for('static', filename=b.item.images.first().image_url) }}" class="card-img-top" alt="{{ b.item.title }}">
+          {% else %}
+            <img src="{{ url_for('static', filename='images/item_placeholder.jpg') }}" class="card-img-top" alt="{{ b.item.title }}">
+          {% endif %}
+          <div class="card-body">
+            <h5 class="card-title">{{ b.item.title }}</h5>
+            <p class="card-text small text-muted">{{ b.item.category }} • {{ b.item.condition }}</p>
+          </div>
+        </div>
+      </a>
+    </div>
+    {% else %}
+    <div class="col-12"><p class="text-muted">No bookmarks yet.</p></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

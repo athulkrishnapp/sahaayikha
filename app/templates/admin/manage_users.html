@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .search-form {
+        margin-bottom: 2rem;
+    }
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 1rem;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">User Management</h2>
+    </div>
+
+    <form method="GET" action="{{ url_for('main.admin_manage_users') }}" class="search-form">
+        <div class="input-group">
+            <input type="text" class="form-control" name="search" placeholder="Search by name..." value="{{ request.args.get('search', '') }}">
+            <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+        </div>
+    </form>
+
+    <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab">Users</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="orgs-tab" data-bs-toggle="tab" data-bs-target="#orgs" type="button" role="tab">Organizations</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="users" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ url_for('static', filename=user.profile_picture or 'images/users_placeholder.png') }}" alt="{{ user.first_name }}" class="user-avatar">
+                                    {{ user.first_name }} {{ user.last_name }}
+                                </div>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>{{ user.location }}</td>
+                            <td>
+                                {% if user.status == 'Active' %}
+                                    <span class="badge bg-success">{{ user.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ user.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form action="{{ url_for('main.admin_toggle_user_status', user_id=user.user_id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm {% if user.status == 'Active' %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                        {% if user.status == 'Active' %}Block{% else %}Unblock{% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted">No users found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="orgs" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table table-striped table-bordered align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Organization</th>
+                            <th>Email</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for org in organizations %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ url_for('static', filename=org.profile_picture or 'images/orgs_placeholder.png') }}" alt="{{ org.name }}" class="user-avatar">
+                                    {{ org.name }}
+                                </div>
+                            </td>
+                            <td>{{ org.email }}</td>
+                            <td>{{ org.location }}</td>
+                            <td>
+                                {% if org.status == 'Approved' %}
+                                    <span class="badge bg-success">{{ org.status }}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ org.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form action="{{ url_for('main.admin_toggle_org_status', org_id=org.org_id) }}" method="POST">
+                                    <button type="submit" class="btn btn-sm {% if org.status == 'Approved' %}btn-outline-danger{% else %}btn-outline-success{% endif %}">
+                                        {% if org.status == 'Approved' %}Block{% else %}Unblock{% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center text-muted">No organizations found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

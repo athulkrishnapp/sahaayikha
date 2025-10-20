@@ -1,0 +1,36 @@
+{# templates/dashboard/login_logs.html #}
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Login Logs</h2>
+
+  <table class="table table-striped table-bordered">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>User</th>
+        <th>Email</th>
+        <th>Login Time</th>
+        <th>IP Address</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if logs %}
+        {% for log in logs %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ log.user.first_name }} {{ log.user.last_name }}</td>
+          <td>{{ log.user.email }}</td>
+          <td>{{ log.login_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+          <td>{{ log.ip_address }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted">No login logs found.</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

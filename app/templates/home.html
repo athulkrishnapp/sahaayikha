@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    /* ---------------------------------- */
+    /* --- Modern Styles for Home Page -- */
+    /* ---------------------------------- */
+
+    /* 1. Enhanced Hero Section */
+    .modern-hero {
+        position: relative; overflow: hidden; min-height: 60vh; display: flex;
+        align-items: center; justify-content: center; color: white;
+        background: none !important; padding: 2rem 0;
+    }
+    .modern-hero-bg {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(-45deg, #ff6b6b, #d6276b, #48dbfb, #1dd1a1, #ff6b6b);
+        background-size: 400% 400%; animation: gradientMove 15s ease infinite; z-index: 1;
+    }
+    .dark-mode .modern-hero-bg {
+        background: linear-gradient(-45deg, #c74646, #a31f55, #2a9dc2, #16a17e, #c74646);
+        background-size: 400% 400%;
+    }
+    @keyframes gradientMove {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .modern-hero-content {
+        position: relative; z-index: 2; text-align: center; padding: 3rem;
+        border-radius: 24px; background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    }
+    .dark-mode .modern-hero-content {
+        background: rgba(20, 20, 40, 0.2); border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hero-logo { font-size: 3.5rem; margin-bottom: 1rem; }
+    .hero-title { font-weight: 800; }
+    .hero-subtitle { font-weight: 300; opacity: 0.9; }
+
+    /* --- CSS FOR JS TEXT ANIMATION --- */
+    .hero-title, .hero-subtitle {
+        opacity: 0;
+    }
+    .hero-title span, .hero-subtitle span {
+        display: inline-block;
+        opacity: 0;
+        transform: translateY(25px) scale(0.9);
+        transition: opacity 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                    transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .hero-title span.visible, .hero-subtitle span.visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    /* 2. "How It Works" & "Impact" Sections */
+    .feature-card {
+        padding: 2rem; border-radius: 16px; background: transparent;
+        transition: all 0.3s ease; border: 1px solid transparent;
+    }
+    .feature-card:hover {
+        transform: translateY(-5px); background: rgba(0,0,0,0.02);
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    .dark-mode .feature-card:hover {
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+    }
+    .feature-icon { font-size: 3rem; margin-bottom: 1rem; color: #d6276b; }
+    .impact-section { position: relative; padding: 5rem 0; color: white; }
+    .stat-block .stat-number {
+        font-size: 3.5rem; font-weight: 700; color: white;
+        text-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+    }
+    .stat-block .stat-label {
+        font-size: 1.1rem; color: white; opacity: 0.9;
+        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    /* 3. Call to Action Section Styles */
+    .cta-section-modern {
+        padding: 5rem 0;
+        position: relative;
+        overflow: hidden;
+    }
+    .cta-content h2 {
+        font-weight: 700;
+        font-size: 2.5rem;
+    }
+    .cta-graphic {
+        font-size: 12rem; opacity: 0.08; color: #d6276b;
+        position: absolute; right: -2rem; top: 50%;
+        transform: translateY(-50%) rotate(-15deg);
+    }
+    .dark-mode .cta-graphic {
+        opacity: 0.15;
+    }
+    @media (max-width: 992px) {
+        .cta-graphic { display: none; }
+        .cta-content { text-align: center; }
+    }
+
+    /* 4. Trending Items Section Styles */
+    .gallery-section {
+        padding: 5rem 0;
+    }
+    .section-header {
+        margin-bottom: 3rem;
+    }
+    .gallery-card {
+        position: relative; border-radius: 16px; overflow: hidden;
+        display: block; height: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        border: 1px solid #dee2e6; transition: all 0.3s ease;
+    }
+    .dark-mode .gallery-card {
+        border-color: rgba(255,255,255,0.1); box-shadow: none;
+    }
+    .gallery-card:hover {
+        transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        border-color: #0d6efd;
+    }
+    .dark-mode .gallery-card:hover {
+        border-color: #4dabf7;
+    }
+    .gallery-card img {
+        width: 100%; height: 100%; object-fit: cover;
+        transition: transform 0.4s ease;
+    }
+    .gallery-card:hover img {
+        transform: scale(1.05);
+    }
+    .gallery-card-content {
+        position: absolute; bottom: 0; left: 0; right: 0;
+        padding: 3rem 1.5rem 1.5rem; color: white;
+        background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+    }
+    .gallery-card-title {
+        font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;
+    }
+    .gallery-card-category {
+        font-size: 0.85rem; opacity: 0.8;
+    }
+    .featured-card {
+        min-height: 450px;
+    }
+    .card-link, .card-link:hover {
+        color: inherit; text-decoration: none;
+    }
+
+    /* 5. DARK MODE TEXT FIXES */
+    .dark-mode h1,
+    .dark-mode h2,
+    .dark-mode h4,
+    .dark-mode .fw-bold {
+        color: #f8f9fa;
+    }
+    .dark-mode .text-muted {
+        color: rgba(233, 236, 239, 0.7) !important;
+    }
+/* Style for the new share button */
+    .gallery-card-share-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        border: none;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+        z-index: 2; /* Ensure it's above the image gradient */
+    }
+    .gallery-card-share-btn:hover {
+        background: rgba(255, 255, 255, 0.9);
+        color: #0d6efd; /* Bootstrap primary blue */
+    }
+    .dark-mode .gallery-card-share-btn {
+         background: rgba(50, 50, 50, 0.7);
+         color: #eee;
+    }
+     .dark-mode .gallery-card-share-btn:hover {
+         background: rgba(70, 70, 70, 0.9);
+         color: #4dabf7; /* Lighter blue for dark mode */
+    }
+    /* Add a class for feedback */
+    .copy-feedback {
+        font-size: 0.8em;
+        color: var(--bs-success); /* Use Bootstrap success color */
+        margin-left: 5px;
+    }
+
+</style>
+
+<section class="modern-hero">
+    <div class="modern-hero-bg"></div>
+    <div class="container">
+        <div class="modern-hero-content">
+            <div class="hero-logo"><i class="fas fa-hands-helping"></i></div>
+            <h1 class="display-4 hero-title">Sahaayikha</h1>
+            <p class="lead hero-subtitle">Together We Share. Together We Care.</p>
+        </div>
+    </div>
+</section>
+
+<section id="how-it-works" class="container my-5 py-5">
+    <h2 class="text-center mb-5 fw-bold">How It Works</h2>
+    <div class="row text-center">
+        <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-user-plus"></i></div><h4 class="fw-bold">Create an Account</h4><p class="text-muted">Quickly register as an individual or an organization to get started.</p></div></div>
+        <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-search-location"></i></div><h4 class="fw-bold">Find or Offer Help</h4><p class="text-muted">Browse listings for needed items or post what you can provide.</p></div></div>
+        <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-handshake"></i></div><h4 class="fw-bold">Connect & Share</h4><p class="text-muted">Connect directly with others to arrange pickups and deliveries safely.</p></div></div>
+    </div>
+</section>
+
+<section class="impact-section text-center">
+    <div class="modern-hero-bg" style="z-index:-1;"></div>
+    <div class="container">
+        <h2 class="mb-5 fw-bold">Our Impact</h2>
+        <div class="row">
+            <div class="col-md-4"><div class="stat-block"><span class="stat-number">1,200+</span><p class="stat-label">Items Donated</p></div></div>
+            <div class="col-md-4"><div class="stat-block"><span class="stat-number">850+</span><p class="stat-label">People Helped</p></div></div>
+            <div class="col-md-4"><div class="stat-block"><span class="stat-number">50+</span><p class="stat-label">Organizations Joined</p></div></div>
+        </div>
+    </div>
+</section>
+
+<section class="cta-section-modern">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-7">
+                <div class="cta-content">
+                    <h2 class="mb-3 fw-bold">Join Our Community Today</h2>
+                    <p class="lead text-muted mb-4">Become a part of a growing network of care. Your contribution makes a real difference in people's lives.</p>
+                    <a href="{{ url_for('main.auth_register_selector') }}" class="btn btn-primary btn-lg">Register Now <i class="fas fa-arrow-right ms-2"></i></a>
+                </div>
+            </div>
+            <div class="col-lg-5 d-none d-lg-block">
+                 <div class="cta-graphic">
+                    <i class="fas fa-hands-helping"></i>
+                 </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if not current_user.is_authenticated or current_user.__class__.__name__ == 'User' %}
+<section id="gallery" class="gallery-section">
+    <div class="container">
+        <div class="section-header d-flex flex-wrap justify-content-between align-items-center">
+            <div>
+                <h2 class="fw-bold">Discover What's Trending</h2>
+                <p class="text-muted">Explore the latest items shared by our generous community.</p>
+            </div>
+             {# Link now correctly points to login if not authenticated #}
+            <a href="{{ url_for('main.items_list') if current_user.is_authenticated else url_for('main.login') }}" class="btn btn-outline-primary">View All Items <i class="fas fa-arrow-right ms-2"></i></a>
+        </div>
+        <div class="row g-4">
+            {% if items and items|length > 0 %}
+                {% for item in items %}
+                     {# Define item_url based on login status #}
+                    {% set item_url = url_for('main.view_item', item_id=item.item_id) if current_user.is_authenticated else url_for('main.login') %}
+                    <div class="col-lg-{{ '6' if loop.first else '3' }} col-md-6 d-flex align-items-stretch">
+                        {# The main card link still directs based on login status #}
+                        <a href="{{ item_url }}" class="card-link w-100">
+                            <div class="gallery-card {{ 'featured-card' if loop.first }}">
+                                {# --- SHARE BUTTON ADDED --- #}
+                                <button
+                                    type="button"
+                                    class="gallery-card-share-btn share-button"
+                                    title="Copy link"
+                                    {# Always generate the real item URL for copying, even if not logged in #}
+                                    data-item-url="{{ url_for('main.view_item', item_id=item.item_id, _external=True) }}"
+                                    onclick="event.preventDefault(); event.stopPropagation(); copyItemLink(this);">
+                                    <i class="fas fa-share-alt"></i>
+                                    <span class="copy-feedback ms-1" style="display: none;">Copied!</span>
+                                </button>
+                                {# --- END SHARE BUTTON --- #}
+
+                                {# ***** CORRECTION HERE ***** #}
+                                <img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" alt="{{ item.title }}">
+                                {# ***** END CORRECTION ***** #}
+
+                                <div class="gallery-card-content">
+                                    <p class="gallery-card-category">{{ item.category }}</p>
+                                    <h4 class="gallery-card-title">{{ item.title }}</h4>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12 text-center">
+                    <div class="card p-4"><p class="mb-0 text-muted">No items to display right now.</p></div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+
+  <footer class="bg-light text-dark mt-5 pt-5">
+    <div class="container">
+      <div class="row">
+
+        <div class="col-md-4 mb-4">
+          <h5 class="fw-bold">Sahaayikha</h5>
+          <p>Together We Share. Together We Care.</p>
+        </div>
+
+        <div class="col-md-4 mb-4">
+          <h5 class="fw-bold">Quick Links</h5>
+          <ul class="list-unstyled">
+            <li><a href="#about" class="text-dark text-decoration-none">About Us</a></li>
+            <li><a href="#how-it-works" class="text-dark text-decoration-none">How It Works</a></li>
+            <li><a href="#faq" class="text-dark text-decoration-none">FAQ</a></li>
+            <li><a href="#contact" class="text-dark text-decoration-none">Contact</a></li>
+            <li><a href="#legal" class="text-dark text-decoration-none">Legal</a></li>
+            <li><a href="#privacy" class="text-dark text-decoration-none">Privacy Policy</a></li>
+            <li><a href="#terms" class="text-dark text-decoration-none">Terms of Service</a></li>
+            <li><a href="#cookie" class="text-dark text-decoration-none">Cookie Policy</a></li>
+          </ul>
+        </div>
+
+        <div class="col-md-4 mb-4">
+          <h5 class="fw-bold">Get Involved</h5>
+          <p>Your contribution can make a world of difference. Join us in our mission to help.</p>
+          <a href="{{ url_for('main.auth_register_selector') }}" class="btn btn-primary btn-sm">Register Now</a>
+        </div>
+
+      </div>
+    </div>
+  </footer>
+
+<script>
+
+// --- JAVASCRIPT FOR COPYING LINK ---
+    function copyItemLink(buttonElement) {
+        const urlToCopy = buttonElement.dataset.itemUrl;
+        const feedbackSpan = buttonElement.querySelector('.copy-feedback');
+
+        navigator.clipboard.writeText(urlToCopy).then(() => {
+            // Success feedback
+            feedbackSpan.style.display = 'inline';
+            buttonElement.disabled = true; // Disable button briefly
+            setTimeout(() => {
+                feedbackSpan.style.display = 'none';
+                buttonElement.disabled = false;
+            }, 1500); // Show feedback for 1.5 seconds
+        }).catch(err => {
+            console.error('Failed to copy link: ', err);
+            // Optional: Show an error message to the user
+            alert('Could not copy link. Please try again.');
+        });
+    }
+// --- END JAVASCRIPT FOR COPYING LINK ---
+
+    document.addEventListener('DOMContentLoaded', () => {
+    // --- Text Reveal Animation ---
+    const animateText = (selector, delayStart = 0) => {
+        const element = document.querySelector(selector);
+        if (!element) return;
+        element.style.opacity = 1;
+        const text = element.textContent.trim();
+        element.innerHTML = '';
+        text.split('').forEach(char => {
+            const span = document.createElement('span');
+            span.innerHTML = char === ' ' ? '&nbsp;' : char;
+            element.appendChild(span);
+        });
+        element.querySelectorAll('span').forEach((span, index) => {
+            setTimeout(() => {
+                span.classList.add('visible');
+            }, delayStart + index * 50);
+        });
+    };
+    animateText('.hero-title', 200);
+    animateText('.hero-subtitle', 800);
+
+    // --- NEW: Continuous Floating Animation ---
+    const floatingElement = document.querySelector('.modern-hero-content');
+    if (floatingElement) {
+        let startTime = null;
+        // This function creates the smooth up-and-down motion
+        const floatAnimation = (currentTime) => {
+            if (!startTime) startTime = currentTime;
+            const elapsedTime = currentTime - startTime;
+
+            // Defines the floating speed and height
+            const speed = 0.0005;
+            const amplitude = 8; // Floats 8px up and down
+
+            // Calculate vertical position using a sine wave
+            const y = Math.sin(elapsedTime * speed) * amplitude;
+
+            // Apply the transform to the element
+            floatingElement.style.transform = `translateY(${y}px)`;
+
+            // Loop the animation
+            requestAnimationFrame(floatAnimation);
+        };
+        // Start the animation loop
+        requestAnimationFrame(floatAnimation);
+    }
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,762 @@
+{% extends "base.html" %}
+{% block content %}
+
+{# --- Leaflet CSS & JS --- #}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+{# ------------------------- #}
+
+
+<style>
+      :root {
+        /* ... (keep existing CSS variables) ... */
+        --primary: hsl(260, 84%, 60%);
+        --primary-foreground: hsl(0, 0%, 100%);
+        --secondary: hsl(240, 4.8%, 95.9%);
+        --secondary-foreground: hsl(240, 5.9%, 10%);
+        --background: hsl(0, 0%, 100%);
+        --foreground: hsl(240, 10%, 3.9%);
+        --card: hsl(0, 0%, 100%);
+        --card-foreground: hsl(240, 10%, 3.9%);
+        --border: hsl(240, 5.9%, 90%);
+        --muted: hsl(240, 4.8%, 95.9%);
+        --muted-foreground: hsl(240, 3.8%, 46.1%);
+        --shadow-card: 0 10px 30px -5px hsl(240 10% 50% / 0.1);
+        --shadow-fab: 0 10px 20px -5px hsl(260 84% 60% / 0.4);
+        --radius: 0.75rem;
+    }
+    .dark-mode {
+        /* ... (keep existing dark mode variables) ... */
+        --primary: hsl(260, 84%, 70%);
+        --secondary: hsl(240, 3.7%, 15.9%);
+        --secondary-foreground: hsl(0, 0%, 98%);
+        --background: hsl(240, 10%, 3.9%);
+        --foreground: hsl(0, 0%, 98%);
+        --card: hsl(240, 3.7%, 15.9%);
+        --card-foreground: hsl(0, 0%, 98%);
+        --border: hsl(240, 3.7%, 25%);
+        --muted: hsl(240, 3.7%, 15.9%);
+        --muted-foreground: hsl(240, 5%, 64.9%);
+    }
+    /* --- General Dashboard Styles --- */
+    .dashboard-container { max-width: 1400px; margin: 0 auto; padding: 0 1.5rem; }
+    .dashboard-header { background: var(--background); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); position: sticky; top: 56px; /* Adjust based on navbar height */ z-index: 40; margin-bottom: 1rem; }
+    .header-content { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 1.5rem 0; }
+    .header-content h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .header-content p { color: var(--muted-foreground); font-size: 0.875rem; }
+    .header-actions { display:flex; flex-wrap:wrap; gap: 0.5rem; }
+    .btn-dashboard { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: var(--radius); font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
+    .btn-primary-dashboard { background: var(--primary); color: var(--primary-foreground); }
+    .btn-primary-dashboard:hover { background: hsl(260, 84%, 55%); }
+    .btn-outline-dashboard { background: transparent; color: var(--foreground); border: 1px solid var(--border); }
+    .btn-outline-dashboard:hover { background: var(--secondary); }
+    .badge-dashboard { padding: 0.25rem 0.6rem; background: var(--secondary); color: var(--secondary-foreground); border-radius: 0.5rem; font-size: 0.75rem; font-weight: 500; }
+    .section { margin-bottom: 2rem; }
+    .section-header { display: flex; flex-wrap: wrap; /* Allow wrapping */ justify-content: space-between; align-items: center; gap: 0.5rem 1rem; /* Add gap */ margin-bottom: 1.5rem; }
+    .section h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0; flex-grow: 1; /* Allow title to take space */ }
+    .quick-filters { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .filter-btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 50px; font-size: 0.875rem; font-weight: 500; text-decoration: none; border: 1px solid var(--border); color: var(--muted-foreground); background-color: var(--card); transition: all 0.2s ease; }
+    .filter-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .filter-btn.active { background-color: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+    .filter-btn .fas { font-size: 0.8rem; }
+    .fab-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 50; }
+    .fab-button { width: 3.75rem; height: 3.75rem; border-radius: 50%; border: none; background: var(--primary); color: white; cursor: pointer; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-fab); text-decoration: none; }
+    .fab-button:hover { transform: scale(1.1); color: white; }
+    .fab-button-icon { font-size: 1.5rem; transition: transform 0.3s ease; }
+    .empty-state { text-align: center; padding: 3rem 0; background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius); margin-top: 2rem; }
+    .empty-state i { font-size: 3rem; color: var(--muted-foreground); margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+
+    /* --- Filter Section Styles --- */
+    .filter-section { margin-bottom: 1.5rem; }
+    .filter-toggle-row { display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; }
+    .filter-toggle-btn { flex-shrink: 0; }
+    .search-filters-collapse { background-color: var(--secondary); padding: 1.5rem; border-radius: var(--radius); margin-top: 0.75rem; border: 1px solid var(--border); }
+    .dark-mode .search-filters-collapse { background-color: var(--muted); }
+    /* UPDATED: Search grid to match search_results */
+    .search-grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr); /* Use a 12-column grid */
+        gap: 1.5rem;
+        align-items: flex-start;
+    }
+    .search-form-main {
+        grid-column: span 8; /* Takes 8 columns */
+        min-width: 0;
+    }
+    .search-form-map-area {
+        grid-column: span 4; /* Takes 4 columns */
+        width: 100%; /* Ensure it spans the grid columns */
+    }
+    @media (max-width: 992px) {
+        .search-form-main, .search-form-map-area {
+            grid-column: span 12; /* Stack on smaller screens */
+        }
+        .search-form-map-area { margin-top: 1.5rem; }
+    }
+    .search-actions { margin-top: 1rem; grid-column: span 12; /* Span full width */ }
+    .filter-toggle-btn .fa-chevron-down { transition: transform 0.3s ease; }
+    .filter-toggle-btn[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
+
+
+    /* Mini Map View Styles */
+    #mini-map { height: 200px; width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
+    .map-marker-icon i { color: var(--primary); font-size: 1.5rem;}
+
+    /* Category Modal & Button Styles */
+    #categorySelectModal .modal-body { max-height: 60vh; overflow-y: auto; }
+    #categorySelectModal .form-check { margin-bottom: 0.75rem; }
+    #categorySelectModal .form-check-label { cursor: pointer; }
+    #category-select-button { text-align: left; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 2rem; position: relative; background-color: var(--background); border-color: var(--border); color: var(--foreground); }
+    #category-select-button::after { content: '\f078'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); }
+    .dark-mode #category-select-button { background-color: #3a3a4a; border-color: #495057; color: white; }
+    .current-category-badge { font-size: 0.8rem; font-weight: 500; }
+
+    /* Current Location/Search Display */
+    .current-filter-display {
+        font-size: 0.85rem;
+        color: var(--muted-foreground);
+        margin-left: 0.5rem;
+        font-weight: normal;
+        display: inline-block; /* Prevent breaking line */
+    }
+     .current-filter-display .badge { /* Style for keyword badge */
+        font-size: 0.8em;
+        vertical-align: middle;
+        margin-left: 0.3rem;
+        padding: 0.3em 0.6em;
+     }
+
+    /* --- 'My Items' Filter Styles --- */
+    .my-items-filter-section {
+        background-color: var(--card); padding: 1rem 1.5rem;
+        border-radius: var(--radius); border: 1px solid var(--border);
+        margin-bottom: 1.5rem;
+    }
+
+    /* --- Item Grid & Other Styles (Unchanged) --- */
+    /* ... (keep existing item grid/card, chat list, etc. styles) ... */
+     .item-grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    @media (min-width: 1400px) { .item-grid { grid-template-columns: repeat(5, 1fr); } }
+    .dashboard-item-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; transition: all 0.3s ease; display: flex; flex-direction: column; height: 100%; position: relative; }
+    .dashboard-item-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-card); }
+    .item-image { aspect-ratio: 16 / 9; background: var(--muted); }
+    .item-image img { width: 100%; height: 100%; object-fit: cover; }
+    .item-content { padding: 1rem; flex-grow: 1; display: flex; flex-direction: column; }
+    .item-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .item-badges { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .item-actions { display: flex; gap: 0.5rem; align-items: center; margin-top: auto; }
+    .item-actions .btn-primary-dashboard { justify-content: space-between; flex-grow: 1; }
+    .item-actions .btn-danger-dashboard { flex-shrink: 0; }
+    .item-card-share-btn { position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(255, 255, 255, 0.7); color: #333; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; transition: all 0.2s ease; z-index: 2; }
+    .item-card-share-btn:hover { background: rgba(255, 255, 255, 0.9); color: #0d6efd; }
+    .dark-mode .item-card-share-btn { background: rgba(50, 50, 50, 0.7); color: #eee; }
+    .dark-mode .item-card-share-btn:hover { background: rgba(70, 70, 70, 0.9); color: #4dabf7; }
+    .copy-feedback { font-size: 0.8em; color: var(--bs-success); margin-left: 5px; display: none; }
+    .dashboard-item-card.urgent-item { border-color: var(--bs-danger); }
+    .urgent-badge { position: absolute; top: 0.75rem; left: 0.75rem; background-color: var(--bs-danger); color: white; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-weight: bold; z-index: 2; }
+    .need-card .item-actions { border-top: 1px solid var(--border); padding-top: 1rem; margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
+    .item-meta { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.8rem; color: var(--muted-foreground); }
+    .meta-item { display: flex; align-items: center; gap: 0.5rem; }
+    .need-card .item-actions .btn-primary-dashboard { flex-grow: 0; }
+    .chat-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem; }
+    .chat-list-item { display: flex; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); transition: all 0.2s ease; }
+    .chat-list-item:hover { border-color: var(--primary); box-shadow: var(--shadow-card); transform: translateY(-3px); }
+    .chat-link-area { display: flex; align-items: center; flex-grow: 1; text-decoration: none; color: inherit; padding: 1rem; }
+    .chat-list-item form { padding-right: 1rem; }
+    .chat-item-img { width: 60px; height: 60px; border-radius: var(--radius); margin-right: 1rem; object-fit: cover; background: var(--muted); }
+    .chat-item-content { flex-grow: 1; }
+    .chat-item-title { font-weight: 600; margin-bottom: 0.25rem; }
+    .chat-item-user { font-size: 0.875rem; color: var(--muted-foreground); }
+    .btn-danger-dashboard { background: hsl(354, 70%, 54%); color: white; }
+    .btn-danger-dashboard:hover { background: hsl(354, 70%, 44%); }
+
+</style>
+
+<header class="dashboard-header">
+     <div class="dashboard-container">
+        <div class="header-content">
+            <div>
+                <h1>Hi, {{ current_user.first_name }}!</h1>
+                <p>Manage your items, chats, and bookmarks.</p>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('main.dashboard', view='all') }}" class="btn-dashboard {{ 'btn-primary-dashboard' if view=='all' else 'btn-outline-dashboard' }}">All Items</a>
+                <a href="{{ url_for('main.dashboard', view='mine') }}" class="btn-dashboard {{ 'btn-primary-dashboard' if view=='mine' else 'btn-outline-dashboard' }}">My Items</a>
+                <a href="{{ url_for('main.dashboard', view='donations') }}" class="btn-dashboard {{ 'btn-primary-dashboard' if view=='donations' else 'btn-outline-dashboard' }}">My Donations</a>
+                <a href="{{ url_for('main.dashboard', view='bookmarks') }}" class="btn-dashboard {{ 'btn-primary-dashboard' if view=='bookmarks' else 'btn-outline-dashboard' }}">Bookmarks</a>
+                <a href="{{ url_for('main.dashboard', view='chats') }}" class="btn-dashboard position-relative {{ 'btn-primary-dashboard' if view=='chats' else 'btn-outline-dashboard' }}">
+                    Chats
+                    {% if has_unread_chats %}
+                        <span class="position-absolute top-0 start-100 translate-middle p-2 bg-danger border border-light rounded-circle"></span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('main.profile') }}" class="btn-dashboard btn-outline-dashboard" title="My Profile"><i class="fas fa-user"></i></a>
+            </div>
+        </div>
+    </div>
+</header>
+
+<main class="dashboard-container">
+
+    {# --- Filter Section ('All Items' view) --- #}
+    {% if view == 'all' %}
+    <section class="section filter-section">
+        <form method="GET" action="{{ url_for('main.dashboard') }}" id="searchForm">
+             <input type="hidden" name="view" value="all">
+
+            {# Top row: Only the Filter toggle button #}
+            <div class="filter-toggle-row">
+                <button class="btn btn-outline-secondary btn-sm filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#searchFiltersCollapse" aria-expanded="false" aria-controls="searchFiltersCollapse">
+                    <i class="fas fa-filter me-1"></i> Filters <i class="fas fa-chevron-down fa-xs ms-1"></i>
+                </button>
+            </div>
+
+            {# Collapsible Filter Area - REMOVED conditional 'show' class #}
+            <div class="collapse" id="searchFiltersCollapse">
+                <div class="search-filters-collapse">
+                    <div class="search-grid">
+                        <div class="search-form-main">
+                             {# Hidden keyword field to retain value from navbar search #}
+                             {{ form.search(class="d-none", value=active_search_term) }} {# Ensure value is set #}
+                             <div class="row g-2">
+                                {# Row 1: Categories (Conditional), Location, Radius #}
+                                <div class="col-md-12 mb-2">
+                                     {# --- CONDITIONAL CATEGORY --- #}
+                                     {% if not request.args.get('categories') %}
+                                        <label class="form-label small">Categories</label>
+                                        <button type="button" class="form-control form-control-sm" id="category-select-button" data-bs-toggle="modal" data-bs-target="#categorySelectModal">
+                                            Select Categories...
+                                        </button>
+                                        {{ form.categories(id="categories-hidden-select", class="d-none") }} {# Hidden select #}
+                                     {% else %}
+                                         <label class="form-label small">Category</label>
+                                         <div class="form-control form-control-sm bg-light">
+                                             <span class="current-category-badge">{{ request.args.get('categories') }}</span>
+                                         </div>
+                                         {{ form.categories(id="categories-hidden-select", class="d-none") }}
+                                     {% endif %}
+                                     {# --- END CONDITIONAL CATEGORY --- #}
+                                </div>
+                                <div class="col-sm-8">
+                                     {{ form.location.label(class="form-label small") }}
+                                     {{ form.location(class="form-select form-select-sm", id="location-select") }}
+                                </div>
+                                <div class="col-sm-4">
+                                     {{ form.radius.label(class="form-label small") }}
+                                     {{ form.radius(class="form-select form-select-sm", id="radius-select") }}
+                                </div>
+                                {# Row 2: Urgency, Condition, Sort By #}
+                                <div class="col-sm-4">
+                                    {{ form.urgency.label(class="form-label small") }}
+                                    {{ form.urgency(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-sm-4">
+                                    {{ form.condition.label(class="form-label small") }}
+                                    {{ form.condition(class="form-select form-select-sm") }}
+                                </div>
+                                 <div class="col-sm-4">
+                                     {{ form.sort_by.label(class="form-label small") }}
+                                     {{ form.sort_by(class="form-select form-select-sm") }}
+                                </div>
+                            </div>
+                        </div>
+                        {# Mini Map Area - VERIFIED PLACEMENT #}
+                        <div class="search-form-map-area">
+                            <label class="form-label small mb-1">Area</label>
+                             <div id="mini-map"></div>
+                             <div id="map-data"
+                                  data-items="{{ items_json|safe }}"
+                                  data-map-center="{{ map_center_coords|tojson|safe if map_center_coords else 'null' }}"
+                                  data-map-radius="{{ map_radius_km|tojson|safe if map_radius_km is not none else 'null' }}" {# Pass radius #}
+                                  data-all-locations="{{ all_locations_coords|safe }}"> {# Already JSON string #}
+                             </div>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2 search-actions">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Apply Filters</button>
+                        {# Clear button resets filters but keeps search term and view #}
+                        <a href="{{ url_for('main.dashboard', view='all', search=active_search_term) }}" class="btn btn-outline-secondary btn-sm flex-grow-1">Clear Filters</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </section>
+    {% endif %}
+    {# --- END Filter Section ('All Items') --- #}
+
+    {# --- Filter Section ('My Items' view) --- #}
+    {% if view == 'mine' %}
+    <section class="section filter-section"> {# Use same class as 'all items' for consistency #}
+        <form method="GET" action="{{ url_for('main.dashboard') }}" id="myItemsFilterForm">
+             <input type="hidden" name="view" value="mine">
+
+            {# Top row: Only the Filter toggle button #}
+            <div class="filter-toggle-row">
+                <button class="btn btn-outline-secondary btn-sm filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#myItemsFiltersCollapse" aria-expanded="false" aria-controls="myItemsFiltersCollapse">
+                    <i class="fas fa-filter me-1"></i> Filters <i class="fas fa-chevron-down fa-xs ms-1"></i>
+                </button>
+            </div>
+
+            {# Collapsible Filter Area for My Items - REMOVED conditional 'show' class #}
+            <div class="collapse" id="myItemsFiltersCollapse">
+                <div class="search-filters-collapse"> {# Use same class for styling #}
+                     <div class="row g-2 align-items-end">
+                         {# Row 1: Category, Urgency #}
+                         <div class="col-md-6 col-lg-3">
+                             {{ form.categories.label(class="form-label small") }}
+                             {{ form.categories(class="form-select form-select-sm") }} {# Standard Select #}
+                         </div>
+                         <div class="col-md-6 col-lg-3">
+                             {{ form.urgency.label(class="form-label small") }}
+                             {{ form.urgency(class="form-select form-select-sm") }}
+                         </div>
+                          {# Row 2: Condition, Sort By #}
+                         <div class="col-md-6 col-lg-3">
+                             {{ form.condition.label(class="form-label small") }}
+                             {{ form.condition(class="form-select form-select-sm") }}
+                         </div>
+                         <div class="col-md-6 col-lg-3">
+                             {{ form.sort_by.label(class="form-label small") }}
+                             {{ form.sort_by(class="form-select form-select-sm") }}
+                         </div>
+                    </div>
+                     {# Submit/Clear Buttons Inside Collapse #}
+                    <div class="d-flex gap-2 search-actions">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Apply Filters</button>
+                        <a href="{{ url_for('main.dashboard', view='mine') }}" class="btn btn-outline-secondary btn-sm flex-grow-1">Clear Filters</a>
+                    </div>
+                </div> {# End .search-filters-collapse #}
+            </div> {# End #myItemsFiltersCollapse #}
+        </form>
+    </section>
+    {% endif %}
+    {# --- END Filter Section ('My Items') --- #}
+
+
+    {# --- Quick Filters Section ('All Items' and 'My Items' views) --- #}
+    {% if view in ['all', 'mine'] %}
+    <section class="section pt-0">
+        {% set current_filter_type = request.args.get('filter') %}
+        {# Create a base dictionary of args, excluding 'filter' #}
+        {% set base_args = request.args.to_dict() %}
+        {% set _ = base_args.pop('filter', None) %} {# Remove filter #}
+
+        <div class="quick-filters">
+            {# All: Use base_args (filter removed, view already inside) #}
+            <a href="{{ url_for('main.dashboard', **base_args) }}" class="filter-btn {{ 'active' if not current_filter_type }}">All</a>
+
+            {# Trade: Add filter='Trade' to base_args #}
+            <a href="{{ url_for('main.dashboard', filter='Trade', **base_args) }}" class="filter-btn {{ 'active' if current_filter_type == 'Trade' }}"><i class="fas fa-exchange-alt"></i> Trade</a>
+
+            {# Share: Add filter='Share' to base_args #}
+            <a href="{{ url_for('main.dashboard', filter='Share', **base_args) }}" class="filter-btn {{ 'active' if current_filter_type == 'Share' }}"><i class="fas fa-gift"></i> Share</a>
+
+            {# Disaster Aid: Add filter='Disaster' to base_args (only for 'all' view) #}
+            {% if view == 'all' %}
+            <a href="{{ url_for('main.dashboard', filter='Disaster', **base_args) }}" class="filter-btn {{ 'active' if current_filter_type == 'Disaster' }}"><i class="fas fa-exclamation-triangle"></i> Disaster Aid</a>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+    {# --- End Quick Filters --- #}
+
+    {# --- Main Content Section (Items, Chats, etc.) --- #}
+    <section class="section pt-0"> {# Removed top padding #}
+         <div class="section-header">
+             {% set current_quick_filter = request.args.get('filter') %} {# Consistent naming #}
+            {% if view == 'mine' %} <h2>My Items</h2>
+            {% elif view == 'bookmarks' %} <h2>My Bookmarks</h2>
+            {% elif view == 'chats' %} <h2>My Chat Sessions</h2>
+            {% elif view == 'donations' %} <h2>My Donation Offers</h2>
+            {% elif current_quick_filter == 'Disaster' and view == 'all' %} <h2>Active Disaster Needs</h2>
+            {% elif view == 'all' %}
+                <h2>
+                    Browse Items
+                    {# Display active keyword search if present #}
+                    {% if active_search_term %}
+                        <span class="current-filter-display">
+                            for <span class="badge bg-secondary text-dark">{{ active_search_term }}</span>
+                        </span>
+                    {% endif %}
+                    {# Display current location filter if set #}
+                    {% if current_location_filter %}
+                        <span class="current-filter-display">
+                            in <i class="fas fa-map-marker-alt fa-xs"></i> {{ current_location_filter }}
+                            {% if map_radius_km %} (+{{ map_radius_km }}km) {% endif %}
+                        </span>
+                    {% elif current_user.location and not active_search_term %} {# Show default only if no location filter AND no keyword search active #}
+                        <span class="current-filter-display">
+                           near <i class="fas fa-map-marker-alt fa-xs"></i> {{ current_user.location }} (Default)
+                        </span>
+                    {% endif %}
+                </h2>
+            {% endif %}
+
+            <span class="badge-dashboard">
+                {% if view == 'chats' %}{{ regular_chats|length + disaster_chats|length }}
+                {% elif view == 'donations' %}{{ my_offers|length }}
+                {% elif current_quick_filter == 'Disaster' and view == 'all' %}{{ disaster_needs|length }}
+                {% elif view in ['all', 'mine', 'bookmarks'] %}{{ items|length }}
+                {% endif %} total
+            </span>
+        </div>
+
+        <div id="grid-view">
+             {# ... (The rest of the template for displaying items, needs, donations, chats remains the same) ... #}
+             {% if current_quick_filter == 'Disaster' and view == 'all' %} {# Show Disaster Needs #}
+                {% if disaster_needs %} <div class="item-grid"> {% for need in disaster_needs %} <div class="dashboard-item-card need-card"> <div class="item-content"> <div class="need-card-header"> <div> <h3 class="item-title">{{ need.title }}</h3> <div class="item-badges"> {% if need.categories %} {% for cat in need.categories.split(',') %} <span class="badge-dashboard">{{ cat }}</span> {% endfor %} {% endif %} </div> </div> <i class="fas fa-bullhorn need-card-icon"></i> </div> <p class="text-muted small my-2">{{ need.description|truncate(120) }}</p> <div class="item-actions"> <div class="item-meta"> <span class="meta-item"><i class="fas fa-sitemap fa-fw"></i> <span>By: {{ need.organization.name }}</span></span> <span class="meta-item"><i class="fas fa-map-marker-alt fa-fw"></i><span>{{ need.location }}</span></span> </div> <a href="{{ url_for('main.make_donation_offer', need_id=need.need_id) }}" class="btn-dashboard btn-primary-dashboard"><span>Offer Help</span></a> </div> </div> </div> {% endfor %} </div>
+                {% else %} <div class="empty-state"> <i class="fas fa-check-circle"></i> <h3>No Active Disaster Needs</h3> <p>There are no active requests for disaster aid at the moment.</p> </div> {% endif %}
+            {% elif view == 'donations' %} {# Show My Donation Offers #}
+                 {% if my_offers %} <div class="item-grid"> {% for offer in my_offers %} <a href="{{ url_for('main.view_my_offer', offer_id=offer.offer_id) }}" class="dashboard-item-card need-card text-decoration-none"> <div class="item-content"> <div class="need-card-header"> <div> <h3 class="item-title">Offer for: {% if offer.need %}{{ offer.need.title }}{% else %}Deleted Need{% endif %}</h3> <div class="item-badges"><span class="badge-dashboard">{{ offer.status }}</span></div> </div> <i class="fas fa-box-heart need-card-icon"></i> </div> <p class="text-muted small my-2">You offered {{ offer.offered_items|length }} item(s) to {% if offer.organization %}{{ offer.organization.name }}{% else %}a deleted organization{% endif %}.</p> <div class="item-actions"><span class="text-primary small fw-bold">View Details <i class="fas fa-arrow-right ms-1"></i></span></div> </div> </a> {% endfor %} </div>
+                {% else %} <div class="empty-state"> <i class="fas fa-box-heart"></i> <h3>No Donations Offered Yet</h3> <p>You can offer help by finding a need under the "Disaster Aid" filter in the "All Items" view.</p> </div> {% endif %}
+            {% elif view in ['all', 'mine', 'bookmarks'] %} {# Show Regular Items #}
+                 {% if items %} <div class="item-grid"> {% for item in items %} <div class="dashboard-item-card {% if item.urgency_level == 'Urgent' %}urgent-item{% endif %}"> {% if item.urgency_level == 'Urgent' %} <span class="urgent-badge">Urgent</span> {% endif %} <button type="button" class="item-card-share-btn share-button" title="Copy link" data-item-url="{{ url_for('main.view_item', item_id=item.item_id, _external=True) }}" onclick="event.preventDefault(); event.stopPropagation(); copyItemLink(this);"> <i class="fas fa-share-alt"></i> <span class="copy-feedback ms-1">Copied!</span> </button> <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="text-decoration-none"> <div class="item-image"><img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" alt="{{ item.title }}"></div> </a> <div class="item-content"> <h3 class="item-title">{{ item.title }}</h3> <div class="item-badges"> <span class="badge-dashboard">{{ item.category }}</span> <span class="badge-dashboard">{{ item.condition }}</span> <span class="badge-dashboard"><i class="fas fa-map-marker-alt me-1"></i>{{ item.location }}</span> </div> <div class="item-actions"> <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="btn-dashboard btn-primary-dashboard"><span>View Details</span><i class="fas fa-arrow-right"></i></a> {% if item.type == 'Trade' and view == 'all' %}<a href="{{ url_for('main.request_trade', item_id=item.item_id) }}" class="btn-dashboard btn-success-dashboard" title="Request Trade"><i class="fas fa-exchange-alt"></i></a>{% endif %} {% if view == 'bookmarks' %} <form action="{{ url_for('main.add_or_remove_bookmark', item_id=item.item_id) }}" method="POST"> <button type="submit" class="btn-dashboard btn-danger-dashboard" title="Remove Bookmark" onclick="return confirm('Are you sure you want to remove this bookmark?');"><i class="fas fa-trash-alt"></i></button> </form> {% endif %} {% if view == 'mine' %} <a href="{{ url_for('main.edit_item', item_id=item.item_id) }}" class="btn-dashboard btn-outline-dashboard" title="Edit Item"><i class="fas fa-edit"></i></a> <form action="{{ url_for('main.delete_item', item_id=item.item_id) }}" method="POST"> <button type="submit" class="btn-dashboard btn-danger-dashboard" title="Delete Item" onclick="return confirm('Are you sure you want to delete this item?');"><i class="fas fa-trash-alt"></i></button> </form> {% endif %} </div> </div> </div> {% endfor %} </div>
+                {% else %} <div class="empty-state"> <i class="fas fa-box-open"></i> <h3>{% if view == 'bookmarks' %}No bookmarks yet{% elif view == 'mine' %}You haven't posted any items{% if request.args|length > 1 %} matching filters{% endif %} yet{% else %}No items found{% endif %}</h3> <p>{% if view == 'bookmarks' %}Click the bookmark icon on an item to save it here.{% elif view == 'mine' %}Click the '+' button below to share or trade an item.{% else %}No items match your current filters{% if active_search_term %} for '{{ active_search_term }}'{% endif %}. Try broadening your search or clearing filters.{% endif %}</p> </div> {% endif %}
+
+            {# --- UPDATED CHAT VIEW --- #}
+            {% elif view == 'chats' %}
+                {% if regular_chats or disaster_chats %}
+                    {# Nav tabs for switching between chat types #}
+                    <ul class="nav nav-tabs mb-3" id="chatTypeTab" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="regular-chats-tab" data-bs-toggle="tab" data-bs-target="#regular-chats" type="button" role="tab" aria-controls="regular-chats" aria-selected="true">
+                          Regular Chats
+                          {% if has_unread_regular %}<span class="ms-1 badge rounded-pill bg-danger">New</span>{% endif %}
+                        </button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="disaster-chats-tab" data-bs-toggle="tab" data-bs-target="#disaster-chats" type="button" role="tab" aria-controls="disaster-chats" aria-selected="false">
+                          Disaster Relief Chats
+                          {% if has_unread_disaster %}<span class="ms-1 badge rounded-pill bg-danger">New</span>{% endif %}
+                        </button>
+                      </li>
+                    </ul>
+
+                    {# Tab content area #}
+                    <div class="tab-content" id="chatTypeTabContent">
+                      {# Regular Chats Pane #}
+                      <div class="tab-pane fade show active" id="regular-chats" role="tabpanel" aria-labelledby="regular-chats-tab">
+                        <div class="section pt-3"> {# Added padding top #}
+                            {# Removed redundant h4 heading #}
+                            {% if regular_chats %}
+                                <ul class="chat-list">
+                                    {% for session in regular_chats %}
+                                        {% set other_user = session.user_two if session.user_one_id == current_user.user_id else session.user_one %}
+                                        <li class="chat-list-item {% if session.session_id in unread_session_ids %}border-primary{% endif %}">
+                                            <a href="{{ url_for('main.chat', session_id=session.session_id) }}" class="chat-link-area">
+                                                <img src="{% if session.trade_item and session.trade_item.images %}{{ url_for('static', filename=session.trade_item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" alt="{{ session.trade_item.title if session.trade_item else '' }}" class="chat-item-img">
+                                                <div class="chat-item-content">
+                                                    <div class="d-flex justify-content-between">
+                                                        <span class="chat-item-title">{{ session.trade_item.title if session.trade_item else '[Deleted Item]' }}</span>
+                                                        {% if session.session_id in unread_session_ids %}<span class="badge bg-primary">Unread</span>{% endif %}
+                                                    </div>
+                                                    <div class="chat-item-user">Chat with {{ other_user.first_name if other_user else '[Deleted User]' }}</div>
+                                                </div>
+                                            </a>
+                                            <form action="{{ url_for('main.delete_chat_session', session_id=session.session_id) }}" method="POST" class="p-2">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this chat?')"><i class="fas fa-trash-alt"></i></button>
+                                            </form>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted mt-3">No regular trade or share chats found.</p>
+                            {% endif %}
+                        </div>
+                      </div>
+
+                      {# Disaster Chats Pane #}
+                      <div class="tab-pane fade" id="disaster-chats" role="tabpanel" aria-labelledby="disaster-chats-tab">
+                         <div class="section pt-3"> {# Added padding top #}
+                            {# Removed redundant h4 heading #}
+                            {% if disaster_chats %}
+                                <ul class="chat-list">
+                                    {% for session in disaster_chats %}
+                                        <li class="chat-list-item {% if session.session_id in unread_session_ids %}border-primary{% endif %}">
+                                            <a href="{{ url_for('main.chat', session_id=session.session_id) }}" class="chat-link-area">
+                                                <img src="{% if session.participant_org and session.participant_org.profile_picture %}{{ url_for('static', filename=session.participant_org.profile_picture) }}{% else %}{{ url_for('static', filename='images/orgs_placeholder.png') }}{% endif %}" alt="{{ session.participant_org.name if session.participant_org else '' }}" class="chat-item-img">
+                                                <div class="chat-item-content">
+                                                    <div class="d-flex justify-content-between">
+                                                        <span class="chat-item-title">{{ session.disaster_need.title if session.disaster_need else '[Deleted Need]' }}</span>
+                                                        {% if session.session_id in unread_session_ids %}<span class="badge bg-primary">Unread</span>{% endif %}
+                                                    </div>
+                                                    <div class="chat-item-user">Chat with {{ session.participant_org.name if session.participant_org else '[Deleted Org]'}}</div>
+                                                </div>
+                                            </a>
+                                            <form action="{{ url_for('main.delete_chat_session', session_id=session.session_id) }}" method="POST" class="p-2">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this chat?')"><i class="fas fa-trash-alt"></i></button>
+                                            </form>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted mt-3">No disaster relief chats found.</p>
+                            {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                {% else %}
+                    {# Empty state if both chat lists are empty #}
+                    <div class="empty-state"><i class="fas fa-comments"></i><h3>No chats yet</h3><p>Start a conversation by viewing an item and clicking "Chat".</p></div>
+                {% endif %}
+            {# --- END UPDATED CHAT VIEW --- #}
+            {% endif %}
+        </div> {# End #grid-view #}
+
+    </section>
+</main>
+
+{# --- Category Selection Modal (Only shown if needed) --- #}
+{% if view == 'all' and not request.args.get('categories') %}
+<div class="modal fade" id="categorySelectModal" tabindex="-1" aria-labelledby="categorySelectModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="categorySelectModalLabel">Select Categories</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+          <div class="mb-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="selectAllCategories">Select All</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllCategories">Deselect All</button>
+          </div>
+          <hr class="mt-1 mb-3">
+          {% for value, label in form.categories.choices %}
+            {% if value %}
+              <div class="form-check">
+                <input class="form-check-input category-checkbox" type="checkbox" value="{{ value }}" id="cat-{{ value }}">
+                <label class="form-check-label w-100" for="cat-{{ value }}">
+                  {{ label }}
+                </label>
+              </div>
+            {% endif %} {# Closing inner if #}
+          {% endfor %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="apply-categories-btn" data-bs-dismiss="modal">Apply & Search</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %} {# Closing outer if for modal #}
+{# --- End Category Selection Modal --- #}
+
+
+<div class="fab-container">
+    <a href="{{ url_for('main.new_item') }}" class="fab-button" title="Post a New Item">
+        <i class="fas fa-plus fab-button-icon"></i>
+    </a>
+</div>
+
+
+<script>
+    // --- JAVASCRIPT FOR COPYING LINK ---
+    function copyItemLink(buttonElement) {
+        const urlToCopy = buttonElement.dataset.itemUrl;
+        const feedbackSpan = buttonElement.querySelector('.copy-feedback');
+
+        navigator.clipboard.writeText(urlToCopy).then(() => {
+            feedbackSpan.style.display = 'inline';
+            buttonElement.disabled = true;
+            setTimeout(() => {
+                feedbackSpan.style.display = 'none';
+                buttonElement.disabled = false;
+            }, 1500);
+        }).catch(err => {
+            console.error('Failed to copy link: ', err);
+            alert('Could not copy link. Please try again.');
+        });
+    }
+    // --- END JAVASCRIPT FOR COPYING LINK ---
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // --- Category Modal Logic ---
+        const categoryModal = document.getElementById('categorySelectModal');
+        const categoryButton = document.getElementById('category-select-button');
+        const hiddenSelect = document.getElementById('categories-hidden-select');
+        const applyCategoriesBtn = document.getElementById('apply-categories-btn');
+        const selectAllBtn = document.getElementById('selectAllCategories');
+        const deselectAllBtn = document.getElementById('deselectAllCategories');
+
+        if (categoryModal && categoryButton && hiddenSelect && applyCategoriesBtn) {
+            const checkboxes = categoryModal.querySelectorAll('.category-checkbox');
+
+            const updateCategoryButtonText = () => {
+                const selectedCheckboxes = categoryModal.querySelectorAll('.category-checkbox:checked');
+                if (selectedCheckboxes.length === 0) { categoryButton.textContent = 'Any Category'; }
+                else if (selectedCheckboxes.length === 1) { categoryButton.textContent = selectedCheckboxes[0].nextElementSibling.textContent.trim(); }
+                else { categoryButton.textContent = `${selectedCheckboxes.length} categories selected`; }
+            };
+
+            categoryModal.addEventListener('show.bs.modal', () => {
+                 // Sync checkboxes with hidden select (if needed, though usually populated from URL)
+                const selectedValues = Array.from(hiddenSelect.selectedOptions).map(opt => opt.value);
+                checkboxes.forEach(cb => { cb.checked = selectedValues.includes(cb.value); });
+                updateCategoryButtonText(); // Update button text when modal opens
+            });
+
+            applyCategoriesBtn.addEventListener('click', () => {
+                 // Sync hidden select with checkboxes before submitting
+                const selectedValues = Array.from(categoryModal.querySelectorAll('.category-checkbox:checked')).map(cb => cb.value);
+                Array.from(hiddenSelect.options).forEach(option => {
+                    option.selected = selectedValues.includes(option.value);
+                });
+                 // Submit the correct form ('searchForm' for 'all')
+                const formElement = document.getElementById('searchForm');
+                if (formElement) { formElement.submit(); }
+                else { console.error("Could not find searchForm to submit."); }
+            });
+
+            selectAllBtn?.addEventListener('click', () => { checkboxes.forEach(cb => cb.checked = true); });
+            deselectAllBtn?.addEventListener('click', () => { checkboxes.forEach(cb => cb.checked = false); });
+
+            // Initialize button text on load based on hidden select state
+            const initialSelectedValues = Array.from(hiddenSelect.selectedOptions);
+            if (initialSelectedValues.length === 0) { categoryButton.textContent = 'Any Category'; }
+             else if (initialSelectedValues.length === 1) { categoryButton.textContent = initialSelectedValues[0].text; }
+            else { categoryButton.textContent = `${initialSelectedValues.length} categories selected`; }
+        }
+        // --- End Category Modal Logic ---
+
+
+        // --- Mini Map Logic ---
+        const miniMapElement = document.getElementById('mini-map');
+        const mapDataElement = document.getElementById('map-data');
+        const locationSelect = document.getElementById('location-select');
+        const radiusSelect = document.getElementById('radius-select');
+        let miniMap;
+        let currentCircle = null;
+        let currentMarkers = L.featureGroup();
+        let allLocationsCoords = {};
+
+        if (miniMapElement && mapDataElement) {
+            try {
+                allLocationsCoords = JSON.parse(mapDataElement.dataset.allLocations || '{}');
+            } catch (e) {
+                console.error("Error parsing allLocationsCoords data:", e);
+                allLocationsCoords = {};
+            }
+
+            function getCoordsForLocation(locationName) {
+                if (!locationName) return null;
+                const mainDistrict = locationName.split(' - ')[0]; // Use only the main district part for lookup
+                return allLocationsCoords[mainDistrict] || null; // Returns [lat, lon] or null
+            }
+
+            function updateMiniMap(centerCoords, radiusKm, itemsData) {
+                 if (!miniMap || !centerCoords) return;
+
+                 const centerLatLng = L.latLng(centerCoords[0], centerCoords[1]);
+                 miniMap.setView(centerLatLng, radiusKm ? (radiusKm <= 5 ? 12 : (radiusKm <= 20 ? 10 : 8)) : 9); // Adjust zoom based on radius
+
+                 // Clear previous circle and markers
+                 if (currentCircle) { miniMap.removeLayer(currentCircle); currentCircle = null; }
+                 currentMarkers.clearLayers();
+
+                 // Add new circle if radius is set
+                 if (radiusKm) {
+                     currentCircle = L.circle(centerLatLng, {
+                         radius: radiusKm * 1000, // meters
+                         color: 'blue', weight: 1, opacity: 0.5, fillOpacity: 0.1
+                     }).addTo(miniMap);
+                 }
+
+                 // Add markers for items within the view (or all if no radius)
+                 let bounds = L.latLngBounds();
+                 try {
+                     const items = JSON.parse(itemsData || '[]');
+                     items.forEach(item => {
+                         if (item.latitude && item.longitude) {
+                             const itemLatLng = L.latLng(item.latitude, item.longitude);
+                              // Only add marker if no radius or if within radius
+                             if (!radiusKm || centerLatLng.distanceTo(itemLatLng) <= radiusKm * 1000) {
+                                 L.marker(itemLatLng).addTo(currentMarkers);
+                                 bounds.extend(itemLatLng);
+                             }
+                         }
+                     });
+                     currentMarkers.addTo(miniMap);
+
+                    // Adjust map view slightly if only one marker or if circle exists
+                     if (currentCircle && !bounds.isValid()) {
+                         miniMap.setView(centerLatLng, miniMap.getZoom()); // Keep center if no items
+                     } else if (bounds.isValid()) {
+                         if (items.length > 1 || !currentCircle) { // Fit bounds if multiple items or no circle
+                             miniMap.fitBounds(bounds.pad(0.1));
+                         } else { // Single item with circle, keep circle center visible
+                              miniMap.setView(centerLatLng, miniMap.getZoom());
+                         }
+                     }
+
+                 } catch(e) { console.error("Error processing map items:", e); }
+            }
+
+            function initializeMiniMap() {
+                 if (miniMap) return; // Initialize only once
+
+                 try {
+                     miniMap = L.map('mini-map');
+                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                         maxZoom: 18,
+                         attribution: '&copy; OpenStreetMap'
+                     }).addTo(miniMap);
+
+                     // Initial map state based on data attributes
+                     const initialCenter = JSON.parse(mapDataElement.dataset.mapCenter || 'null');
+                     const initialRadius = JSON.parse(mapDataElement.dataset.mapRadius || 'null');
+                     const initialItems = mapDataElement.dataset.items;
+
+                     if (initialCenter && initialCenter.length === 2) {
+                         updateMiniMap(initialCenter, initialRadius, initialItems);
+                     } else {
+                         // Default view (e.g., Kerala) if no center provided
+                         miniMap.setView([10.8505, 76.2711], 7);
+                     }
+
+                     // Add listeners for location/radius changes
+                     if (locationSelect) locationSelect.addEventListener('change', handleFilterChange);
+                     if (radiusSelect) radiusSelect.addEventListener('change', handleFilterChange);
+
+                 } catch (e) {
+                      console.error("Leaflet map initialization failed:", e);
+                      miniMapElement.innerHTML = '<p class="text-danger text-center small">Map could not be loaded.</p>';
+                 }
+            }
+
+            function handleFilterChange() {
+                const selectedLocation = locationSelect ? locationSelect.value : null;
+                const selectedRadius = radiusSelect ? (radiusSelect.value ? parseFloat(radiusSelect.value) : null) : null;
+                const centerCoords = getCoordsForLocation(selectedLocation);
+                const itemsData = mapDataElement.dataset.items; // Use existing items data
+
+                if (centerCoords) {
+                     updateMiniMap(centerCoords, selectedRadius, itemsData);
+                } else if (selectedLocation) { // Location selected but no coords found
+                     console.warn(`No coordinates found for ${selectedLocation}`);
+                     // Optionally clear map or show default view
+                     // miniMap.setView([10.8505, 76.2711], 7); // Reset to default
+                     // currentMarkers.clearLayers();
+                     // if (currentCircle) miniMap.removeLayer(currentCircle); currentCircle = null;
+                }
+            }
+
+             const filterCollapseElement = document.getElementById('searchFiltersCollapse');
+             if (filterCollapseElement) {
+                filterCollapseElement.addEventListener('shown.bs.collapse', initializeMiniMap, { once: true });
+                filterCollapseElement.addEventListener('shown.bs.collapse', function () { if (miniMap) { setTimeout(() => { try { miniMap.invalidateSize() } catch(e){} }, 50); } });
+                if (filterCollapseElement.classList.contains('show')) { setTimeout(initializeMiniMap, 150); }
+             } else { setTimeout(initializeMiniMap, 150); } // Fallback if collapse element not found
+
+        } // End if(miniMapElement && mapDataElement)
+        // --- End Mini Map Logic ---
+
+    });
+</script>
+{% endblock %}

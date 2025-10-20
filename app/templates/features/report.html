@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4">Report Item</h2>
+  {% if item_id %}
+    <p class="text-muted">Reporting item ID: {{ item_id }}</p>
+  {% endif %}
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">
+      {{ form.reason.label(class="form-label") }}
+      {{ form.reason(class="form-control", rows="4") }}
+      {% for error in form.reason.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="d-grid">
+      {{ form.submit(class="btn btn-danger") }}
+    </div>
+  </form>
+</div>
+{% endblock %}

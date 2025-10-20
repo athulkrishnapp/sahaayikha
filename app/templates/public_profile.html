@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+    .profile-header {
+        background-color: var(--bs-tertiary-bg);
+        padding: 3rem 1.5rem;
+        border-radius: 0.75rem;
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    .profile-header img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid var(--bs-body-bg);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+    }
+    .profile-header h2 {
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    .profile-header p {
+        color: var(--bs-secondary-color);
+    }
+    .item-grid {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+
+    /* ## --- MISSING STYLES ADDED BELOW --- ## */
+
+    /* Variables for buttons and badges */
+    :root {
+        --primary: hsl(260, 84%, 60%);
+        --primary-foreground: hsl(0, 0%, 100%);
+        --secondary: hsl(240, 4.8%, 95.9%);
+        --secondary-foreground: hsl(240, 5.9%, 10%);
+        --card: hsl(0, 0%, 100%);
+        --border: hsl(240, 5.9%, 90%);
+        --radius: 0.75rem;
+        --shadow-card: 0 5px 15px -3px hsl(240 10% 50% / 0.08);
+        --item-content-bg-light: rgba(255, 255, 255, 0.7);
+        --item-content-border-light: rgba(240, 240, 240, 0.5);
+    }
+
+    /* Item Card Styles */
+    .dashboard-item-card {
+        background: var(--card);
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    .dashboard-item-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-card);
+    }
+    .item-image {
+        position: relative;
+        width: 100%;
+        padding-top: 56.25%; /* 16:9 Aspect Ratio */
+        background: #f8f9fa;
+        overflow: hidden;
+    }
+    .item-image img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .item-content {
+        padding: 1rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--item-content-bg-light);
+        border-top: 1px solid var(--item-content-border-light);
+    }
+    .item-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .item-badges { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge-dashboard {
+        padding: 0.25rem 0.6rem; background: var(--secondary);
+        color: var(--secondary-foreground); border-radius: 0.5rem;
+        font-size: 0.75rem; font-weight: 500;
+    }
+    .item-actions { display: flex; margin-top: auto; }
+    .btn-dashboard { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: var(--radius); font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
+    .btn-primary-dashboard { background: var(--primary); color: var(--primary-foreground); justify-content: space-between; flex-grow: 1; }
+    .btn-primary-dashboard:hover { background: hsl(260, 84%, 55%); }
+
+    .empty-state { text-align: center; padding: 3rem 0; background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius); }
+    .empty-state i { font-size: 3rem; color: #6c757d; margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+</style>
+
+<div class="container py-5">
+    <div class="profile-header">
+        <img src="{{ url_for('static', filename=user.profile_picture or 'images/users_placeholder.png') }}" alt="{{ user.first_name }}">
+        <h2>{{ user.first_name }} {{ user.last_name }}</h2>
+        <p><i class="fas fa-map-marker-alt me-2"></i>{{ user.location }}</p>
+    </div>
+
+    <h3 class="mb-4">Items Posted by {{ user.first_name }}</h3>
+
+    {% if items %}
+        <div class="item-grid">
+            {% for item in items %}
+            <div class="dashboard-item-card">
+                <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="text-decoration-none">
+                    <div class="item-image">
+                        {# --- CORRECTED LINE --- #}
+                        <img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" alt="{{ item.title }}">
+                        {# --- END CORRECTION --- #}
+                    </div>
+                </a>
+                <div class="item-content">
+                    <h5 class="item-title">{{ item.title }}</h5>
+                    <div class="item-badges">
+                        <span class="badge-dashboard">{{ item.category }}</span>
+                        <span class="badge-dashboard">{{ item.condition }}</span>
+                    </div>
+                    <div class="item-actions">
+                        <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="btn-dashboard btn-primary-dashboard">
+                            <span>View Details</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-box-open"></i>
+            <h3>No Active Items</h3>
+            <p>{{ user.first_name }} hasn't posted any active items yet.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

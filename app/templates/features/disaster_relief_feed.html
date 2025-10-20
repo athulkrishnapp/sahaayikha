@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    <h1 class="fw-bold mb-4">Disaster Relief Needs</h1>
+    <div class="list-group">
+        {% for need in needs %}
+            <a href="{{ url_for('main.make_donation_offer', need_id=need.need_id) }}" class="list-group-item list-group-item-action flex-column align-items-start">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ need.category }}</h5>
+                    <small>{{ need.posted_at.strftime('%Y-%m-%d') }}</small>
+                </div>
+                <p class="mb-1">{{ need.description }}</p>
+                <small class="text-muted">Requested by: {{ need.organization.name }} in {{ need.location }}</small>
+            </a>
+        {% else %}
+            <p class="text-center text-muted">There are no active disaster needs at the moment.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

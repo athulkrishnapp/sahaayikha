@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* These styles are specific to this page and work with your existing style.css.
+      They override the default body background for this page only.
+    */
+
+    /* Light Mode Styles (Default) */
+    .auth-page-wrapper {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        min-height: 100vh;
+        padding: 20px;
+    }
+
+    .auth-container {
+        background: rgba(255, 255, 255, 0.6);
+        padding: 40px;
+        border-radius: 20px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+        text-align: center;
+        max-width: 800px;
+        width: 100%;
+    }
+
+    .auth-container .top-icon {
+        background: rgba(86, 61, 124, 0.1);
+        color: #563d7c;
+        font-size: 2rem;
+        border-radius: 10px;
+        padding: 10px;
+        display: inline-block;
+        margin-bottom: 20px;
+    }
+
+    .auth-container h1 { color: #212529; font-size: 2.5rem; font-weight: 700; }
+    .auth-container > p { color: #6c757d; margin-bottom: 30px; }
+
+    .roles-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+    
+    /* NEW: Style for when there are only two columns */
+    .roles-grid.two-cols {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 550px; /* Center the two cards nicely */
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+
+    .role-card {
+        background: rgba(248, 249, 250, 0.7);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 15px;
+        padding: 30px 20px;
+        text-decoration: none;
+        color: #212529;
+        transition: all 0.3s ease;
+    }
+    
+    .role-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .role-card.middle-card:hover {
+        box-shadow: 0 10px 20px rgba(86, 61, 124, 0.15);
+    }
+    
+    .role-card i { font-size: 2rem; margin-bottom: 15px; }
+    .role-card h3 { font-size: 1.2rem; margin: 10px 0 5px 0; color: #212529; }
+    .role-card span { font-size: 0.9rem; color: #6c757d; }
+    .register-link { color: #6c757d; }
+    .register-link a { color: #0069d9; font-weight: bold; text-decoration: none; }
+    .register-link a:hover { text-decoration: underline; }
+
+    /* Dark Mode Overrides */
+    .dark-mode .auth-page-wrapper {
+        background: linear-gradient(135deg, #120e2a, #2c1a4d);
+    }
+
+    .dark-mode .auth-container {
+        background: rgba(22, 22, 36, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #e0e0e0;
+    }
+    
+    .dark-mode .auth-container .top-icon {
+        background: rgba(138, 43, 226, 0.1);
+        color: #8a2be2;
+    }
+
+    .dark-mode .auth-container h1,
+    .dark-mode .role-card h3,
+    .dark-mode .role-card {
+        color: #ffffff;
+    }
+
+    .dark-mode .auth-container > p,
+    .dark-mode .role-card span,
+    .dark-mode .register-link {
+        color: #a9a9d8;
+    }
+
+    .dark-mode .role-card {
+        background: rgba(38, 38, 63, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .dark-mode .role-card:hover {
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+
+    .dark-mode .role-card.middle-card:hover {
+        box-shadow: 0 0 20px rgba(138, 43, 226, 0.6);
+    }
+
+    .dark-mode .register-link a {
+        color: #7b7bff;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .roles-grid {
+            grid-template-columns: 1fr;
+        }
+        .auth-container {
+            padding: 30px 20px;
+        }
+    }
+</style>
+
+<div class="auth-page-wrapper">
+    <div class="auth-container">
+        <div class="top-icon">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+
+        <h1>Welcome Back</h1>
+        <p>Select your role to continue to your personalized dashboard</p>
+
+        <!-- The grid now conditionally gets a 'two-cols' class -->
+        <div class="roles-grid {% if not request.args.get('role') == 'admin' %}two-cols{% endif %}">
+            <a href="{{ url_for('main.login') }}" class="role-card">
+                <i class="fas fa-user-circle"></i>
+                <h3>User Login</h3>
+                <span>Access your personal account and dashboard</span>
+            </a>
+
+            <a href="{{ url_for('main.org_login') }}" class="role-card middle-card">
+                <i class="fas fa-building"></i>
+                <h3>Organization</h3>
+                <span>Manage your organization and team members</span>
+            </a>
+
+            <!-- This block is now conditional -->
+            {% if request.args.get('role') == 'admin' %}
+            <a href="{{ url_for('main.admin_login') }}" class="role-card">
+                <i class="fas fa-user-shield"></i>
+                <h3>Admin Panel</h3>
+                <span>System administration and management</span>
+            </a>
+            {% endif %}
+        </div>
+
+        <p class="register-link">
+            Don't have an account? <a href="{{ url_for('main.auth_register_selector') }}">Register here</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

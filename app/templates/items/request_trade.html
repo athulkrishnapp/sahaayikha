@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container py-5">
+    <h1 class="fw-bold">Request a Trade for: {{ item_to_get.title }}</h1>
+    {# Display suggested category if available and not 'Money' #}
+    {% if suggested_category %}
+        <p class="text-muted">The owner is looking for an item in the '{{ suggested_category }}' category. Here are your items that might match:</p>
+    {% elif item_to_get.expected_return == 'Money' %}
+        <p class="text-muted">The owner is looking for 'Money'. You can start a chat to make an offer.</p> {# Should have redirected already, but added for clarity #}
+    {% else %}
+        <p class="text-muted">Select one of your items to offer in trade:</p>
+    {% endif %}
+
+
+    <div class="row">
+        <div class="col-md-8">
+            <form method="POST">
+                {# ***** CORRECTION HERE ***** #}
+                {{ form.hidden_tag() }}
+                {# ***** END CORRECTION ***** #}
+
+                <div class="list-group">
+                    {% for item in my_items %}
+                    <label class="list-group-item d-flex gap-3">
+                        <input class="form-check-input flex-shrink-0" type="radio" name="item_to_offer" value="{{ item.item_id }}" id="offer_{{ item.item_id }}">
+                        {# Corrected image access for offered item #}
+                        <img src="{{ url_for('static', filename=item.images[0].image_url if item.images else 'images/item_placeholder.jpg') }}"
+                            style="width: 100px; height: 100px; object-fit: cover; border-radius: 0.5rem;"
+                            alt="{{ item.title }}">
+                        {# Use label's for attribute to link text to radio button #}
+                        <span class="pt-1 form-checked-content w-100" for="offer_{{ item.item_id }}">
+                            <strong class="d-block">{{ item.title }}</strong>
+                            <small class="d-block text-muted">{{ item.description|truncate(100) }}</small>
+                        </span>
+                    </label>
+                    {% else %}
+                        {# Improved message based on suggested category #}
+                        {% if suggested_category %}
+                             <div class="alert alert-warning">You don't currently have any active 'Trade' items listed in the '{{ suggested_category }}' category to offer directly. You can still select another item below if available.</div>
+                        {% else %}
+                            <div class="alert alert-warning">You don't have any active items available for trade. Post an item first!</div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% if my_items %}
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">Send Trade Request</button>
+                </div>
+                {% else %}
+                 <div class="d-grid mt-4">
+                     <a href="{{ url_for('main.new_item') }}" class="btn btn-secondary btn-lg">Post an Item to Trade</a>
+                 </div>
+                {% endif %}
+            </form>
+        </div>
+        <div class="col-md-4">
+            <div class="card position-sticky top-0"> {# Added sticky top for context #}
+                {# Image access was already corrected in previous step #}
+                <img src="{{ url_for('static', filename=item_to_get.images[0].image_url if item_to_get.images else 'images/item_placeholder.jpg') }}" class="card-img-top" alt="{{ item_to_get.title }}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ item_to_get.title }}</h5>
+                    <p class="card-text small text-muted">Owner: {{ item_to_get.owner.first_name }}</p>
+                    <p class="card-text">{{ item_to_get.description|truncate(150) }}</p>
+                    <span class="badge bg-secondary">{{ item_to_get.condition }}</span>
+                    <span class="badge bg-info">{{ item_to_get.category }}</span>
+                    {% if item_to_get.expected_return != 'Money' %}
+                        <span class="badge bg-primary">Wants: {{ item_to_get.expected_return }}</span>
+                    {% else %}
+                        <span class="badge bg-success">Wants: Money</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
