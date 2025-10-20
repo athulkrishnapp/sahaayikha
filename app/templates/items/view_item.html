@@ -266,13 +266,6 @@
                     </a>
                 </div>
 
-                {# --- Deal Panel Section (Remains unchanged - Only for Users) --- #}
-                {% if current_user.is_authenticated and current_user.__class__.__name__ == 'User' and item.owner.user_id != current_user.user_id and session and item.expected_return != 'Money' %}
-                <div class="sidebar-card shadow-sm">
-                    {% include 'features/_deal_panel.html' %}
-                </div>
-                {% endif %}
-                {# --- End Deal Panel Section --- #}
 
                 <div class="sidebar-card shadow-sm">
                     <h5 class="fw-bold mb-3">Item Details</h5>

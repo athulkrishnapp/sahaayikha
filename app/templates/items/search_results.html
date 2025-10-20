@@ -1,180 +1,369 @@
 {% extends "base.html" %}
+{% from 'includes/_form_macros.html' import render_field, render_select_field, render_multiple_select_field %}
+
 {% block content %}
-
-{# REMOVED Leaflet CSS & JS includes #}
-
 <style>
-    /* ... (Other existing styles like item-card-image-container, share button, urgent badge remain) ... */
-    .item-card-image-container { width: 100%; padding-top: 56.25%; position: relative; overflow: hidden; }
-    .item-card-image { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-
-    /* --- Styles for Filter Section --- */
-    :root {
-        --border: hsl(240, 5.9%, 90%);
-        --radius: 0.75rem;
-        --secondary: hsl(240, 4.8%, 95.9%);
-        --card: hsl(0, 0%, 100%);
-        --muted-foreground: hsl(240, 3.8%, 46.1%);
-    }
-    .dark-mode {
-        --border: hsl(240, 3.7%, 25%);
-        --secondary: hsl(240, 3.7%, 15.9%);
-        --card: hsl(240, 3.7%, 15.9%);
-        --muted-foreground: hsl(240, 5%, 64.9%);
-    }
-    .filter-section { margin-bottom: 1.5rem; }
-     .filter-toggle-row { display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
-     .filter-toggle-btn { flex-shrink: 0; }
-     .filter-toggle-btn .fa-chevron-down { transition: transform 0.3s ease; }
-     .filter-toggle-btn[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
-
-    .search-filters-collapse {
-        background-color: var(--secondary);
+    /* Styles for the search results page - Adopted from Dashboard where applicable */
+    .filter-section {
+        background-color: var(--bs-light); /* Slightly off-white background */
+        border-radius: 0.75rem;
         padding: 1.5rem;
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
+        margin-bottom: 2rem;
+         border: 1px solid var(--bs-border-color);
     }
-    /* MODIFIED: Simplified grid for filters only */
-    .search-form-main {
-        min-width: 0;
+    .dark-mode .filter-section {
+         background-color: var(--bs-dark); /* Darker background in dark mode */
+         border-color: var(--bs-border-color-translucent);
     }
-     .search-actions { margin-top: 1rem; }
-     /* REMOVED: #mini-map styles */
 
-    /* Share Button */
-    .item-card-share-btn { position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(255, 255, 255, 0.7); color: #333; border: none; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; cursor: pointer; transition: background 0.2s ease, color 0.2s ease; z-index: 3; }
-    .item-card-share-btn:hover { background: rgba(255, 255, 255, 0.9); color: #0d6efd; }
-     .dark-mode .item-card-share-btn { background: rgba(50, 50, 50, 0.7); color: #eee; }
-     .dark-mode .item-card-share-btn:hover { background: rgba(70, 70, 70, 0.9); color: #4dabf7; }
-    .copy-feedback { font-size: 0.8em; color: var(--bs-success); margin-left: 5px; display: none; }
+    /* Styles for the mini-map */
+    #miniMapContainer {
+        height: 150px; /* Adjust height as needed */
+        width: 100%;
+        border-radius: 0.5rem; /* Slightly smaller radius */
+        margin-top: 1rem; /* Space above map */
+        border: 1px solid var(--bs-border-color);
+    }
 
-    /* Urgent Item */
-    .card.urgent-item { border-color: var(--bs-danger); position: relative; }
-    .urgent-badge { position: absolute; top: 0.75rem; left: 0.75rem; background-color: var(--bs-danger); color: white; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-weight: bold; z-index: 3; }
+    /* Reusing item card styles from previous correction or dashboard */
+     .item-card {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 0.75rem;
+        overflow: hidden;
+        transition: box-shadow 0.3s ease-in-out, transform 0.3s ease-in-out;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .item-card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        transform: translateY(-5px);
+    }
+    .item-card-image-container {
+        height: 200px;
+        overflow: hidden;
+        position: relative;
+    }
+    .item-card-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+     .item-card-body {
+        padding: 1rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    .item-card-title {
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-height: 2.5em; /* Ensure space for 2 lines */
+        line-height: 1.25em;
+    }
+     .item-card-details {
+        font-size: 0.9rem;
+        color: var(--bs-secondary-text);
+        margin-bottom: 1rem;
+        flex-grow: 1;
+    }
+    .item-card-footer {
+        padding: 0 1rem 1rem 1rem;
+        margin-top: auto;
+        border-top: none;
+        background-color: transparent;
+    }
 
-    /* Tom Select */
-    .ts-control { border-radius: 0.375rem; border: 1px solid #ced4da; padding: 0.375rem 0.75rem !important; font-size: 0.875rem; }
-    .dark-mode .ts-control { background-color: #3a3a4a; border-color: #495057; color: white; }
-    .dark-mode .ts-dropdown { background: #2c2c3a; border-color: #495057; }
-    .dark-mode .ts-dropdown .option { color: white; }
-     .dark-mode .ts-dropdown .active { background-color: #4dabf7; color: black; }
+    /* Adjust grid gap */
+     .results-grid {
+        row-gap: 1.5rem; /* Vertical gap between cards */
+    }
+
+    /* Tom Select styles */
+     .ts-wrapper .ts-control {
+        border-radius: 0.375rem; /* Match Bootstrap inputs */
+        border-color: var(--bs-border-color);
+        min-height: calc(1.5em + 0.75rem + 2px); /* Match BS input height */
+        padding: 0.375rem 0.75rem;
+    }
+    /* Ensure TomSelect dropdown matches dark/light mode */
+    .ts-wrapper .ts-dropdown {
+        background: var(--bs-body-bg);
+        border-color: var(--bs-border-color);
+        color: var(--bs-body-color);
+    }
+    .ts-wrapper .ts-dropdown .active {
+        background-color: var(--bs-primary);
+        color: white;
+    }
+    .ts-wrapper .ts-dropdown .option:hover {
+         background-color: var(--bs-secondary-bg);
+    }
+    /* Dark mode specifics for TomSelect */
+    .dark-mode .ts-wrapper .ts-control {
+         background-color: var(--bs-body-bg);
+         border-color: var(--bs-border-color-translucent);
+         color: var(--bs-body-color);
+     }
+     .dark-mode .ts-wrapper.multi .ts-control > div {
+         background: var(--bs-secondary-bg);
+         color: var(--bs-emphasis-color);
+         border-color: var(--bs-border-color);
+     }
+    .dark-mode .ts-wrapper .ts-dropdown .active {
+        background-color: var(--bs-primary); /* Keep primary for active selection */
+    }
+     .dark-mode .ts-wrapper .ts-dropdown .option:hover {
+         background-color: rgba(255, 255, 255, 0.1); /* Lighter hover for dark mode */
+    }
 
 </style>
-{# --- Tom Select CSS & JS --- #}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-{# --------------------------- #}
 
 
-<div class="container py-4">
-  <h2 class="mb-4">Search Items</h2>
+<div class="container mt-4">
+    <h1 class="mb-4">Search Items</h1>
 
-  {# --- Filter Form --- #}
-  <section class="section filter-section">
-      <form method="GET" action="{{ url_for('main.items_list') }}" id="searchForm">
-           <input type="hidden" name="search" value="{{ request.args.get('search', '') }}">
-          <div class="filter-toggle-row">
-              <button class="btn btn-outline-secondary btn-sm filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#searchFiltersCollapse" aria-expanded="{% if request.args|length > 1 %}true{% else %}false{% endif %}" aria-controls="searchFiltersCollapse">
-                  <i class="fas fa-filter me-1"></i> Filters <i class="fas fa-chevron-down fa-xs ms-1"></i>
-              </button>
-          </div>
-          <div class="collapse {% if request.args|length > 1 %}show{% endif %}" id="searchFiltersCollapse">
-              <div class="search-filters-collapse">
-                  {# REMOVED .search-grid wrapper #}
-                  <div class="search-form-main"> {# Takes full width now #}
-                       <div class="row g-2"> {# Use row directly #}
+    <div class="mb-3 d-flex justify-content-end">
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+            <i class="fas fa-filter me-1"></i> Show Filters & Map
+        </button>
+    </div>
+
+    <div class="collapse mb-4" id="filterCollapse">
+        <div class="filter-section"> {# Keep original styling wrapper #}
+            <form method="GET" action="{{ url_for('main.items_list') }}" id="filterForm">
+                 <div class="row g-3">
+                     <div class="col-lg-8">
+                        <div class="row g-3">
+                             <div class="col-md-6">
+                                {{ render_field(form.search, placeholder='Search by keyword...', label_visible=True, id='searchFilter', value=active_search_term or '') }}
+                            </div>
                             <div class="col-md-6">
-                                {{ form.categories.label(class="form-label small") }}
-                                {{ form.categories(class="form-select form-select-sm", id="categories-search") }}
+                                 {{ render_select_field(form.location, label_visible=True, id='locationFilter') }}
                             </div>
                              <div class="col-md-6">
-                                {{ form.location.label(class="form-label small") }}
-                                {{ form.location(class="form-select form-select-sm", id="location-select") }}
+                                 {{ render_select_field(form.radius, label_visible=True, id='radiusFilter') }}
                             </div>
-                            <div class="col-sm-4">
-                                {{ form.radius.label(class="form-label small") }}
-                                {{ form.radius(class="form-select form-select-sm", id="radius-select") }}
+                             <div class="col-md-6">
+                                 {{ render_select_field(form.sort_by, label_visible=True) }}
+                             </div>
+                             <div class="col-md-6">
+                               {{ render_multiple_select_field(form.categories, label_visible=True, id='categoryFilter', placeholder='Select categories...') }}
                             </div>
-                            <div class="col-sm-4">
-                                {{ form.urgency.label(class="form-label small") }}
-                                {{ form.urgency(class="form-select form-select-sm") }}
-                            </div>
-                            <div class="col-sm-4">
-                                {{ form.condition.label(class="form-label small") }}
-                                {{ form.condition(class="form-select form-select-sm") }}
-                            </div>
-                             <div class="col-sm-6">
-                                 {{ form.sort_by.label(class="form-label small") }}
-                                 {{ form.sort_by(class="form-select form-select-sm") }}
-                            </div>
-                       </div>
-                  </div>
-                  {# REMOVED Mini Map Area div #}
+                            <div class="col-md-6">
+                                 {{ render_select_field(form.condition, label_visible=True) }}
+                             </div>
+                             <div class="col-md-6"> {# Adjusted column size #}
+                                 {{ render_select_field(form.urgency, label_visible=True) }}
+                             </div>
+                        </div>
+                         <div class="mt-4 d-flex justify-content-start">
+                             <button type="submit" class="btn btn-primary me-2">Apply Filters</button>
+                             <a href="{{ url_for('main.items_list') }}" class="btn btn-secondary">Reset Filters</a>
+                         </div>
+                    </div>
 
-                  <div class="d-flex gap-2 search-actions"> {# Moved actions outside grid #}
-                      <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Apply Filters</button>
-                      <a href="{{ url_for('main.items_list', search=request.args.get('search', '')) }}" class="btn btn-outline-secondary btn-sm flex-grow-1">Clear Filters</a>
-                  </div>
-              </div>
-          </div>
-      </form>
-  </section>
-  {# --- END Filter Form --- #}
-
-  {# Grid view #}
-  <div id="grid-view">
-       <div class="row g-4">
-        {% for item in items %}
-          <div class="col-lg-3 col-md-4 col-sm-6">
-             {# ... (Item card HTML remains the same) ... #}
-             <div class="card shadow-sm h-100 {% if item.urgency_level == 'Urgent' %}urgent-item{% endif %}">
-              {% if item.urgency_level == 'Urgent' %}<span class="urgent-badge">Urgent</span>{% endif %}
-              <button type="button" class="item-card-share-btn share-button" title="Copy link" data-item-url="{{ url_for('main.view_item', item_id=item.item_id, _external=True) }}" onclick="event.preventDefault(); event.stopPropagation(); copyItemLink(this);"><i class="fas fa-share-alt"></i><span class="copy-feedback ms-1">Copied!</span></button>
-              <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="text-decoration-none">
-                 <div class="item-card-image-container bg-light"><img src="{% if item.images.first() %}{{ url_for('static', filename=item.images.first().image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" class="item-card-image" alt="{{ item.title }}"></div>
-              </a>
-              <div class="card-body d-flex flex-column">
-                <h5 class="card-title fs-6 fw-bold">{{ item.title }}</h5>
-                <p class="card-text small text-muted mb-2">{{ item.condition }} • {{ item.category }} • <span {% if item.urgency_level == 'Urgent' %}class="text-danger fw-bold"{% endif %}>{{ item.urgency_level }}</span> • <i class="fas fa-map-marker-alt fa-fw"></i> {{ item.location }}</p>
-                <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="btn btn-outline-primary btn-sm mt-auto">View Details</a>
-              </div>
+                     <div class="col-lg-4">
+                         <label class="form-label">Location Preview</label>
+                         <div id="miniMapContainer" class="bg-secondary bg-opacity-10" style="height: 250px;"> {# Slightly taller map maybe? #}
+                             {# Map will be initialized here by JS #}
+                         </div>
+                     </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="resultsView"> {# Changed ID for clarity #}
+        {% if items %}
+            <p class="text-muted mb-3">Found {{ items|length }} item(s).</p>
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4 results-grid">
+                {% for item in items %}
+                    <div class="col d-flex align-items-stretch">
+                        <div class="card item-card item-card-hover">
+                            <div class="item-card-image-container bg-light">
+                                <a href="{{ url_for('main.view_item', item_id=item.item_id) }}">
+                                    {# Corrected image access #}
+                                    <img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" class="item-card-image" alt="{{ item.title }}">
+                                </a>
+                            </div>
+                            <div class="item-card-body">
+                                <h5 class="card-title item-card-title">{{ item.title }}</h5>
+                                <div class="item-card-details">
+                                     <span class="badge rounded-pill
+                                        {% if item.type == 'Trade' %} bg-primary
+                                        {% elif item.type == 'Share' %} bg-success
+                                        {% else %} bg-secondary
+                                        {% endif %} me-1">{{ item.type }}</span>
+                                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis">{{ item.category }}</span>
+                                    <p class="card-text small mt-2">
+                                        <i class="fas fa-map-marker-alt me-1 text-muted"></i>{{ item.location }} <br>
+                                        <i class="fas fa-clock me-1 text-muted"></i>Posted {{ (item.created_at | localdatetime).strftime('%b %d') }}
+                                        {# Optional Distance Display - Uncomment if passing distance #}
+                                        {# {% if item.distance is defined and item.distance != none %} - {{ "%.1f"|format(item.distance) }} km away {% endif %} #}
+                                    </p>
+                                </div>
+                                <div class="item-card-footer">
+                                    <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="btn btn-sm btn-outline-dark w-100">View Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
-          </div>
         {% else %}
-          <div class="col-12"><div class="alert alert-info text-center">No items found matching your criteria.</div></div>
-        {% endfor %}
-      </div>
-  </div>
+            <div class="alert alert-info text-center" role="alert">
+                No items found matching your criteria. Try adjusting your filters.
+            </div>
+        {% endif %}
+    </div>
+
 </div>
 
-{# --- REMOVED Mini Map Initialization Script --- #}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
 <script>
-    // --- JAVASCRIPT FOR COPYING LINK ---
-    function copyItemLink(buttonElement) {
-        const urlToCopy = buttonElement.dataset.itemUrl;
-        const feedbackSpan = buttonElement.querySelector('.copy-feedback');
-        if (!feedbackSpan) { console.error("Copy feedback span not found"); return; }
-        navigator.clipboard.writeText(urlToCopy).then(() => {
-            feedbackSpan.style.display = 'inline';
-            buttonElement.disabled = true;
-            setTimeout(() => {
-                feedbackSpan.style.display = 'none';
-                buttonElement.disabled = false;
-            }, 1500);
-        }).catch(err => { console.error('Failed to copy link: ', err); alert('Could not copy link.'); });
-    }
-    // --- END JAVASCRIPT FOR COPYING LINK ---
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Initialize Tom Select (Keep this as is) ---
+        const categorySelect = document.getElementById('categoryFilter');
+        // ... (rest of Tom Select initializations) ...
+        const locationSelect = document.getElementById('locationFilter');
+        let locationTomSelect = null;
+        if (locationSelect) {
+             locationTomSelect = new TomSelect(locationSelect, { create: false });
+        }
+        const radiusSelect = document.getElementById('radiusFilter');
+         let radiusTomSelect = null;
+        if (radiusSelect) {
+            radiusTomSelect = new TomSelect(radiusSelect, { create: false });
+        }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        // --- Initialize TomSelect ---
-        try {
-            const tsControl = document.getElementById('categories-search');
-            if (tsControl) { new TomSelect(tsControl,{ plugins: ['remove_button'], placeholder: 'Any Category' }); }
-            else { console.warn("TomSelect target #categories-search not found."); }
-        } catch (e) { console.error("TomSelect initialization failed:", e); }
+        // --- Mini Map Initialization ---
+        const mapContainer = document.getElementById('miniMapContainer');
+        const filterCollapseElement = document.getElementById('filterCollapse'); // Get collapse element
+        let miniMap = null; // Initialize map variable to null
+        let radiusCircle = null;
+        let centerMarker = null;
+        const defaultCenter = [10.8505, 76.2711];
+        const defaultZoom = 7;
+        const allLocations = JSON.parse('{{ all_locations_coords | safe }}');
 
-        // --- REMOVED Mini Map Logic ---
+        // Function to initialize or update the map
+        function updateMiniMap(forceResize = false) {
+            const selectedLocationName = locationTomSelect ? locationTomSelect.getValue() : null;
+            const selectedRadiusKmStr = radiusTomSelect ? radiusTomSelect.getValue() : null;
+            let centerCoords = defaultCenter;
+            let zoomLevel = defaultZoom;
+            let radiusMeters = null;
+
+            if (selectedLocationName && allLocations[selectedLocationName]) {
+                centerCoords = allLocations[selectedLocationName];
+                zoomLevel = selectedRadiusKmStr ? 10 : 12;
+            }
+
+            if (selectedRadiusKmStr) {
+                try {
+                    const radiusKm = parseFloat(selectedRadiusKmStr);
+                    if (radiusKm > 0) {
+                        radiusMeters = radiusKm * 1000;
+                        if (radiusKm <= 5) zoomLevel = 13;
+                        else if (radiusKm <= 15) zoomLevel = 11;
+                        else if (radiusKm <= 50) zoomLevel = 9;
+                        else zoomLevel = 8;
+                    }
+                } catch (e) { radiusMeters = null; }
+            }
+
+            // --- Modified Initialization Logic ---
+            if (!miniMap && mapContainer) { // Initialize only if map doesn't exist yet
+                try {
+                    miniMap = L.map(mapContainer).setView(centerCoords, zoomLevel);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        maxZoom: 18,
+                        attribution: '&copy; OSM'
+                    }).addTo(miniMap);
+                    centerMarker = L.circleMarker(centerCoords, { radius: 5, color: '#0d6efd', fillOpacity: 0.6 }).addTo(miniMap);
+                } catch (e) {
+                    console.error("Error initializing mini map:", e);
+                    if (mapContainer) mapContainer.innerHTML = '<p class="text-danger text-center small p-2">Map error</p>';
+                    return;
+                }
+            } else if (miniMap) { // Map exists, update view
+                miniMap.setView(centerCoords, zoomLevel);
+                if (centerMarker) {
+                    centerMarker.setLatLng(centerCoords);
+                } else if (centerCoords !== defaultCenter) {
+                    centerMarker = L.circleMarker(centerCoords, { radius: 5, color: '#0d6efd', fillOpacity: 0.6 }).addTo(miniMap);
+                }
+            }
+
+            // --- Invalidate Size if forced (e.g., after collapse shown) ---
+            if (miniMap && forceResize) {
+                // Wait briefly for collapse animation to likely finish
+                setTimeout(() => {
+                    miniMap.invalidateSize();
+                     // Re-center if needed after invalidation
+                    // miniMap.setView(centerCoords, zoomLevel);
+                 }, 200); // Adjust delay if needed
+            }
+             // --- End Size Invalidation ---
+
+
+            if (radiusCircle) {
+                miniMap.removeLayer(radiusCircle);
+                radiusCircle = null;
+            }
+
+            if (radiusMeters && centerCoords !== defaultCenter && miniMap) {
+                radiusCircle = L.circle(centerCoords, {
+                    radius: radiusMeters,
+                    color: '#0d6efd',
+                    fillColor: '#0d6efd',
+                    fillOpacity: 0.1
+                }).addTo(miniMap);
+            } else if (centerCoords !== defaultCenter && centerMarker && miniMap) {
+                 centerMarker.bindPopup(selectedLocationName || 'Selected Location').openPopup();
+                 setTimeout(() => { if (centerMarker) centerMarker.closePopup(); }, 3000);
+            }
+        }
+
+        // --- Event Listener for Collapse ---
+        if (filterCollapseElement) {
+            filterCollapseElement.addEventListener('shown.bs.collapse', function () {
+                // Initialize map OR invalidate its size when collapse is shown
+                if (!miniMap) {
+                    updateMiniMap(); // First time shown, initialize
+                } else {
+                    updateMiniMap(true); // Already initialized, force resize
+                }
+            });
+        }
+        // --- End Event Listener ---
+
+        // Initial map setup (IF the collapse starts open, otherwise remove this)
+        // If the collapse starts closed, you don't need this initial call.
+        // if (mapContainer && filterCollapseElement && !filterCollapseElement.classList.contains('collapse')) {
+        //     updateMiniMap();
+        // }
+
+
+        // Update map visuals when location or radius changes (no resize needed here)
+        if (locationTomSelect) {
+            locationTomSelect.on('change', () => updateMiniMap(false)); // Pass false for resize
+        }
+        if (radiusTomSelect) {
+            radiusTomSelect.on('change', () => updateMiniMap(false)); // Pass false for resize
+        }
 
     });
 </script>
+
 {% endblock %}

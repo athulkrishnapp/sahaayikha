@@ -87,7 +87,26 @@
                 </button>
             {% endif %}
 
-            <a class="navbar-brand ms-2" href="{{ url_for('main.home') }}">
+            <a class="navbar-brand ms-2"
+               href="
+                    {% if request.endpoint == 'main.home' %} {# Check if current page is home #}
+                        {% if current_user.is_authenticated %}
+                            {% if current_user.__class__.__name__ == 'User' %}
+                                {{ url_for('main.dashboard') }}
+                            {% elif current_user.__class__.__name__ == 'Organization' %}
+                                {{ url_for('main.org_dashboard') }}
+                            {% elif current_user.__class__.__name__ == 'Admin' %}
+                                {{ url_for('main.admin_dashboard') }}
+                            {% else %} {# Fallback if authenticated but unknown type #}
+                                {{ url_for('main.home') }}
+                            {% endif %}
+                        {% else %} {# Not authenticated, stay on home #}
+                            {{ url_for('main.home') }}
+                        {% endif %}
+                    {% else %} {# Not on home page, link TO home #}
+                        {{ url_for('main.home') }}
+                    {% endif %}
+               ">
                 <span class="navbar-brand-animated">Sahaayikha</span>
             </a>
         </div>
@@ -114,12 +133,13 @@
                         Categories
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="categoryDropdown">
+                        {# --- CORRECTED LINK --- #}
+                        <li><a class="dropdown-item" href="{{ url_for('main.items_list') }}">All Categories</a></li>
                         {% if categories %}
                             {% for category in categories %}
+                                {# --- CORRECTED LINK --- #}
                                 <li><a class="dropdown-item" href="{{ url_for('main.items_list', category=category) }}">{{ category }}</a></li>
                             {% endfor %}
-                        {% else %}
-                             <li><a class="dropdown-item" href="#">No categories available.</a></li>
                         {% endif %}
                     </ul>
                 </li>
@@ -127,7 +147,7 @@
                 {# Show search link on small screens (triggers modal) #}
                 <li class="nav-item d-lg-none my-2">
                      <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#searchModal">
-                        <i class="fas fa-search fa-fw me-2"></i>Search & Categories
+                         <i class="fas fa-search fa-fw me-2"></i>Search & Categories
                     </a>
                 </li>
                 {% endif %}

@@ -101,64 +101,50 @@
         .cta-content { text-align: center; }
     }
 
-    /* 4. Trending Items Section Styles */
+    /* --- Styles for NEW Trending Items Section --- */
     .gallery-section {
         padding: 5rem 0;
     }
     .section-header {
         margin-bottom: 3rem;
     }
-    .gallery-card {
-        position: relative; border-radius: 16px; overflow: hidden;
-        display: block; height: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        border: 1px solid #dee2e6; transition: all 0.3s ease;
+    /* Card Styles */
+    .item-card {
+        border-radius: 16px !important; /* Override default if needed */
+        border: 1px solid var(--bs-border-color);
+        transition: all 0.3s ease;
     }
-    .dark-mode .gallery-card {
-        border-color: rgba(255,255,255,0.1); box-shadow: none;
+    .item-card-hover:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
     }
-    .gallery-card:hover {
-        transform: translateY(-5px); box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        border-color: #0d6efd;
+    .item-image-container {
+        height: 200px; /* Adjust as needed */
+        overflow: hidden;
+        border-top-left-radius: 16px; /* Match card radius */
+        border-top-right-radius: 16px;
+        position: relative; /* Needed for positioning share button */
     }
-    .dark-mode .gallery-card:hover {
-        border-color: #4dabf7;
-    }
-    .gallery-card img {
-        width: 100%; height: 100%; object-fit: cover;
+    .item-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
         transition: transform 0.4s ease;
     }
-    .gallery-card:hover img {
+    .item-card-hover:hover .item-image {
         transform: scale(1.05);
     }
-    .gallery-card-content {
-        position: absolute; bottom: 0; left: 0; right: 0;
-        padding: 3rem 1.5rem 1.5rem; color: white;
-        background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+    .card-title-clamp {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        height: 2.5em; /* Adjust height based on font size and line height */
+        line-height: 1.25em;
+        margin-bottom: 0.5rem; /* Add space below title */
     }
-    .gallery-card-title {
-        font-weight: 600; font-size: 1.1rem; margin-bottom: 0.25rem;
-    }
-    .gallery-card-category {
-        font-size: 0.85rem; opacity: 0.8;
-    }
-    .featured-card {
-        min-height: 450px;
-    }
-    .card-link, .card-link:hover {
-        color: inherit; text-decoration: none;
-    }
-
-    /* 5. DARK MODE TEXT FIXES */
-    .dark-mode h1,
-    .dark-mode h2,
-    .dark-mode h4,
-    .dark-mode .fw-bold {
-        color: #f8f9fa;
-    }
-    .dark-mode .text-muted {
-        color: rgba(233, 236, 239, 0.7) !important;
-    }
-/* Style for the new share button */
+    /* Share Button Styles (Copied from your CSS) */
     .gallery-card-share-btn {
         position: absolute;
         top: 1rem;
@@ -175,25 +161,243 @@
         font-size: 0.9rem;
         cursor: pointer;
         transition: background 0.2s ease, color 0.2s ease;
-        z-index: 2; /* Ensure it's above the image gradient */
+        z-index: 2;
     }
     .gallery-card-share-btn:hover {
         background: rgba(255, 255, 255, 0.9);
         color: #0d6efd; /* Bootstrap primary blue */
     }
     .dark-mode .gallery-card-share-btn {
-         background: rgba(50, 50, 50, 0.7);
-         color: #eee;
+        background: rgba(50, 50, 50, 0.7);
+        color: #eee;
     }
-     .dark-mode .gallery-card-share-btn:hover {
-         background: rgba(70, 70, 70, 0.9);
-         color: #4dabf7; /* Lighter blue for dark mode */
+    .dark-mode .gallery-card-share-btn:hover {
+        background: rgba(70, 70, 70, 0.9);
+        color: #4dabf7; /* Lighter blue for dark mode */
     }
-    /* Add a class for feedback */
+    .copy-feedback {
+        font-size: 0.8em;
+        color: var(--bs-success);
+        margin-left: 5px;
+    }
+    /* --- End Trending Styles --- */
+
+
+    /* 5. DARK MODE TEXT FIXES */
+    .dark-mode h1,
+    .dark-mode h2,
+    .dark-mode h4,
+    .dark-mode .fw-bold {
+        color: #f8f9fa;
+    }
+    .dark-mode .text-muted {
+        color: rgba(233, 236, 239, 0.7) !important;
+    }
+
+
+    /* 1. Enhanced Hero Section */
+    .modern-hero {
+        position: relative; overflow: hidden; min-height: 60vh; display: flex;
+        align-items: center; justify-content: center; color: white;
+        background: none !important; padding: 2rem 0;
+    }
+    .modern-hero-bg {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(-45deg, #ff6b6b, #d6276b, #48dbfb, #1dd1a1, #ff6b6b);
+        background-size: 400% 400%; animation: gradientMove 15s ease infinite; z-index: 1;
+    }
+    .dark-mode .modern-hero-bg {
+        background: linear-gradient(-45deg, #c74646, #a31f55, #2a9dc2, #16a17e, #c74646);
+        background-size: 400% 400%;
+    }
+    @keyframes gradientMove {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+    .modern-hero-content {
+        position: relative; z-index: 2; text-align: center; padding: 3rem;
+        border-radius: 24px; background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+    }
+    .dark-mode .modern-hero-content {
+        background: rgba(20, 20, 40, 0.2); border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .hero-logo { font-size: 3.5rem; margin-bottom: 1rem; }
+    .hero-title { font-weight: 800; }
+    .hero-subtitle { font-weight: 300; opacity: 0.9; }
+
+    /* --- CSS FOR JS TEXT ANIMATION --- */
+    .hero-title, .hero-subtitle {
+        opacity: 0;
+    }
+    .hero-title span, .hero-subtitle span {
+        display: inline-block;
+        opacity: 0;
+        transform: translateY(25px) scale(0.9);
+        transition: opacity 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                    transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .hero-title span.visible, .hero-subtitle span.visible {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    /* 2. "How It Works" & "Impact" Sections */
+    .feature-card {
+        padding: 2rem; border-radius: 16px; background: transparent;
+        transition: all 0.3s ease; border: 1px solid transparent;
+    }
+    .feature-card:hover {
+        transform: translateY(-5px); background: rgba(0,0,0,0.02);
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    .dark-mode .feature-card:hover {
+        background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1);
+    }
+    .feature-icon { font-size: 3rem; margin-bottom: 1rem; color: #d6276b; }
+    .impact-section { position: relative; padding: 5rem 0; color: white; }
+    .stat-block .stat-number {
+        font-size: 3.5rem; font-weight: 700; color: white;
+        text-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+    }
+    .stat-block .stat-label {
+        font-size: 1.1rem; color: white; opacity: 0.9;
+        text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    /* 3. Call to Action Section Styles */
+    .cta-section-modern {
+        padding: 5rem 0;
+        position: relative;
+        overflow: hidden;
+    }
+    .cta-content h2 {
+        font-weight: 700;
+        font-size: 2.5rem;
+    }
+    .cta-graphic {
+        font-size: 12rem; opacity: 0.08; color: #d6276b;
+        position: absolute; right: -2rem; top: 50%;
+        transform: translateY(-50%) rotate(-15deg);
+    }
+    .dark-mode .cta-graphic {
+        opacity: 0.15;
+    }
+    @media (max-width: 992px) {
+        .cta-graphic { display: none; }
+        .cta-content { text-align: center; }
+    }
+
+
+    /* --- NEW Styles for Trending Items (Image Background Cards) --- */
+    .gallery-section {
+        padding: 5rem 0;
+    }
+    .section-header {
+        margin-bottom: 3rem;
+    }
+    .item-card-v2 {
+        position: relative; /* Needed for absolute positioning children */
+        border-radius: 16px !important;
+        overflow: hidden; /* Keep image corners rounded */
+        background-size: cover;
+        background-position: center center;
+        min-height: 350px; /* Set a minimum height for consistency */
+        display: flex; /* Use flexbox for content alignment */
+        flex-direction: column; /* Stack overlay and content */
+        justify-content: flex-end; /* Push content to bottom */
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        text-decoration: none; /* Remove underline from link */
+        color: white; /* Default text color */
+    }
+    .item-card-v2:hover {
+        transform: translateY(-5px) scale(1.02); /* More noticeable hover */
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+    .card-img-overlay-v2 {
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 50%, transparent 100%);
+        z-index: 1; /* Below content */
+    }
+    .dark-mode .card-img-overlay-v2 {
+        /* Slightly lighter/different gradient for dark mode if needed */
+         background: linear-gradient(to top, rgba(10,10,10,0.9) 0%, rgba(10,10,10,0.5) 50%, transparent 100%);
+    }
+    .card-content-v2 {
+        position: relative; /* Sit on top of overlay */
+        z-index: 2;
+        padding: 1.5rem;
+        color: white; /* Ensure text is white */
+        margin-top: auto; /* Push to bottom within flex container */
+    }
+    .card-title-v2 {
+        font-weight: 600;
+        font-size: 1.2rem;
+        margin-bottom: 0.25rem;
+        /* Optional: Clamping if needed, might be less necessary with more space */
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .card-badge-v2 {
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    /* Share Button Styles */
+    .gallery-card-share-btn-v2 { /* Renamed class */
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        border: none;
+        border-radius: 50%;
+        width: 35px;
+        height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+        z-index: 3; /* Above everything */
+    }
+    .gallery-card-share-btn-v2:hover {
+        background: rgba(255, 255, 255, 0.9);
+        color: #0d6efd;
+    }
+    .dark-mode .gallery-card-share-btn-v2 {
+        background: rgba(50, 50, 50, 0.7);
+        color: #eee;
+    }
+    .dark-mode .gallery-card-share-btn-v2:hover {
+        background: rgba(70, 70, 70, 0.9);
+        color: #4dabf7;
+    }
     .copy-feedback {
         font-size: 0.8em;
         color: var(--bs-success); /* Use Bootstrap success color */
         margin-left: 5px;
+        display: none; /* Hide initially */
+    }
+    /* --- End New Trending Styles --- */
+
+
+    /* 5. DARK MODE TEXT FIXES */
+    .dark-mode h1,
+    .dark-mode h2,
+    .dark-mode h4,
+    .dark-mode .fw-bold {
+        color: #f8f9fa;
+    }
+    .dark-mode .text-muted {
+        color: rgba(233, 236, 239, 0.7) !important;
     }
 
 </style>
@@ -210,12 +414,12 @@
 </section>
 
 <section id="how-it-works" class="container my-5 py-5">
-    <h2 class="text-center mb-5 fw-bold">How It Works</h2>
-    <div class="row text-center">
-        <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-user-plus"></i></div><h4 class="fw-bold">Create an Account</h4><p class="text-muted">Quickly register as an individual or an organization to get started.</p></div></div>
-        <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-search-location"></i></div><h4 class="fw-bold">Find or Offer Help</h4><p class="text-muted">Browse listings for needed items or post what you can provide.</p></div></div>
-        <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-handshake"></i></div><h4 class="fw-bold">Connect & Share</h4><p class="text-muted">Connect directly with others to arrange pickups and deliveries safely.</p></div></div>
-    </div>
+     <h2 class="text-center mb-5 fw-bold">How It Works</h2>
+     <div class="row text-center">
+         <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-user-plus"></i></div><h4 class="fw-bold">Create an Account</h4><p class="text-muted">Quickly register as an individual or an organization to get started.</p></div></div>
+         <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-search-location"></i></div><h4 class="fw-bold">Find or Offer Help</h4><p class="text-muted">Browse listings for needed items or post what you can provide.</p></div></div>
+         <div class="col-md-4"><div class="feature-card"><div class="feature-icon"><i class="fas fa-handshake"></i></div><h4 class="fw-bold">Connect & Share</h4><p class="text-muted">Connect directly with others to arrange pickups and deliveries safely.</p></div></div>
+     </div>
 </section>
 
 <section class="impact-section text-center">
@@ -231,24 +435,25 @@
 </section>
 
 <section class="cta-section-modern">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-7">
-                <div class="cta-content">
-                    <h2 class="mb-3 fw-bold">Join Our Community Today</h2>
-                    <p class="lead text-muted mb-4">Become a part of a growing network of care. Your contribution makes a real difference in people's lives.</p>
-                    <a href="{{ url_for('main.auth_register_selector') }}" class="btn btn-primary btn-lg">Register Now <i class="fas fa-arrow-right ms-2"></i></a>
-                </div>
-            </div>
-            <div class="col-lg-5 d-none d-lg-block">
-                 <div class="cta-graphic">
-                    <i class="fas fa-hands-helping"></i>
+     <div class="container">
+         <div class="row align-items-center">
+             <div class="col-lg-7">
+                 <div class="cta-content">
+                     <h2 class="mb-3 fw-bold">Join Our Community Today</h2>
+                     <p class="lead text-muted mb-4">Become a part of a growing network of care. Your contribution makes a real difference in people's lives.</p>
+                     <a href="{{ url_for('main.auth_register_selector') }}" class="btn btn-primary btn-lg">Register Now <i class="fas fa-arrow-right ms-2"></i></a>
                  </div>
-            </div>
-        </div>
-    </div>
+             </div>
+             <div class="col-lg-5 d-none d-lg-block">
+                  <div class="cta-graphic">
+                     <i class="fas fa-hands-helping"></i>
+                  </div>
+             </div>
+         </div>
+     </div>
 </section>
 
+{# Conditionally show Trending Items for users or logged-out visitors #}
 {% if not current_user.is_authenticated or current_user.__class__.__name__ == 'User' %}
 <section id="gallery" class="gallery-section">
     <div class="container">
@@ -260,52 +465,66 @@
              {# Link now correctly points to login if not authenticated #}
             <a href="{{ url_for('main.items_list') if current_user.is_authenticated else url_for('main.login') }}" class="btn btn-outline-primary">View All Items <i class="fas fa-arrow-right ms-2"></i></a>
         </div>
-        <div class="row g-4">
-            {% if items and items|length > 0 %}
-                {% for item in items %}
-                     {# Define item_url based on login status #}
-                    {% set item_url = url_for('main.view_item', item_id=item.item_id) if current_user.is_authenticated else url_for('main.login') %}
-                    <div class="col-lg-{{ '6' if loop.first else '3' }} col-md-6 d-flex align-items-stretch">
-                        {# The main card link still directs based on login status #}
-                        <a href="{{ item_url }}" class="card-link w-100">
-                            <div class="gallery-card {{ 'featured-card' if loop.first }}">
-                                {# --- SHARE BUTTON ADDED --- #}
-                                <button
-                                    type="button"
-                                    class="gallery-card-share-btn share-button"
-                                    title="Copy link"
-                                    {# Always generate the real item URL for copying, even if not logged in #}
-                                    data-item-url="{{ url_for('main.view_item', item_id=item.item_id, _external=True) }}"
-                                    onclick="event.preventDefault(); event.stopPropagation(); copyItemLink(this);">
-                                    <i class="fas fa-share-alt"></i>
-                                    <span class="copy-feedback ms-1" style="display: none;">Copied!</span>
-                                </button>
-                                {# --- END SHARE BUTTON --- #}
 
-                                {# ***** CORRECTION HERE ***** #}
-                                <img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" alt="{{ item.title }}">
-                                {# ***** END CORRECTION ***** #}
+        {# --- START: NEW Image Background Card Grid --- #}
+        {% if items %}
+        <div class="row g-4 row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 justify-content-center">
 
-                                <div class="gallery-card-content">
-                                    <p class="gallery-card-category">{{ item.category }}</p>
-                                    <h4 class="gallery-card-title">{{ item.title }}</h4>
-                                </div>
-                            </div>
-                        </a>
+            {% for item in items %}
+             {# Define item_url based on login status #}
+             {% set item_url = url_for('main.view_item', item_id=item.item_id) if current_user.is_authenticated else url_for('main.login') %}
+             {# Get image URL or placeholder #}
+             {% set image_bg_url = url_for('static', filename=item.images[0].image_url if item.images else 'images/item_placeholder.jpg') %}
+
+            <div class="col d-flex align-items-stretch"> {# Column with flex stretch for equal height #}
+                <a href="{{ item_url }}"
+                   class="item-card-v2 w-100 h-100"
+                   style="background-image: url('{{ image_bg_url }}');"
+                   title="View {{ item.title }}">
+
+                    <div class="card-img-overlay-v2"></div>
+
+                    <button
+                        type="button"
+                        class="gallery-card-share-btn-v2 share-button" {# Use new class #}
+                        title="Copy link"
+                        data-item-url="{{ url_for('main.view_item', item_id=item.item_id, _external=True) }}"
+                        onclick="event.preventDefault(); event.stopPropagation(); copyItemLink(this);">
+                        <i class="fas fa-share-alt"></i>
+                        <span class="copy-feedback" style="display: none;">Copied!</span> {# Removed ms-1 #}
+                    </button>
+
+                    <div class="card-content-v2">
+                        <span class="badge rounded-pill
+                            {% if item.type == 'Trade' %} bg-primary
+                            {% elif item.type == 'Share' %} bg-success
+                            {% else %} bg-secondary
+                            {% endif %}
+                            bg-opacity-75 mb-2 card-badge-v2"> {# Use new class #}
+                            {{ item.type }}
+                        </span>
+                        <h4 class="card-title-v2">{{ item.title }}</h4> {# Use new class #}
+                        <p class="small opacity-75 mb-0">{{ item.category }}</p>
                     </div>
-                {% endfor %}
-            {% else %}
-                <div class="col-12 text-center">
-                    <div class="card p-4"><p class="mb-0 text-muted">No items to display right now.</p></div>
-                </div>
-            {% endif %}
+                </a>
+            </div>
+            {% endfor %}
+
         </div>
+        {% else %}
+         <div class="col-12 text-center">
+             <div class="card p-4"><p class="mb-0 text-muted">No items to display right now.</p></div>
+         </div>
+        {% endif %}
+        {# --- END: NEW Image Background Card Grid --- #}
+
     </div>
 </section>
 {% endif %}
 
 
-  <footer class="bg-light text-dark mt-5 pt-5">
+ <footer class="bg-light text-dark mt-5 pt-5">
+    {# ... (Your existing footer content) ... #}
     <div class="container">
       <div class="row">
 
@@ -336,7 +555,7 @@
 
       </div>
     </div>
-  </footer>
+ </footer>
 
 <script>
 
@@ -344,6 +563,10 @@
     function copyItemLink(buttonElement) {
         const urlToCopy = buttonElement.dataset.itemUrl;
         const feedbackSpan = buttonElement.querySelector('.copy-feedback');
+
+        // Prevent link navigation if the card itself is clicked via the button
+        event.preventDefault();
+        event.stopPropagation();
 
         navigator.clipboard.writeText(urlToCopy).then(() => {
             // Success feedback
@@ -383,29 +606,19 @@
     animateText('.hero-title', 200);
     animateText('.hero-subtitle', 800);
 
-    // --- NEW: Continuous Floating Animation ---
+    // --- Continuous Floating Animation ---
     const floatingElement = document.querySelector('.modern-hero-content');
     if (floatingElement) {
         let startTime = null;
-        // This function creates the smooth up-and-down motion
         const floatAnimation = (currentTime) => {
             if (!startTime) startTime = currentTime;
             const elapsedTime = currentTime - startTime;
-
-            // Defines the floating speed and height
             const speed = 0.0005;
-            const amplitude = 8; // Floats 8px up and down
-
-            // Calculate vertical position using a sine wave
+            const amplitude = 8;
             const y = Math.sin(elapsedTime * speed) * amplitude;
-
-            // Apply the transform to the element
             floatingElement.style.transform = `translateY(${y}px)`;
-
-            // Loop the animation
             requestAnimationFrame(floatAnimation);
         };
-        // Start the animation loop
         requestAnimationFrame(floatAnimation);
     }
 });

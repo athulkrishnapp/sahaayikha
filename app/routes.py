@@ -2140,9 +2140,12 @@ def view_item(item_id):
     is_bookmarked = False
     chat_session = None
     deal = None
-    trade_request = None # Existing request *from* current user for *this* item
-    context_trade_request = None # Request *for* current user's item, linking *to this* item
-    proposer = None # Initialize proposer variable
+    # trade_request: Existing request *from* current user *for* this item
+    trade_request = None
+    # context_trade_request: Request *for* current user's item, linking *to this* item (used when owner reviews offered item)
+    context_trade_request = None
+    # proposer: The user who is NOT the owner in the context of a deal/share
+    proposer = None
     current_actor = current_user._get_current_object() if current_user.is_authenticated else None
 
     # --- Check for Trade Request Context (User reviewing an offered item) ---
@@ -2159,6 +2162,8 @@ def view_item(item_id):
                 temp_trade_request.item_offered_id == item_id and
                 temp_trade_request.owner_id == current_actor.user_id):
             context_trade_request = temp_trade_request
+            # If reviewing an offered item, the 'proposer' is the one who made the request
+            proposer = temp_trade_request.requester
 
     # --- Fetch details relevant only if a user or org is logged in ---
     if current_actor:
@@ -2167,33 +2172,47 @@ def view_item(item_id):
             is_bookmarked = Bookmark.query.filter_by(user_id=current_actor.user_id, item_id=item.item_id).count() > 0
 
             # Find relevant user-user chat session (only if not viewing own item)
+            # Fetch even if item is own, needed if someone else initiated chat
+            chat_session = ChatSession.query.filter(
+                ChatSession.trade_item_id == item.item_id,
+                ChatSession.participant_org_id == None, # User-user chat
+                or_(
+                    (ChatSession.user_one_id == current_actor.user_id) & (ChatSession.user_two_id == item.user_id),
+                    (ChatSession.user_one_id == item.user_id) & (ChatSession.user_two_id == current_actor.user_id)
+                )
+            ).first()
+
+            if chat_session:
+                deal = DealProposal.query.filter_by(chat_session_id=chat_session.session_id).first()
+                # Determine proposer (the other user in the chat) if not already set by context_trade_request
+                if not proposer:
+                    other_user_obj = chat_session.get_other_user(current_actor.user_id)
+                    if other_user_obj:
+                         proposer = User.query.get(other_user_obj.user_id) # Fetch full object if needed
+
+            # Find any active trade request FROM the current user FOR this item
+            # (only relevant if current user is NOT the owner)
             if item.user_id != current_actor.user_id:
-                chat_session = ChatSession.query.filter(
-                    ChatSession.trade_item_id == item.item_id,
-                    ChatSession.participant_org_id == None, # User-user chat
-                    or_(
-                        (ChatSession.user_one_id == current_actor.user_id) & (ChatSession.user_two_id == item.user_id),
-                        (ChatSession.user_one_id == item.user_id) & (ChatSession.user_two_id == current_actor.user_id)
-                    )
-                ).first()
-
-                if chat_session:
-                    deal = DealProposal.query.filter_by(chat_session_id=chat_session.session_id).first()
-                    # Determine proposer (the other user in the chat)
-                    proposer_id = chat_session.user_two_id if chat_session.user_one_id == item.user_id else chat_session.user_one_id
-                    if proposer_id:
-                         # Fetch proposer if not already loaded or different from current user
-                         if proposer_id != current_actor.user_id:
-                             proposer = User.query.get(proposer_id)
-                         # else: # Should not happen based on filter, but safety check
-                         #    proposer = current_actor
-
-                # Find any active trade request FROM the current user FOR this item
                 trade_request = TradeRequest.query.filter(
                     TradeRequest.item_requested_id == item.item_id,
                     TradeRequest.requester_id == current_actor.user_id,
                     TradeRequest.status.in_(['pending', 'accepted']) # Only show active requests
                 ).first()
+
+            # *** ADDED: If current user IS the owner, find the relevant accepted trade request to identify proposer ***
+            elif item.user_id == current_actor.user_id and not proposer:
+                 # If the owner is viewing, find the *accepted* trade request involving this item
+                 # This helps identify the proposer if chat hasn't started or context isn't available
+                 accepted_trade_request = TradeRequest.query.filter(
+                     TradeRequest.item_requested_id == item.item_id,
+                     TradeRequest.owner_id == current_actor.user_id,
+                     TradeRequest.status == 'accepted'
+                 ).options(orm_joinedload(TradeRequest.requester)).first() # Eager load requester
+                 if accepted_trade_request:
+                     proposer = accepted_trade_request.requester
+                     # Assign this to trade_request as well, so _deal_panel has it
+                     trade_request = accepted_trade_request
+
 
         elif isinstance(current_actor, Organization):
              # Check bookmark status for organization
@@ -2211,12 +2230,8 @@ def view_item(item_id):
             status='pending'
         ).order_by(TradeRequest.created_at.desc()).all()
 
-        # If the owner is viewing, and there's a chat session, fetch the proposer (the other user)
-        if not proposer and chat_session: # Check if proposer wasn't already fetched
-             other_user_obj = chat_session.get_other_user(current_actor.user_id) # Use the helper method
-             if other_user_obj:
-                 # Fetch again if needed (or rely on relationship loading if configured)
-                 proposer = User.query.get(other_user_obj.user_id)
+        # If the owner is viewing, and proposer still not found (e.g., Share item, no chat yet),
+        # proposer will remain None, which _deal_panel handles.
 
 
     return render_template(
@@ -2225,8 +2240,8 @@ def view_item(item_id):
         is_bookmarked=is_bookmarked,
         session=chat_session, # Pass chat session object (None for Orgs or unauth users)
         deal=deal, # Pass deal object (None for Orgs or unauth users)
-        proposer=proposer, # Pass the fetched proposer User object (None for Orgs or unauth users)
-        trade_request=trade_request, # Request made *by* current user (None for Orgs)
+        proposer=proposer, # Pass the identified proposer User object
+        trade_request=trade_request, # Request made *by* current user OR the relevant accepted request if owner views
         context_trade_request=context_trade_request, # Request being reviewed *by* current user (None for Orgs)
         incoming_trade_requests=incoming_trade_requests # Requests made *for* this item (Empty for Orgs)
     )
@@ -3889,7 +3904,16 @@ def items_list():
     search = form.search.data.strip() if form.search.data else None
     location_filter = form.location.data # Single location for distance sort base
     radius_str = form.radius.data # String: '', '5', '10', etc.
-    categories = form.categories.data # List of selected category names
+    
+    # --- START FIX ---
+    # Get categories from the form (which is populated by request.args)
+    categories = form.categories.data # This handles the multi-select filter
+    
+    # If the form field is empty, check for a single 'category' param from the navbar link
+    if not categories and request.args.get('category'):
+        categories = [request.args.get('category')] # Put the single category into a list
+    # --- END FIX ---
+    
     urgency = form.urgency.data
     condition = form.condition.data
     sort_by = form.sort_by.data or 'newest' # Default sort

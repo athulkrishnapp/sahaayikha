@@ -1,4 +1,3 @@
-@ -1,358 +1,360 @@
 {% extends "base.html" %}
 {% block content %}
 
@@ -207,36 +206,63 @@
             </div>
 
             <aside class="chat-sidebar">
-                {# --- Existing Item Preview Logic for User-User Chats --- #}
-                {% if not session.is_org_chat and the_item and the_item.item_id %} {# Use direct attribute check #}
-                    {% set trade_request = the_item.trade_requests_received.filter_by(requester_id=other_user.user_id).first() if other_user else none %}
+                {# --- MODIFIED: Item Preview Logic for User-User ITEM TRADES --- #}
+                {# Show this block ONLY for user-user chats about a Trade item that has a corresponding trade_request (i.e., not a 'Money' request) #}
+                {% if not session.is_org_chat and the_item and the_item.item_id and the_item.type == 'Trade' and trade_request and trade_request.offered_item %}
+                    {# We use the 'trade_request' object passed directly from the chat route #}
 
                     <div class="sidebar-card">
                         <div class="item-preview-tabs">
-                            <div class="item-preview-tab active" data-target="item-for-trade">Item for Trade</div>
-                            {# Show offered item tab only if trade request exists and is accepted #}
-                            {% if trade_request and trade_request.status == 'accepted' %}
-                            <div class="item-preview-tab" data-target="item-offered">Offered Item</div>
-                            {% endif %}
+                            {# Renamed tab for clarity #}
+                            <div class="item-preview-tab active" data-target="item-requested">Item Requested</div>
+                            <div class="item-preview-tab" data-target="item-offered">Item Offered</div>
                         </div>
 
-                        <div id="item-for-trade" class="item-preview-content active">
+                        {# This is 'the_item' (the item the chat is about) #}
+                        <div id="item-requested" class="item-preview-content active">
                             <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
                                 <img src="{{ url_for('static', filename=the_item.images[0].image_url if the_item.images else 'images/item_placeholder.jpg') }}">
                                 <p>{{ the_item.title }}</p>
+                                {# 'the_item.owner' is the definitive owner. #}
+                                <small class="text-muted d-block">Owned by: {{ the_item.owner.first_name }}</small>
                             </a>
                         </div>
 
-                        {% if trade_request and trade_request.status == 'accepted' %}
+                        {# This is the item from the trade_request #}
                         <div id="item-offered" class="item-preview-content">
                             <a href="{{ url_for('main.view_item', item_id=trade_request.offered_item.item_id) }}" class="item-preview text-decoration-none">
                                 <img src="{{ url_for('static', filename=trade_request.offered_item.images[0].image_url if trade_request.offered_item.images else 'images/item_placeholder.jpg') }}">
                                 <p>{{ trade_request.offered_item.title }}</p>
+                                 {# 'trade_request.requester' is the definitive offerer. #}
+                                <small class="text-muted d-block">Offered by: {{ trade_request.requester.first_name }}</small>
                             </a>
                         </div>
-                        {% endif %}
+                    </div>
+
+                {# --- ADDED: Fallback for SHARE or MONEY request items --- #}
+                {% elif not session.is_org_chat and the_item and the_item.item_id and (the_item.type == 'Share' or (the_item.type == 'Trade' and the_item.expected_return == 'Money')) %}
+                    <div class="sidebar-card">
+
+                        {# ***** START OF CORRECTION ***** #}
+                        <h6>
+                            {% if the_item.type == 'Share' %}
+                                Item for Share
+                            {% elif the_item.type == 'Trade' and the_item.expected_return == 'Money' %}
+                                Item for Trade (Money)
+                            {% else %}
+                                Item Context
+                            {% endif %}
+                        </h6>
+                        {# ***** END OF CORRECTION ***** #}
+
+                        <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
+                            <img src="{{ url_for('static', filename=the_item.images[0].image_url if the_item.images else 'images/item_placeholder.jpg') }}">
+                            <p>{{ the_item.title }}</p>
+                        </a>
                     </div>
                 {% endif %}
+                {# --- END MODIFICATION --- #}
+
 
                 {# --- Existing Context for Org-User Chats about Needs --- #}
                 {% if session.is_org_chat and the_item and the_item.need_id %} {# Use direct attribute check #}
@@ -290,23 +316,24 @@
                     </ul>
                     {# Add a link to view the offer if applicable #}
                     {% if current_user.__class__.__name__ == 'Organization' and donation_offer.status in ['Pending Review', 'Awaiting Pickup', 'Accepted', 'Partially Accepted', 'Donation Pending', 'Completed', 'Rejected', 'Pickup Failed'] %} {# Show for all reviewed/final states too #}
-                    {% if current_user.__class__.__name__ == 'Organization' and donation_offer %} {# Simplified check #}
-                        <div class="mt-3 d-grid">
-                             {# ***** CORRECTED LINK ***** #}
-                             <a href="{{ url_for('main.review_donation_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
-                                 View Offer Details
-                             </a>
-                             {# ***** END CORRECTION ***** #}
-                        </div>
+                        {% if current_user.__class__.__name__ == 'Organization' and donation_offer %} {# Simplified check #}
+                            <div class="mt-3 d-grid">
+                                 {# ***** CORRECTED LINK ***** #}
+                                 <a href="{{ url_for('main.review_donation_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
+                                     View Offer Details
+                                 </a>
+                                 {# ***** END CORRECTION ***** #}
+                            </div>
+                        {% endif %}
+                         {# Also show View Offer for User #}
+                         {% if current_user.__class__.__name__ == 'User' %}
+                             <div class="mt-3 d-grid">
+                                 <a href="{{ url_for('main.view_my_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
+                                     View Offer Details
+                                 </a>
+                            </div>
+                         {% endif %}
                     {% endif %}
-                     {# Also show View Offer for User #}
-                     {% if current_user.__class__.__name__ == 'User' %}
-                         <div class="mt-3 d-grid">
-                             <a href="{{ url_for('main.view_my_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
-                                 View Offer Details
-                             </a>
-                        </div>
-                     {% endif %}
                 </div>
                 {% endif %}
                 {# --- END SECTION --- #}
@@ -360,3 +387,149 @@
             <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
             <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
         </div>
+    </div>
+</div>
+
+{# ***** ADD THIS SCRIPT BLOCK ***** #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- Tab Switching Logic ---
+        const tabs = document.querySelectorAll('.item-preview-tab');
+        const contents = document.querySelectorAll('.item-preview-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                contents.forEach(c => c.classList.remove('active'));
+
+                // Add active class to the clicked tab and corresponding content
+                this.classList.add('active');
+                const targetId = this.getAttribute('data-target');
+                const targetContent = document.getElementById(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('active');
+                }
+            });
+        });
+
+        // --- Other Chat Page JS (like image preview, delete modal, etc.) ---
+        // (Make sure any existing JS for image preview, delete confirmation, etc.
+        //  is also within this DOMContentLoaded listener or similar)
+
+        // Example: Scroll chatbox to bottom (if you don't have this already)
+        const chatBox = document.getElementById('chatBox');
+        if (chatBox) {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Add your existing JS for image preview handling here
+        const imageUpload = document.getElementById('image-upload');
+        const imagePreviewContainer = document.getElementById('image-preview-container');
+        const imagePreview = document.getElementById('image-preview');
+        const removeImageBtn = document.getElementById('remove-image-btn');
+
+        if (imageUpload && imagePreviewContainer && imagePreview && removeImageBtn) {
+            imageUpload.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        imagePreviewContainer.style.display = 'block';
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            removeImageBtn.addEventListener('click', function() {
+                imageUpload.value = ''; // Clear the file input
+                imagePreview.src = '#';
+                imagePreviewContainer.style.display = 'none';
+            });
+        }
+
+
+        // Add your existing JS for delete confirmation modal here
+        const deleteModal = document.getElementById('deleteModal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        let messageIdToDelete = null;
+
+        document.querySelectorAll('.delete-msg-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                messageIdToDelete = this.getAttribute('data-message-id');
+                if (deleteModal) {
+                    deleteModal.classList.add('active');
+                }
+            });
+        });
+
+        if (cancelDeleteBtn && deleteModal) {
+            cancelDeleteBtn.addEventListener('click', function() {
+                deleteModal.classList.remove('active');
+                messageIdToDelete = null;
+            });
+        }
+
+        if (confirmDeleteBtn && deleteModal) {
+            confirmDeleteBtn.addEventListener('click', function() {
+                if (messageIdToDelete) {
+                    fetch(`/message/${messageIdToDelete}/delete`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                             // ***** START CORRECTION *****
+                             // Add CSRF token header if needed (get from hidden input)
+                             // 'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value
+                             // ***** END CORRECTION *****
+                        },
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update UI: Replace message content or remove element
+                            const msgContainer = document.getElementById(`msg-container-${messageIdToDelete}`);
+                            if(msgContainer) {
+                                const msgContentDiv = msgContainer.querySelector('.msg-content');
+                                if (msgContentDiv) {
+                                     msgContentDiv.innerHTML = `<p class="mb-0 msg-content-deleted"><i class="fas fa-ban me-1"></i>Message deleted</p><div class="msg-meta">${msgContentDiv.querySelector('.msg-meta')?.innerHTML || ''}</div>`;
+                                }
+                                // Remove the delete button itself
+                                const deleteButtonDiv = msgContainer.querySelector('.msg-actions');
+                                if(deleteButtonDiv) {
+                                    deleteButtonDiv.remove();
+                                }
+                            }
+                            deleteModal.classList.remove('active');
+                            messageIdToDelete = null;
+                        } else {
+                            alert('Error deleting message: ' + data.error);
+                            deleteModal.classList.remove('active');
+                            messageIdToDelete = null;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while deleting the message.');
+                        deleteModal.classList.remove('active');
+                        messageIdToDelete = null;
+                    });
+                }
+            });
+        }
+         // Close modal if clicking outside the box
+         if (deleteModal) {
+            deleteModal.addEventListener('click', function(event) {
+                if (event.target === deleteModal) { // Clicked on the overlay itself
+                    deleteModal.classList.remove('active');
+                    messageIdToDelete = null;
+                }
+            });
+        }
+
+    });
+</script>
+{# ***** END SCRIPT BLOCK ***** #}
+
+{% endblock %}

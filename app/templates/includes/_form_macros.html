@@ -1,13 +1,130 @@
-{% macro render_field(field) %}
+{# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #}
+{# ~~~ Form Macros for rendering WTForms fields with Bootstrap 5 ~~~ #}
+{# ~~~ Avoids **kwargs in macro signature for compatibility      ~~~ #}
+{# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #}
+
+{# --- Standard Input Field (text, email, password, etc.) --- #}
+{% macro render_field(field, label_visible=True) %}
   <div class="mb-3">
-    {{ field.label(class="form-label") }}
-    {{ field(**kwargs)|safe }}
+    {% if label_visible and field.label %}
+      {{ field.label(class="form-label") }}
+    {% endif %}
+    {# Get extra kwargs passed during the call #}
+    {% set extra_kwargs = kwargs %}
+    {% set field_class = 'form-control ' + extra_kwargs.pop('class', '') + (' is-invalid' if field.errors else '') %}
+    {{ field(class=field_class, **extra_kwargs) }} {# Unpack the collected kwargs here #}
     {% if field.errors %}
-      {% for error in field.errors %}
-        <div class="invalid-feedback d-block">
-          {{ error }}
-        </div>
-      {% endfor %}
+      <div class="invalid-feedback">
+          {{ field.errors[0] }}
+      </div>
+    {% endif %}
+    {% if field.description %}
+        <small class="form-text text-muted">{{ field.description }}</small>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+
+{# --- Select Field (Dropdown) --- #}
+{% macro render_select_field(field, label_visible=True) %}
+    <div class="mb-3">
+        {% if label_visible and field.label %}
+            {{ field.label(class="form-label") }}
+        {% endif %}
+        {% set extra_kwargs = kwargs %}
+        {% set field_class = 'form-select ' + extra_kwargs.pop('class', '') + (' is-invalid' if field.errors else '') %}
+        {{ field(class=field_class, **extra_kwargs) }}
+        {% if field.errors %}
+            <div class="invalid-feedback d-block">
+                {{ field.errors[0] }}
+            </div>
+        {% endif %}
+         {% if field.description %}
+            <small class="form-text text-muted">{{ field.description }}</small>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# --- Select Multiple Field (Multi-select) --- #}
+{% macro render_multiple_select_field(field, label_visible=True) %}
+    <div class="mb-3">
+        {% if label_visible and field.label %}
+            {{ field.label(class="form-label") }}
+        {% endif %}
+        {% set extra_kwargs = kwargs %}
+        {% set field_class = 'form-select ' + extra_kwargs.pop('class', '') + (' is-invalid' if field.errors else '') %}
+        {{ field(class=field_class, multiple=True, **extra_kwargs) }}
+        {% if field.errors %}
+            <div class="invalid-feedback d-block">
+                {{ field.errors[0] }}
+            </div>
+        {% endif %}
+         {% if field.description %}
+            <small class="form-text text-muted">{{ field.description }}</small>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# --- Checkbox Field --- #}
+{% macro render_checkbox_field(field, label_visible=True) %}
+    <div class="mb-3 form-check">
+        {% set extra_kwargs = kwargs %}
+        {% set field_class = 'form-check-input ' + extra_kwargs.pop('class', '') + (' is-invalid' if field.errors else '') %}
+        {{ field(class=field_class, **extra_kwargs) }}
+        {% if label_visible and field.label %}
+             {{ field.label(class="form-check-label") }}
+        {% endif %}
+        {% if field.errors %}
+            <div class="invalid-feedback d-block">
+                {{ field.errors[0] }}
+            </div>
+        {% endif %}
+        {% if field.description %}
+            <small class="form-text text-muted d-block">{{ field.description }}</small>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{# --- File Field (Single) --- #}
+{% macro render_file_field(field, label_visible=True) %}
+  <div class="mb-3">
+    {% if label_visible and field.label %}
+      {{ field.label(class="form-label") }}
+    {% endif %}
+    {% set extra_kwargs = kwargs %}
+    {% set field_class = 'form-control ' + extra_kwargs.pop('class', '') + (' is-invalid' if field.errors else '') %}
+    {{ field(class=field_class, **extra_kwargs) }}
+    {% if field.errors %}
+      <div class="invalid-feedback d-block">
+          {{ field.errors[0] }}
+      </div>
+    {% endif %}
+    {% if field.description %}
+        <small class="form-text text-muted">{{ field.description }}</small>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+
+{# --- Multiple File Field --- #}
+{% macro render_multiple_file_field(field, label_visible=True) %}
+  <div class="mb-3">
+    {% if label_visible and field.label %}
+      {{ field.label(class="form-label") }}
+    {% endif %}
+    {% set extra_kwargs = kwargs %}
+    {% set field_class = 'form-control ' + extra_kwargs.pop('class', '') + (' is-invalid' if field.errors else '') %}
+    {{ field(class=field_class, multiple=True, **extra_kwargs) }}
+    {% if field.errors %}
+      <div class="invalid-feedback d-block">
+          {{ field.errors[0] }}
+      </div>
+    {% endif %}
+    {% if field.description %}
+        <small class="form-text text-muted">{{ field.description }}</small>
     {% endif %}
   </div>
 {% endmacro %}

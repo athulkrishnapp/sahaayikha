@@ -163,8 +163,24 @@
 
 {# Determine owner and proposer from context variables passed by the route ('the_item', 'other_user', 'proposer') #}
 {# *** Ensure 'owner' and 'proposer_user' are correctly identified *** #}
+
+{# ***** START OF CORRECTION ***** #}
 {% set owner = the_item.owner if the_item else none %}
-{% set proposer_user = other_user if other_user else proposer %} {# Use 'other_user' from chat, fallback to 'proposer' from view_item #}
+
+{# Check if we are in a chat session context (other_user exists) #}
+{% if other_user %}
+    {% if owner and current_user.user_id == owner.user_id %}
+        {# I am the owner, so the proposer is the other user #}
+        {% set proposer_user = other_user %}
+    {% else %}
+        {# I am not the owner, so I must be the proposer #}
+        {% set proposer_user = current_user %}
+    {% endif %}
+{% else %}
+    {# We are not in chat, probably on view_item page. Use the 'proposer' variable. #}
+    {% set proposer_user = proposer %}
+{% endif %}
+{# ***** END OF CORRECTION ***** #}
 
 
 {# Determine statuses #}
