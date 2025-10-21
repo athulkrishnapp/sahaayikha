@@ -184,7 +184,7 @@ class Item(db.Model):
 class TradeRequest(db.Model):
     __tablename__ = 'trade_requests'
     id = db.Column(db.Integer, primary_key=True)
-    item_offered_id = db.Column(db.Integer, db.ForeignKey('items.item_id'), nullable=False)
+    item_offered_id = db.Column(db.Integer, db.ForeignKey('items.item_id'), nullable=True)
     item_requested_id = db.Column(db.Integer, db.ForeignKey('items.item_id'), nullable=False)
     requester_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
     owner_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False) # Owner of the requested_item

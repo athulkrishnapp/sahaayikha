@@ -1799,23 +1799,35 @@ def request_trade(item_id):
         orm_joinedload(Item.owner)
     ).get_or_404(item_id)
 
-    # --- ADD THIS LINE ---
     form = FlaskForm() # Create a base form object to pass for CSRF token
 
     # --- Input Validation and Checks ---
     if item_to_get.user_id == current_user.user_id:
-        flash("You cannot trade for your own item.", "warning")
+        flash("You cannot request your own item.", "warning")
         return redirect(url_for('main.view_item', item_id=item_id))
     if item_to_get.status != 'Active':
         flash("This item is no longer available.", "info")
-        return redirect(url_for('main.items_list')) # Redirect to list if item unavailable
-    if item_to_get.type != 'Trade': # Can only request trade for 'Trade' items
-         flash("This item is listed for sharing, not trading.", "info")
-         return redirect(url_for('main.view_item', item_id=item_id))
+        return redirect(url_for('main.items_list'))
+    # Ensure it's a 'Trade' item
+    if item_to_get.type != 'Trade':
+        flash("Requests can only be made for 'Trade' items.", "info")
+        return redirect(url_for('main.view_item', item_id=item_id))
 
-    # --- Handle Monetary Offers ---
+
+    # --- Handle Monetary Trade Offers (No form needed) ---
     if item_to_get.expected_return == 'Money':
-        # Find or create a user-user chat session specifically for this item
+        # Check if an active request already exists
+        existing_request = TradeRequest.query.filter(
+            TradeRequest.item_requested_id == item_id,
+            TradeRequest.requester_id == current_user.user_id,
+            TradeRequest.status.in_(['pending', 'accepted']) # Check for active states
+        ).first()
+
+        if existing_request:
+            flash('You already have an active monetary offer/request for this item.', 'info')
+            return redirect(url_for('main.view_item', item_id=item_id))
+
+        # Find or create a user-user chat session
         session = ChatSession.query.filter(
             ChatSession.trade_item_id == item_id,
             ChatSession.participant_org_id == None, # Ensure user-user
@@ -1832,47 +1844,80 @@ def request_trade(item_id):
                 user_two_id=item_to_get.user_id    # Owner is user_two
             )
             db.session.add(session)
-            db.session.commit()
-            current_app.logger.info(f"Created monetary chat session {session.session_id} for item {item_id}")
 
-        flash("The owner is looking for money. A chat has been started to discuss the offer.", "info")
-        return redirect(url_for('main.chat', session_id=session.session_id))
+        # Create a TradeRequest with no offered item
+        new_request = TradeRequest(
+            item_requested_id=item_to_get.item_id,
+            owner_id=item_to_get.user_id,
+            requester_id=current_user.user_id,
+            item_offered_id=None  # <-- The 'null offer' for Money
+        )
+        db.session.add(new_request)
+
+        # Create Notification
+        notification_message = f"{current_user.first_name} sent a monetary offer request for your '{item_to_get.title}'."
+        notification = Notification(
+            user_id=item_to_get.user_id,
+            message=notification_message,
+            item_id=item_id
+        )
+        db.session.add(notification)
+
+        try:
+            db.session.commit()
+            current_app.logger.info(f"Created money request {new_request.id} for item {item_id}")
+
+            # Send Push Notification
+            owner = item_to_get.owner
+            if owner and owner.fcm_token:
+                try:
+                    send_push_notification(
+                        token=owner.fcm_token,
+                        title="New Monetary Offer!",
+                        body=notification_message,
+                        data={'itemId': str(item_id), 'type': 'trade_request'}
+                    )
+                except Exception as e:
+                     current_app.logger.error(f"FCM failed for money request notification to user {owner.user_id}: {e}")
+
+            flash('Your monetary offer request has been sent! You can discuss details in the chat.', 'success')
+            # Redirect directly to chat for Money offers
+            return redirect(url_for('main.chat', session_id=session.session_id))
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating money request for item {item_id}: {e}")
+            flash("An error occurred while sending your request.", "danger")
+            return redirect(url_for('main.view_item', item_id=item_id))
 
     # --- Handle Item-Based Trade Requests (POST) ---
     if request.method == 'POST':
-        # --- ADD CSRF VALIDATION ---
         if not form.validate_on_submit():
             flash("The form submission was invalid (e.g., expired token). Please try again.", "danger")
-            # Need to re-query items to re-render the GET page
             my_items_for_trade = Item.query.filter_by(user_id=current_user.user_id, status='Active', type='Trade').order_by(Item.title).all()
             suggested_category = item_to_get.expected_return if item_to_get.expected_return != 'Money' else None
             if suggested_category:
-                 # Filter list based on category
-                 my_items_for_trade = [item for item in my_items_for_trade if item.category == suggested_category]
-
+                my_items_for_trade = [item for item in my_items_for_trade if item.category == suggested_category]
             return render_template("items/request_trade.html",
                                    item_to_get=item_to_get,
                                    my_items=my_items_for_trade,
                                    suggested_category=suggested_category,
-                                   form=form) # <-- Pass form on error
-        # --- END CSRF VALIDATION ---
+                                   form=form)
 
         item_to_offer_id = request.form.get('item_to_offer')
-        item_offered = Item.query.filter_by(item_id=item_to_offer_id, user_id=current_user.user_id).first()
+        item_offered = Item.query.filter_by(item_id=item_to_offer_id, user_id=current_user.user_id, status='Active', type='Trade').first()
 
         if not item_offered:
-            flash("Please select a valid item you own to offer.", "warning")
+            flash("Please select a valid, active item you own to offer.", "warning")
             my_items_for_trade = Item.query.filter_by(user_id=current_user.user_id, status='Active', type='Trade').order_by(Item.title).all()
             suggested_category = item_to_get.expected_return if item_to_get.expected_return != 'Money' else None
             if suggested_category:
-                 my_items_for_trade = [item for item in my_items_for_trade if item.category == suggested_category]
-            
-            # --- PASS FORM ON ERROR ---
+                my_items_for_trade = [item for item in my_items_for_trade if item.category == suggested_category]
             return render_template("items/request_trade.html",
                                    item_to_get=item_to_get,
                                    my_items=my_items_for_trade,
                                    suggested_category=suggested_category,
-                                   form=form) # <-- Pass form on error
+                                   form=form)
 
         existing_request = TradeRequest.query.filter(
             TradeRequest.item_requested_id == item_id,
@@ -1899,26 +1944,31 @@ def request_trade(item_id):
             item_id=item_id
         )
         db.session.add(notification)
-        db.session.commit()
 
-        # --- ADD PUSH NOTIFICATION ---
-        owner = item_to_get.owner # Fetch the owner User object
-        if owner and owner.fcm_token:
-            try:
-                send_push_notification(
-                    token=owner.fcm_token,
-                    title="New Trade Request!",
-                    body=notification_message,
-                    data={'itemId': str(item_id), 'type': 'trade_request'} # Add relevant data
-                )
-            except Exception as e:
-                 current_app.logger.error(f"FCM failed for trade request notification to user {owner.user_id}: {e}")
-        # --- END PUSH NOTIFICATION ---
+        try:
+            db.session.commit()
+            owner = item_to_get.owner
+            if owner and owner.fcm_token:
+                try:
+                    send_push_notification(
+                        token=owner.fcm_token,
+                        title="New Trade Request!",
+                        body=notification_message,
+                        data={'itemId': str(item_id), 'type': 'trade_request'}
+                    )
+                except Exception as e:
+                     current_app.logger.error(f"FCM failed for trade request notification to user {owner.user_id}: {e}")
 
-        flash("Trade request sent successfully!", "success")
-        return redirect(url_for('main.view_item', item_id=item_id))
+            flash("Trade request sent successfully!", "success")
+            return redirect(url_for('main.view_item', item_id=item_id))
 
-    # --- GET Request: Show items user can offer ---
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating item trade request for item {item_id}: {e}")
+            flash("An error occurred while sending your request.", "danger")
+            return redirect(url_for('main.view_item', item_id=item_id))
+
+    # --- GET Request: Show items user can offer for item-for-item trades ---
     my_items_for_trade = Item.query.filter_by(
         user_id=current_user.user_id,
         status='Active',
@@ -1927,16 +1977,100 @@ def request_trade(item_id):
 
     suggested_category = item_to_get.expected_return if item_to_get.expected_return != 'Money' else None
 
-    # Filter by suggested category if one exists
     if suggested_category:
         my_items_for_trade = [item for item in my_items_for_trade if item.category == suggested_category]
 
-    # --- PASS FORM ON GET ---
     return render_template("items/request_trade.html",
                            item_to_get=item_to_get,
                            my_items=my_items_for_trade,
                            suggested_category=suggested_category,
-                           form=form) # <-- Pass form
+                           form=form)
+
+
+@main.route('/share/chat/<int:item_id>') # Define the URL
+@login_required
+@role_required("user") # Only users can initiate share chats
+def start_share_chat(item_id):
+    """Finds or creates a chat session for a 'Share' item and redirects to it."""
+    item = Item.query.options(orm_joinedload(Item.owner)).get_or_404(item_id)
+
+    # --- Security & Validation ---
+    if item.user_id == current_user.user_id:
+        flash("You cannot start a chat about your own item.", "warning")
+        return redirect(url_for('main.view_item', item_id=item_id))
+    if item.status != 'Active':
+        flash("This item is no longer available.", "info")
+        return redirect(url_for('main.items_list'))
+    if item.type != 'Share':
+        flash("This item is not listed for sharing.", "info")
+        return redirect(url_for('main.view_item', item_id=item_id))
+    if item.deal_finalized_at:
+        flash("This item has already been shared.", "info")
+        return redirect(url_for('main.view_item', item_id=item_id))
+
+    owner = item.owner
+    if not owner: # Should not happen with eager loading, but check anyway
+        flash("Cannot start chat: Item owner not found.", "danger")
+        return redirect(url_for('main.view_item', item_id=item_id))
+
+    # --- Find or Create Chat Session ---
+    session = ChatSession.query.filter(
+        ChatSession.trade_item_id == item_id,
+        ChatSession.participant_org_id == None, # Ensure user-user
+        or_(
+            (ChatSession.user_one_id == current_user.user_id) & (ChatSession.user_two_id == owner.user_id),
+            (ChatSession.user_one_id == owner.user_id) & (ChatSession.user_two_id == current_user.user_id)
+        )
+    ).first()
+
+    if not session:
+        session = ChatSession(
+            trade_item_id=item_id,          # Link session to the item
+            user_one_id=current_user.user_id, # Initiator is user_one
+            user_two_id=owner.user_id         # Owner is user_two
+        )
+        db.session.add(session)
+        try:
+            # Add notification for the owner (optional)
+            notification_message = f"{current_user.first_name} started a chat to discuss receiving your shared item: '{item.title}'."
+            notification = Notification(
+                user_id=owner.user_id,
+                message=notification_message,
+                item_id=item_id
+            )
+            db.session.add(notification)
+
+            db.session.commit() # Commit session and notification
+            current_app.logger.info(f"Created share chat session {session.session_id} for item {item_id}")
+
+            # Send Push Notification to owner (optional)
+            if owner.fcm_token:
+                try:
+                    send_push_notification(
+                        token=owner.fcm_token,
+                        title="New Share Chat Started!",
+                        body=f"{current_user.first_name} wants to chat about receiving '{item.title}'.",
+                        data={'itemId': str(item_id), 'sessionId': str(session.session_id), 'type': 'share_chat_started'}
+                    )
+                except Exception as e:
+                     current_app.logger.error(f"FCM failed for share chat start notification to user {owner.user_id}: {e}")
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error creating share chat session for item {item_id}: {e}")
+            flash("An error occurred while trying to start the chat.", "danger")
+            return redirect(url_for('main.view_item', item_id=item_id))
+
+    elif session.status != 'Active':
+        # Reactivate if blocked (owner might need to unblock from profile)
+        flash("Cannot join chat. It might be blocked or inactive.", "warning")
+        return redirect(url_for('main.view_item', item_id=item_id))
+
+
+    # --- Redirect to the Chat ---
+    return redirect(url_for('main.chat', session_id=session.session_id))
+
+
 
 @main.route('/trade/accept/<int:request_id>', methods=['POST'])
 @login_required
@@ -2128,7 +2262,6 @@ def new_item():
     return render_template("items/post_item.html", form=form)
 
 @main.route("/item/<int:item_id>")
-# @login_required # Login is not strictly required to view, but needed to interact
 def view_item(item_id):
     """Displays the details page for a specific item."""
     # Eager load related data to avoid multiple queries in the template
@@ -2140,7 +2273,7 @@ def view_item(item_id):
     is_bookmarked = False
     chat_session = None
     deal = None
-    # trade_request: Existing request *from* current user *for* this item
+    # trade_request: Existing request *from* current user *for* this item (Trade only)
     trade_request = None
     # context_trade_request: Request *for* current user's item, linking *to this* item (used when owner reviews offered item)
     context_trade_request = None
@@ -2165,63 +2298,54 @@ def view_item(item_id):
             # If reviewing an offered item, the 'proposer' is the one who made the request
             proposer = temp_trade_request.requester
 
-    # --- Fetch details relevant only if a user or org is logged in ---
-    if current_actor:
-        if isinstance(current_actor, User):
-            # Check bookmark status for user
-            is_bookmarked = Bookmark.query.filter_by(user_id=current_actor.user_id, item_id=item.item_id).count() > 0
+    # --- Fetch details relevant only if a user is logged in ---
+    if current_actor and isinstance(current_actor, User):
+        # Check bookmark status for user
+        is_bookmarked = Bookmark.query.filter_by(user_id=current_actor.user_id, item_id=item.item_id).count() > 0
 
-            # Find relevant user-user chat session (only if not viewing own item)
-            # Fetch even if item is own, needed if someone else initiated chat
-            chat_session = ChatSession.query.filter(
-                ChatSession.trade_item_id == item.item_id,
-                ChatSession.participant_org_id == None, # User-user chat
-                or_(
-                    (ChatSession.user_one_id == current_actor.user_id) & (ChatSession.user_two_id == item.user_id),
-                    (ChatSession.user_one_id == item.user_id) & (ChatSession.user_two_id == current_actor.user_id)
-                )
+        # Find relevant user-user chat session (needed for deal status, applies to Share & Trade)
+        chat_session = ChatSession.query.filter(
+            ChatSession.trade_item_id == item.item_id, # Link by item_id
+            ChatSession.participant_org_id == None,
+            or_(
+                (ChatSession.user_one_id == current_actor.user_id) & (ChatSession.user_two_id == item.user_id),
+                (ChatSession.user_one_id == item.user_id) & (ChatSession.user_two_id == current_actor.user_id)
+            )
+        ).first()
+
+        if chat_session:
+            deal = DealProposal.query.filter_by(chat_session_id=chat_session.session_id).first()
+            # Determine proposer (the other user in the chat) if not already set by context_trade_request
+            if not proposer:
+                other_user_obj = chat_session.get_other_user(current_actor.user_id)
+                if other_user_obj:
+                     proposer = User.query.get(other_user_obj.user_id) # Fetch full object if needed
+
+        # Find any active trade request FROM the current user FOR this item (Trade only)
+        if item.user_id != current_actor.user_id and item.type == 'Trade':
+            trade_request = TradeRequest.query.filter(
+                TradeRequest.item_requested_id == item.item_id,
+                TradeRequest.requester_id == current_actor.user_id,
+                TradeRequest.status.in_(['pending', 'accepted'])
             ).first()
 
-            if chat_session:
-                deal = DealProposal.query.filter_by(chat_session_id=chat_session.session_id).first()
-                # Determine proposer (the other user in the chat) if not already set by context_trade_request
-                if not proposer:
-                    other_user_obj = chat_session.get_other_user(current_actor.user_id)
-                    if other_user_obj:
-                         proposer = User.query.get(other_user_obj.user_id) # Fetch full object if needed
-
-            # Find any active trade request FROM the current user FOR this item
-            # (only relevant if current user is NOT the owner)
-            if item.user_id != current_actor.user_id:
-                trade_request = TradeRequest.query.filter(
-                    TradeRequest.item_requested_id == item.item_id,
-                    TradeRequest.requester_id == current_actor.user_id,
-                    TradeRequest.status.in_(['pending', 'accepted']) # Only show active requests
-                ).first()
-
-            # *** ADDED: If current user IS the owner, find the relevant accepted trade request to identify proposer ***
-            elif item.user_id == current_actor.user_id and not proposer:
-                 # If the owner is viewing, find the *accepted* trade request involving this item
-                 # This helps identify the proposer if chat hasn't started or context isn't available
-                 accepted_trade_request = TradeRequest.query.filter(
-                     TradeRequest.item_requested_id == item.item_id,
-                     TradeRequest.owner_id == current_actor.user_id,
-                     TradeRequest.status == 'accepted'
-                 ).options(orm_joinedload(TradeRequest.requester)).first() # Eager load requester
-                 if accepted_trade_request:
-                     proposer = accepted_trade_request.requester
-                     # Assign this to trade_request as well, so _deal_panel has it
-                     trade_request = accepted_trade_request
-
-
-        elif isinstance(current_actor, Organization):
-             # Check bookmark status for organization
-             is_bookmarked = Bookmark.query.filter_by(org_id=current_actor.org_id, item_id=item.item_id).count() > 0
-
+        # If current user IS the owner, find the relevant accepted trade request to identify proposer
+        elif item.user_id == current_actor.user_id and not proposer:
+             # Find the *accepted* trade request involving this item
+             accepted_trade_request = TradeRequest.query.filter(
+                 TradeRequest.item_requested_id == item.item_id,
+                 TradeRequest.owner_id == current_actor.user_id,
+                 TradeRequest.status == 'accepted'
+             ).options(orm_joinedload(TradeRequest.requester)).first() # Eager load requester
+             if accepted_trade_request:
+                 proposer = accepted_trade_request.requester
+                 # Assign this to trade_request for consistency in template if needed
+                 trade_request = accepted_trade_request
 
     # Fetch pending trade requests FOR this item if the viewer IS the owner (User only)
+    # Only relevant for item-for-item trades
     incoming_trade_requests = []
-    if current_actor and isinstance(current_actor, User) and item.user_id == current_actor.user_id:
+    if current_actor and isinstance(current_actor, User) and item.user_id == current_actor.user_id and item.type == 'Trade' and item.expected_return != 'Money':
         incoming_trade_requests = TradeRequest.query.options(
             orm_joinedload(TradeRequest.requester), # Eager load requester details
             orm_joinedload(TradeRequest.offered_item).joinedload(Item.images) # Eager load offered item + images
@@ -2230,20 +2354,16 @@ def view_item(item_id):
             status='pending'
         ).order_by(TradeRequest.created_at.desc()).all()
 
-        # If the owner is viewing, and proposer still not found (e.g., Share item, no chat yet),
-        # proposer will remain None, which _deal_panel handles.
-
-
     return render_template(
         "items/view_item.html",
         item=item,
         is_bookmarked=is_bookmarked,
-        session=chat_session, # Pass chat session object (None for Orgs or unauth users)
-        deal=deal, # Pass deal object (None for Orgs or unauth users)
-        proposer=proposer, # Pass the identified proposer User object
-        trade_request=trade_request, # Request made *by* current user OR the relevant accepted request if owner views
-        context_trade_request=context_trade_request, # Request being reviewed *by* current user (None for Orgs)
-        incoming_trade_requests=incoming_trade_requests # Requests made *for* this item (Empty for Orgs)
+        session=chat_session, # Pass chat session object (for Share & Trade)
+        deal=deal,
+        proposer=proposer,
+        trade_request=trade_request, # Pass trade request object (Trade only)
+        context_trade_request=context_trade_request,
+        incoming_trade_requests=incoming_trade_requests # Pass incoming item-trade requests
     )
 
 

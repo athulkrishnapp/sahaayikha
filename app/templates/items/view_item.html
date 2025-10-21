@@ -154,7 +154,7 @@
     {% if item.deal_finalized_at %}
     <div class="alert alert-info text-center" role="alert">
       <h4 class="alert-heading">Deal Finalized!</h4>
-      <p>This item has been traded and is no longer available.</p>
+      <p>This item has been {% if item.type == 'Share' %}shared{% else %}traded{% endif %} and is no longer available.</p>
     </div>
     {% endif %}
     <div class="row g-5">
@@ -192,9 +192,9 @@
                 {% if current_user.is_authenticated %}
                     {# --- User-Specific Actions --- #}
                     {% if current_user.__class__.__name__ == 'User' %}
-                        {# ... (user button logic remains the same) ... #}
+                        {# If the current user is reviewing this item as part of an INCOMING trade request #}
                         {% if context_trade_request and current_user.user_id == context_trade_request.owner_id %}
-                            <p class="text-muted my-auto">You are reviewing this item for a trade. Your item is: <strong>{{ context_trade_request.requested_item.title }}</strong></p>
+                            <p class="text-muted my-auto">You are reviewing this item offered for trade. Your item is: <strong>{{ context_trade_request.requested_item.title }}</strong></p>
                             <div class="ms-auto d-flex gap-2">
                                 <form action="{{ url_for('main.accept_trade', request_id=context_trade_request.id) }}" method="POST" class="d-inline">
                                     <button type="submit" class="btn btn-success"><i class="fas fa-check me-2"></i>Accept & Chat</button>
@@ -203,22 +203,35 @@
                                     <button type="submit" class="btn btn-danger"><i class="fas fa-times me-2"></i>Reject</button>
                                 </form>
                             </div>
+                        {# If the current user IS the owner of this item #}
                         {% elif current_user.user_id == item.user_id %}
                             <a href="{{ url_for('main.edit_item', item_id=item.item_id) }}" class="btn btn-warning"><i class="fas fa-edit me-2"></i>Edit</a>
                             <form action="{{ url_for('main.delete_item', item_id=item.item_id) }}" method="POST" class="d-inline">
                                 <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure?');"><i class="fas fa-trash me-2"></i>Delete</button>
                             </form>
+                        {# If the current user is viewing someone else's item #}
                         {% else %}
                             <form action="{{ url_for('main.add_or_remove_bookmark', item_id=item.item_id) }}" method="POST" class="d-inline">
                                 {% if is_bookmarked %}<button type="submit" class="btn btn-primary"><i class="fas fa-bookmark me-2"></i>Bookmarked</button>
                                 {% else %}<button type="submit" class="btn btn-outline-primary"><i class="far fa-bookmark me-2"></i>Bookmark</button>{% endif %}
                             </form>
+                            {# Only show interact buttons if deal not finalized #}
                             {% if not item.deal_finalized_at %}
                                 <div class="trade-action-wrapper d-inline-block">
                                     {% if item.type == 'Trade' %}
+                                        {# Trade for Money #}
                                         {% if item.expected_return == 'Money' %}
-                                            <a href="{{ url_for('main.request_trade', item_id=item.item_id) }}" class="btn btn-success"><i class="fas fa-dollar-sign me-2"></i>Make Offer</a>
+                                            {# Uses 'trade_request' and 'session' variables #}
+                                            {% if trade_request and trade_request.status == 'accepted' %}
+                                                <a href="{{ url_for('main.chat', session_id=session.session_id) }}" class="btn btn-primary"><i class="fas fa-comments me-2"></i>Go to Chat</a>
+                                            {% elif trade_request and trade_request.status == 'pending' %}
+                                                <button class="btn btn-secondary" disabled><i class="fas fa-clock me-2"></i>Offer Sent</button>
+                                            {% else %}
+                                                <a href="{{ url_for('main.request_trade', item_id=item.item_id) }}" class="btn btn-success"><i class="fas fa-dollar-sign me-2"></i>Make Offer</a>
+                                            {% endif %}
+                                        {# Trade for Item #}
                                         {% else %}
+                                            {# Uses 'trade_request' and 'session' variables #}
                                             {% if trade_request and trade_request.status == 'accepted' %}
                                                 <a href="{{ url_for('main.chat', session_id=session.session_id) }}" class="btn btn-primary"><i class="fas fa-comments me-2"></i>Go to Chat</a>
                                             {% elif trade_request and trade_request.status == 'pending' %}
@@ -227,19 +240,19 @@
                                                 <a href="{{ url_for('main.request_trade', item_id=item.item_id) }}" class="btn btn-success"><i class="fas fa-exchange-alt me-2"></i>Request Trade</a>
                                             {% endif %}
                                         {% endif %}
+                                    {# --- CORRECTED SHARE BUTTON LINK --- #}
                                     {% elif item.type == 'Share' %}
+                                        <a href="{{ url_for('main.start_share_chat', item_id=item.item_id) }}" class="btn btn-success"><i class="fas fa-comments me-2"></i>Chat about Receiving</a>
+                                    {# --- END CORRECTION --- #}
                                     {% endif %}
                                 </div>
-                            {% endif %}
+                            {% endif %} {# End check not finalized #}
                             <a href="{{ url_for('main.report_general', item_id=item.item_id) }}" class="btn btn-outline-danger"><i class="fas fa-flag me-2"></i>Report</a>
                         {% endif %}
 
                     {# --- Organization-Specific Actions --- #}
                     {% elif current_user.__class__.__name__ == 'Organization' %}
-                        {# *** REMOVED Bookmark Button for Orgs *** #}
-                        {# *** REMOVED CHAT ABOUT SHARING BUTTON FOR ORG *** #}
-
-                        {# Report Button for Orgs (Kept) #}
+                        {# Report Button for Orgs #}
                         <a href="{{ url_for('main.report_general', item_id=item.item_id) }}" class="btn btn-outline-danger"><i class="fas fa-flag me-2"></i>Report</a>
 
                     {% endif %} {# End check User vs Org #}
@@ -266,7 +279,6 @@
                     </a>
                 </div>
 
-
                 <div class="sidebar-card shadow-sm">
                     <h5 class="fw-bold mb-3">Item Details</h5>
                     <ul class="details-list">
@@ -284,8 +296,8 @@
         </div> {# End col-lg-5 #}
     </div> {# End row g-5 #}
 
-    {# --- Incoming Trade Requests Section (Remains unchanged - Only for Users) --- #}
-    {% if current_user.is_authenticated and current_user.__class__.__name__ == 'User' and current_user.user_id == item.user_id and item.type == 'Trade' %}
+    {# --- Incoming Trade Requests Section (Only for Users who own the item, and only for item-for-item trades) --- #}
+    {% if current_user.is_authenticated and current_user.__class__.__name__ == 'User' and current_user.user_id == item.user_id and item.type == 'Trade' and item.expected_return != 'Money' %}
         <div class="row mt-5">
             <div class="col-12">
                 <button class="btn btn-outline-primary mb-3 w-100 d-flex justify-content-between align-items-center"

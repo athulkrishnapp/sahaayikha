@@ -90,7 +90,7 @@
     .confirm-modal-overlay.active .confirm-modal-box { transform: scale(1); }
     .confirm-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; }
 
-    /* --- NEW TABBED ITEM PREVIEW STYLES --- */
+    /* --- TABBED ITEM PREVIEW STYLES --- */
     .item-preview-tabs {
         display: flex;
         border-bottom: 1px solid var(--border);
@@ -206,82 +206,70 @@
             </div>
 
             <aside class="chat-sidebar">
-                {# --- MODIFIED: Item Preview Logic for User-User ITEM TRADES --- #}
-                {# Show this block ONLY for user-user chats about a Trade item that has a corresponding trade_request (i.e., not a 'Money' request) #}
-                {% if not session.is_org_chat and the_item and the_item.item_id and the_item.type == 'Trade' and trade_request and trade_request.offered_item %}
-                    {# We use the 'trade_request' object passed directly from the chat route #}
-
+                {# --- CORRECTED: Sidebar Logic --- #}
+                {% if not session.is_org_chat and the_item and the_item.item_id %}
+                    {# User-User Chat (Trade or Share) #}
                     <div class="sidebar-card">
-                        <div class="item-preview-tabs">
-                            {# Renamed tab for clarity #}
-                            <div class="item-preview-tab active" data-target="item-requested">Item Requested</div>
-                            <div class="item-preview-tab" data-target="item-offered">Item Offered</div>
-                        </div>
+                        {# Check if it's an item-for-item trade #}
+                        {% if the_item.type == 'Trade' and trade_request and trade_request.offered_item %}
+                            <div class="item-preview-tabs">
+                                <div class="item-preview-tab active" data-target="item-requested">Item Requested</div>
+                                <div class="item-preview-tab" data-target="item-offered">Item Offered</div>
+                            </div>
 
-                        {# This is 'the_item' (the item the chat is about) #}
-                        <div id="item-requested" class="item-preview-content active">
-                            <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
+                            {# Item Requested (the_item) #}
+                            <div id="item-requested" class="item-preview-content active">
+                                <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
+                                    <img src="{{ url_for('static', filename=the_item.images[0].image_url if the_item.images else 'images/item_placeholder.jpg') }}">
+                                    <p>{{ the_item.title }}</p>
+                                    <small class="text-muted d-block">Owned by: {{ the_item.owner.first_name }}</small>
+                                </a>
+                            </div>
+
+                            {# Item Offered (from trade_request) #}
+                            <div id="item-offered" class="item-preview-content">
+                                <a href="{{ url_for('main.view_item', item_id=trade_request.offered_item.item_id) }}" class="item-preview text-decoration-none">
+                                    <img src="{{ url_for('static', filename=trade_request.offered_item.images[0].image_url if trade_request.offered_item.images else 'images/item_placeholder.jpg') }}">
+                                    <p>{{ trade_request.offered_item.title }}</p>
+                                    <small class="text-muted d-block">Offered by: {{ trade_request.requester.first_name }}</small>
+                                </a>
+                            </div>
+                        {# It's a Share item OR a Trade for Money (no offered item) #}
+                        {% else %}
+                             <h6>
+                                {% if the_item.type == 'Share' %}
+                                    Item for Share
+                                {% elif the_item.type == 'Trade' and the_item.expected_return == 'Money' %}
+                                    Item for Trade (Money)
+                                {% else %}
+                                    Item Context {# Fallback title #}
+                                {% endif %}
+                             </h6>
+                             <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
                                 <img src="{{ url_for('static', filename=the_item.images[0].image_url if the_item.images else 'images/item_placeholder.jpg') }}">
                                 <p>{{ the_item.title }}</p>
-                                {# 'the_item.owner' is the definitive owner. #}
-                                <small class="text-muted d-block">Owned by: {{ the_item.owner.first_name }}</small>
                             </a>
-                        </div>
-
-                        {# This is the item from the trade_request #}
-                        <div id="item-offered" class="item-preview-content">
-                            <a href="{{ url_for('main.view_item', item_id=trade_request.offered_item.item_id) }}" class="item-preview text-decoration-none">
-                                <img src="{{ url_for('static', filename=trade_request.offered_item.images[0].image_url if trade_request.offered_item.images else 'images/item_placeholder.jpg') }}">
-                                <p>{{ trade_request.offered_item.title }}</p>
-                                 {# 'trade_request.requester' is the definitive offerer. #}
-                                <small class="text-muted d-block">Offered by: {{ trade_request.requester.first_name }}</small>
-                            </a>
-                        </div>
+                        {% endif %}
                     </div>
-
-                {# --- ADDED: Fallback for SHARE or MONEY request items --- #}
-                {% elif not session.is_org_chat and the_item and the_item.item_id and (the_item.type == 'Share' or (the_item.type == 'Trade' and the_item.expected_return == 'Money')) %}
-                    <div class="sidebar-card">
-
-                        {# ***** START OF CORRECTION ***** #}
-                        <h6>
-                            {% if the_item.type == 'Share' %}
-                                Item for Share
-                            {% elif the_item.type == 'Trade' and the_item.expected_return == 'Money' %}
-                                Item for Trade (Money)
-                            {% else %}
-                                Item Context
-                            {% endif %}
-                        </h6>
-                        {# ***** END OF CORRECTION ***** #}
-
-                        <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
-                            <img src="{{ url_for('static', filename=the_item.images[0].image_url if the_item.images else 'images/item_placeholder.jpg') }}">
-                            <p>{{ the_item.title }}</p>
-                        </a>
-                    </div>
-                {% endif %}
-                {# --- END MODIFICATION --- #}
-
-
-                {# --- Existing Context for Org-User Chats about Needs --- #}
-                {% if session.is_org_chat and the_item and the_item.need_id %} {# Use direct attribute check #}
+                {% elif session.is_org_chat and the_item and the_item.need_id %}
+                    {# Org-User Chat (Disaster Need) #}
                     <div class="sidebar-card">
                         <h6>About this Conversation</h6>
                         <p class="small text-muted">This chat is regarding the disaster need post: <strong>{{ the_item.title }}</strong>.</p>
                         {# Optionally link to the need if needed: <a href="#">View Need Details</a> #}
                     </div>
                 {% endif %}
+                {# --- END CORRECTED LOGIC --- #}
 
-                {# --- Display Donation Offer Status Panel for Org Chats (User name removed) --- #}
+
+                {# --- Display Donation Offer Status Panel for Org Chats --- #}
                 {% if session.is_org_chat and donation_offer %}
                 <div class="sidebar-card">
                     <h6>Donation Offer Status</h6>
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item d-flex justify-content-between px-0">
                             <span>Current Status:</span>
-                            {# Use different badge colors based on status #}
-                            {% set status_color = 'secondary' %} {# Default #}
+                            {% set status_color = 'secondary' %}
                             {% if donation_offer.status == 'Pending Review' %} {% set status_color = 'warning text-dark' %}
                             {% elif donation_offer.status in ['Awaiting Pickup', 'Accepted', 'Partially Accepted'] %} {% set status_color = 'info' %}
                             {% elif donation_offer.status == 'Donation Pending' %} {% set status_color = 'primary' %}
@@ -290,10 +278,9 @@
                             {% endif %}
                             <span class="badge bg-{{ status_color }} rounded-pill">{{ donation_offer.status }}</span>
                         </li>
-                         {# ## USER NAME LIST ITEM REMOVED ## #}
                         <li class="list-group-item d-flex justify-content-between px-0">
                             <span>Items Offered:</span>
-                            <strong>{{ donation_offer.offered_items|length }}</strong> {# Uses |length filter #}
+                            <strong>{{ donation_offer.offered_items|length }}</strong>
                         </li>
                         {% if donation_offer.verified_at %}
                         <li class="list-group-item d-flex justify-content-between px-0">
@@ -314,25 +301,19 @@
                         </li>
                         {% endif %}
                     </ul>
-                    {# Add a link to view the offer if applicable #}
-                    {% if current_user.__class__.__name__ == 'Organization' and donation_offer.status in ['Pending Review', 'Awaiting Pickup', 'Accepted', 'Partially Accepted', 'Donation Pending', 'Completed', 'Rejected', 'Pickup Failed'] %} {# Show for all reviewed/final states too #}
-                        {% if current_user.__class__.__name__ == 'Organization' and donation_offer %} {# Simplified check #}
-                            <div class="mt-3 d-grid">
-                                 {# ***** CORRECTED LINK ***** #}
+                    {# Add a link to view the offer #}
+                    {% if donation_offer %} {# Check if offer exists #}
+                        <div class="mt-3 d-grid">
+                             {% if current_user.__class__.__name__ == 'Organization' %}
                                  <a href="{{ url_for('main.review_donation_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
                                      View Offer Details
                                  </a>
-                                 {# ***** END CORRECTION ***** #}
-                            </div>
-                        {% endif %}
-                         {# Also show View Offer for User #}
-                         {% if current_user.__class__.__name__ == 'User' %}
-                             <div class="mt-3 d-grid">
+                             {% elif current_user.__class__.__name__ == 'User' %}
                                  <a href="{{ url_for('main.view_my_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
                                      View Offer Details
                                  </a>
-                            </div>
-                         {% endif %}
+                             {% endif %}
+                        </div>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -342,11 +323,13 @@
                 {# --- Existing Deal Panel (Only for User-User Chats) --- #}
                 {% if not session.is_org_chat %}
                 <div class="sidebar-card">
-                    <h6>Deal Status</h6>
+                    {# Use item type from 'the_item' which handles Trade/Share #}
+                    <h6>{{ the_item.type.capitalize() }} Status</h6>
                     {% if session.status == 'Active' %}
-                        {% include 'features/_deal_panel.html' %}
+                        {# Pass the correct 'other_user' variable #}
+                        {% include 'features/_deal_panel.html' with context %}
                     {% elif session.status == 'Confirmed' %}
-                        <div class="alert alert-success text-center"><i class="fas fa-check-circle me-2"></i>Deal Confirmed!</div>
+                        <div class="alert alert-success text-center"><i class="fas fa-check-circle me-2"></i>{% if the_item.type == 'Share' %}Share{% else %}Deal{% endif %} Confirmed!</div>
                     {% elif session.status == 'Blocked' %}
                         <div class="alert alert-danger text-center"><i class="fas fa-ban me-2"></i>Chat Blocked</div>
                     {% endif %}
@@ -390,7 +373,17 @@
     </div>
 </div>
 
-{# ***** ADD THIS SCRIPT BLOCK ***** #}
+{# --- Image Lightbox --- #}
+<div id="imageLightbox" class="lightbox-overlay">
+    <div class="lightbox-content-wrapper">
+        <img class="lightbox-content" id="lightboxImg">
+        <a id="lightboxDownload" href="#" download="chat-image.jpg" class="lightbox-download-btn" title="Download Image"><i class="fas fa-download"></i></a>
+        <span class="lightbox-close-btn" title="Close">&times;</span>
+    </div>
+</div>
+{# --- End Lightbox --- #}
+
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // --- Tab Switching Logic ---
@@ -413,23 +406,20 @@
             });
         });
 
-        // --- Other Chat Page JS (like image preview, delete modal, etc.) ---
-        // (Make sure any existing JS for image preview, delete confirmation, etc.
-        //  is also within this DOMContentLoaded listener or similar)
-
-        // Example: Scroll chatbox to bottom (if you don't have this already)
+        // --- Scroll chatbox to bottom ---
         const chatBox = document.getElementById('chatBox');
         if (chatBox) {
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Add your existing JS for image preview handling here
+        // --- Image Preview Handling ---
         const imageUpload = document.getElementById('image-upload');
         const imagePreviewContainer = document.getElementById('image-preview-container');
         const imagePreview = document.getElementById('image-preview');
         const removeImageBtn = document.getElementById('remove-image-btn');
+        const messageInput = document.querySelector('input[name="message"]'); // Get message input
 
-        if (imageUpload && imagePreviewContainer && imagePreview && removeImageBtn) {
+        if (imageUpload && imagePreviewContainer && imagePreview && removeImageBtn && messageInput) {
             imageUpload.addEventListener('change', function(event) {
                 const file = event.target.files[0];
                 if (file) {
@@ -437,6 +427,8 @@
                     reader.onload = function(e) {
                         imagePreview.src = e.target.result;
                         imagePreviewContainer.style.display = 'block';
+                        messageInput.disabled = true; // Disable text input when image is selected
+                        messageInput.placeholder = 'Image selected...';
                     }
                     reader.readAsDataURL(file);
                 }
@@ -446,11 +438,12 @@
                 imageUpload.value = ''; // Clear the file input
                 imagePreview.src = '#';
                 imagePreviewContainer.style.display = 'none';
+                messageInput.disabled = false; // Re-enable text input
+                messageInput.placeholder = 'Type a message...';
             });
         }
 
-
-        // Add your existing JS for delete confirmation modal here
+        // --- Delete Confirmation Modal Logic ---
         const deleteModal = document.getElementById('deleteModal');
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
@@ -479,23 +472,19 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                             // ***** START CORRECTION *****
-                             // Add CSRF token header if needed (get from hidden input)
-                             // 'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value
-                             // ***** END CORRECTION *****
+                            // Add CSRF token header if needed
+                             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value
                         },
                     })
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            // Update UI: Replace message content or remove element
                             const msgContainer = document.getElementById(`msg-container-${messageIdToDelete}`);
                             if(msgContainer) {
                                 const msgContentDiv = msgContainer.querySelector('.msg-content');
                                 if (msgContentDiv) {
                                      msgContentDiv.innerHTML = `<p class="mb-0 msg-content-deleted"><i class="fas fa-ban me-1"></i>Message deleted</p><div class="msg-meta">${msgContentDiv.querySelector('.msg-meta')?.innerHTML || ''}</div>`;
                                 }
-                                // Remove the delete button itself
                                 const deleteButtonDiv = msgContainer.querySelector('.msg-actions');
                                 if(deleteButtonDiv) {
                                     deleteButtonDiv.remove();
@@ -528,8 +517,39 @@
             });
         }
 
+        // --- Image Lightbox Logic ---
+        const lightbox = document.getElementById('imageLightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
+        const lightboxClose = lightbox.querySelector('.lightbox-close-btn');
+        const lightboxDownload = document.getElementById('lightboxDownload');
+
+        document.querySelectorAll('.chat-image').forEach(img => {
+            img.addEventListener('click', function() {
+                lightboxImg.src = this.src;
+                lightboxDownload.href = this.src; // Set download link
+                 // Try to extract a sensible filename
+                try {
+                    const urlParts = this.src.split('/');
+                    const filename = urlParts[urlParts.length - 1];
+                    lightboxDownload.download = filename; // Suggest original filename
+                } catch (e) { lightboxDownload.download = 'chat-image.jpg'; } // Fallback
+
+                lightbox.classList.add('visible');
+            });
+        });
+
+        lightboxClose.addEventListener('click', () => {
+            lightbox.classList.remove('visible');
+        });
+
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) { // Click on background only
+                lightbox.classList.remove('visible');
+            }
+        });
+        // --- End Image Lightbox ---
+
     });
 </script>
-{# ***** END SCRIPT BLOCK ***** #}
 
 {% endblock %}
