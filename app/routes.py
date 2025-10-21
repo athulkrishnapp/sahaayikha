@@ -24,6 +24,7 @@ from flask_wtf import FlaskForm
 from wtforms import FieldList, FormField
 from app.models import User, Organization, Item, ChatSession # Ensure ChatSession is imported
 from app import db, login_manager
+from sqlalchemy import desc # <<< ADD THIS IMPORT AT THE TOP
 
 from app.models import (
     User, Admin, Organization, LoginLog,
@@ -1472,11 +1473,10 @@ def update_setting(setting_id):
 def org_dashboard():
     """Displays the organization dashboard and handles posting new needs."""
     org = current_user._get_current_object()
-    form = DisasterNeedForm() # Instantiate the form for both GET and POST
+    form = DisasterNeedForm()
 
     # --- Handle POST request (Form Submission) ---
-    if form.validate_on_submit(): # This implies request.method == 'POST'
-        # --- This block executes ONLY if validation passes ---
+    if form.validate_on_submit():
         new_need = DisasterNeed(
             title=form.title.data.strip(),
             categories=",".join(sorted(form.categories.data)) if form.categories.data else "",
@@ -1487,51 +1487,81 @@ def org_dashboard():
         db.session.add(new_need)
         db.session.commit()
         try:
-            # Assuming send_disaster_notifications exists and works
             send_disaster_notifications(new_need)
         except Exception as e:
             current_app.logger.error(f"Failed to send disaster notifications for need {new_need.need_id}: {e}")
             flash("Need posted, but failed to send notifications.", "warning")
-
         flash("New disaster need has been posted successfully.", "success")
-        return redirect(url_for('main.org_dashboard', filter='needs')) # Redirect AFTER successful POST
+        return redirect(url_for('main.org_dashboard', filter='needs'))
 
     # --- Handle GET request OR POST request where validation FAILED ---
     current_filter = request.args.get('filter', 'needs')
-    my_needs, offers, chat_sessions = [], [], []
-    # *** REMOVED bookmarked_items initialization ***
+    my_needs, offers = [], []
+    chat_sessions = [] # Will be populated by sorted list later
     has_unread_chats = False
-    unread_session_ids = set() # Initialize
+    unread_session_ids = set()
 
-    # Query org's chat sessions and check for unread
-    org_sessions_query = ChatSession.query.filter(ChatSession.participant_org_id == org.org_id)
-    org_sessions_query = org_sessions_query.options(
-        orm.joinedload(ChatSession.user_one),
+    # --- *** MODIFICATION START: Query org's chat sessions, get latest messages, and sort *** ---
+    org_sessions_query = ChatSession.query.filter(
+        ChatSession.participant_org_id == org.org_id
+    ).options(
+        orm.joinedload(ChatSession.user_one), # Eager load user
         orm.joinedload(ChatSession.disaster_need) # Eager load subject (need)
     )
-    org_sessions = org_sessions_query.all()
-    session_ids = [s.session_id for s in org_sessions]
 
-    if session_ids:
+    sessions_with_latest_message = []
+    all_org_sessions = org_sessions_query.all() # Fetch all sessions
+
+    if all_org_sessions:
+        session_ids = [s.session_id for s in all_org_sessions]
+
+        # Query for unread messages *sent by users*
         unread_messages_query = ChatMessage.query.filter(
             ChatMessage.session_id.in_(session_ids),
             ChatMessage.is_read == False,
-            ChatMessage.sender_type == 'user'
-        )
+            ChatMessage.sender_type == 'user' # Only count messages from users
+        ).options(orm.load_only(ChatMessage.session_id)) # Optimize query
+
         unread_session_ids = {msg.session_id for msg in unread_messages_query.all()}
         has_unread_chats = len(unread_session_ids) > 0
 
+        # Query for the latest message timestamp in each session
+        latest_messages_subquery = db.session.query(
+            ChatMessage.session_id,
+            func.max(ChatMessage.timestamp).label('latest_timestamp')
+        ).filter(ChatMessage.session_id.in_(session_ids))\
+         .group_by(ChatMessage.session_id)\
+         .subquery()
 
-    # Fetch data based on the selected filter
+        # Join sessions with their latest message timestamp
+        sessions_with_time = db.session.query(
+            ChatSession, latest_messages_subquery.c.latest_timestamp
+        ).outerjoin(latest_messages_subquery, ChatSession.session_id == latest_messages_subquery.c.session_id)\
+         .filter(ChatSession.session_id.in_(session_ids))\
+         .all() # Returns list of tuples (ChatSession, latest_timestamp | None)
+
+        # Create list of dictionaries for easier sorting
+        for session, latest_timestamp in sessions_with_time:
+            sessions_with_latest_message.append({
+                'session': session,
+                'latest_activity': latest_timestamp or session.started_at, # Fallback to start time
+                'is_unread': session.session_id in unread_session_ids
+            })
+
+        # Sort: Unread first, then by latest activity timestamp descending
+        sessions_with_latest_message.sort(key=lambda x: (not x['is_unread'], x['latest_activity']), reverse=True)
+
+        # Assign the sorted sessions if the filter is 'chats'
+        if current_filter == 'chats':
+             chat_sessions = [s_data['session'] for s_data in sessions_with_latest_message]
+    # --- *** MODIFICATION END *** ---
+
+
+    # Fetch other data based on the selected filter
     if current_filter == 'needs':
         my_needs = DisasterNeed.query.filter_by(org_id=org.org_id).order_by(DisasterNeed.posted_at.desc()).all()
-    # *** REMOVED elif current_filter == 'share': block ***
-    elif current_filter == 'chats':
-        chat_sessions = sorted(org_sessions, key=lambda s: (s.session_id not in unread_session_ids, s.started_at), reverse=True)
-    # *** REMOVED elif current_filter == 'bookmarks': block ***
-    elif current_filter in ['incoming', 'pickup', 'pending_donation', 'completed']: # Combine offer filters
+    elif current_filter in ['incoming', 'pickup', 'pending_donation', 'completed']:
         offer_query = DonationOffer.query.filter_by(org_id=org.org_id)
-        # Eager load related data for offers
         offer_query = offer_query.options(
             orm.joinedload(DonationOffer.user),
             orm.joinedload(DonationOffer.need)
@@ -1544,10 +1574,8 @@ def org_dashboard():
             offer_query = offer_query.filter(DonationOffer.status == 'Donation Pending')
         elif current_filter == 'completed':
             offer_query = offer_query.filter(DonationOffer.status == 'Completed')
-
         offers = offer_query.order_by(DonationOffer.created_at.desc()).all()
-    else:
-        # Default or unknown filter, default to 'needs'
+    elif current_filter != 'chats': # Handle default or unknown filters (excluding 'chats' handled above)
         current_filter = 'needs' # Ensure filter reflects the default view
         my_needs = DisasterNeed.query.filter_by(org_id=org.org_id).order_by(DisasterNeed.posted_at.desc()).all()
 
@@ -1556,14 +1584,12 @@ def org_dashboard():
     return render_template(
         "dashboard/org_dashboard.html",
         org=org,
-        # *** REMOVED all_items=all_shared_items ***
         my_items=my_needs, # Pass needs as my_items
         offers=offers,
-        chat_sessions=chat_sessions,
-        # *** REMOVED bookmarked_items=bookmarked_items ***
-        form=form, # Pass the form object (contains errors on failed POST)
+        chat_sessions=chat_sessions, # Pass the sorted list
+        form=form,
         current_filter=current_filter,
-        unread_session_ids=unread_session_ids,
+        unread_session_ids=unread_session_ids, # Pass the set of IDs
         has_unread_chats=has_unread_chats
     )
 
@@ -1576,13 +1602,10 @@ def org_dashboard():
 def dashboard():
     """Displays the user dashboard with different views and integrated search/filters."""
     view = request.args.get("view", "all")
-
-    # --- Initialize SearchForm ---
-    # Populate from URL query parameters. If 'location' is not in args for 'all' view, use user's default.
     form_data = request.args.copy()
     if view == 'all' and 'location' not in form_data and current_user.location:
         form_data['location'] = current_user.location
-    form = SearchForm(form_data) # Use merged data for filters
+    form = SearchForm(form_data)
 
     items, disaster_needs, my_offers = [], [], []
     regular_chats, disaster_chats = [], []
@@ -1592,59 +1615,94 @@ def dashboard():
     map_center_coords = None
     map_radius_km = None
     current_location_filter = None
-    active_search_term = request.args.get('search', '').strip() # Get search term from URL
+    active_search_term = request.args.get('search', '').strip()
 
-    # --- Query User's Chats and Check Unread ---
+    # --- Query User's Chats ---
     user_sessions_query = ChatSession.query.filter(
         or_(ChatSession.user_one_id == current_user.user_id, ChatSession.user_two_id == current_user.user_id)
-    )
-    user_sessions = user_sessions_query.all()
-    session_ids = [s.session_id for s in user_sessions]
-    if session_ids:
+    ).options(
+        orm_joinedload(ChatSession.user_one),
+        orm_joinedload(ChatSession.user_two),
+        orm_joinedload(ChatSession.participant_org),
+        orm_joinedload(ChatSession.trade_item),
+        orm_joinedload(ChatSession.disaster_need)
+    ) # Eager load participants and subjects
+
+    # --- *** MODIFICATION START: Fetch latest message times and unread status *** ---
+    sessions_with_latest_message = []
+    unread_session_ids = set()
+    all_user_sessions = user_sessions_query.all() # Fetch all sessions first
+
+    if all_user_sessions:
+        session_ids = [s.session_id for s in all_user_sessions]
+
+        # Query for unread messages *not* sent by the current user
         unread_messages_query = ChatMessage.query.filter(
             ChatMessage.session_id.in_(session_ids),
             ChatMessage.is_read == False,
             not_(and_(ChatMessage.sender_id == current_user.user_id, ChatMessage.sender_type == 'user'))
-        )
+        ).options(orm.load_only(ChatMessage.session_id)) # Optimize query
+        
         unread_session_ids = {msg.session_id for msg in unread_messages_query.all()}
         has_unread_chats = len(unread_session_ids) > 0
+
+        # Query for the latest message timestamp in each session
+        latest_messages_subquery = db.session.query(
+            ChatMessage.session_id,
+            func.max(ChatMessage.timestamp).label('latest_timestamp')
+        ).filter(ChatMessage.session_id.in_(session_ids))\
+         .group_by(ChatMessage.session_id)\
+         .subquery()
+
+        # Join sessions with their latest message timestamp
+        sessions_with_time = db.session.query(
+            ChatSession, latest_messages_subquery.c.latest_timestamp
+        ).outerjoin(latest_messages_subquery, ChatSession.session_id == latest_messages_subquery.c.session_id)\
+         .filter(ChatSession.session_id.in_(session_ids))\
+         .all() # Returns list of tuples (ChatSession, latest_timestamp | None)
+
+        # Create list of dictionaries for easier sorting
+        for session, latest_timestamp in sessions_with_time:
+            sessions_with_latest_message.append({
+                'session': session,
+                'latest_activity': latest_timestamp or session.started_at, # Fallback to start time
+                'is_unread': session.session_id in unread_session_ids
+            })
+
+        # Sort: Unread first, then by latest activity timestamp descending
+        sessions_with_latest_message.sort(key=lambda x: (not x['is_unread'], x['latest_activity']), reverse=True)
+
+    # --- *** MODIFICATION END *** ---
 
 
     # --- Fetch Data Based on View/Filter ---
     if view == "chats":
-        all_sessions = sorted(user_sessions, key=lambda s: (s.session_id not in unread_session_ids, s.started_at), reverse=True)
-        regular_chats = [s for s in all_sessions if s.trade_item_id is not None]
-        disaster_chats = [s for s in all_sessions if s.disaster_need_id is not None]
+        # Use the sorted list
+        all_sorted_sessions = [s_data['session'] for s_data in sessions_with_latest_message]
+        regular_chats = [s for s in all_sorted_sessions if s.trade_item_id is not None]
+        disaster_chats = [s for s in all_sorted_sessions if s.disaster_need_id is not None]
+        # Unread flags are now based on the direct query result
         has_unread_regular = any(s.session_id in unread_session_ids for s in regular_chats)
         has_unread_disaster = any(s.session_id in unread_session_ids for s in disaster_chats)
 
     elif view == "mine":
-        # --- Apply Filters for 'My Items' ---
+        # ... (rest of the 'mine' view logic remains the same) ...
         query = Item.query.filter_by(user_id=current_user.user_id, status='Active')
-
-        # **** APPLY TRADE/SHARE QUICK FILTER ****
         filter_type = request.args.get('filter')
         if filter_type in ["Trade", "Share"]:
             query = query.filter_by(type=filter_type)
-        # **** END APPLY TRADE/SHARE QUICK FILTER ****
-
-        # Get advanced filter values directly from the form (populated by request.args)
-        mine_categories = form.categories.data # Note: Using form data here for consistency, though might be empty if not submitted via form
+        mine_categories = form.categories.data
         mine_urgency = form.urgency.data
         mine_condition = form.condition.data
-        mine_sort_by = form.sort_by.data or 'newest' # Default sort
-
-        # Apply simple filters (check if data exists)
+        mine_sort_by = form.sort_by.data or 'newest'
         if mine_categories: query = query.filter(Item.category.in_(mine_categories))
         if mine_urgency: query = query.filter_by(urgency_level=mine_urgency)
         if mine_condition: query = query.filter_by(condition=mine_condition)
-
-        # Apply sorting
         if mine_sort_by == 'oldest':
             items = query.order_by(Item.created_at.asc()).all()
-        else: # Default 'newest'
+        else:
             items = query.order_by(Item.created_at.desc()).all()
-        # --- End 'My Items' Filter Logic ---
+
 
     elif view == "bookmarks":
         items = Item.query.join(Bookmark, Item.item_id == Bookmark.item_id)\
@@ -1653,53 +1711,36 @@ def dashboard():
     elif view == "donations":
         my_offers = DonationOffer.query.filter_by(user_id=current_user.user_id).order_by(DonationOffer.created_at.desc()).all()
 
-    else: # 'all' view (default) - INTEGRATE SEARCH & FILTERS HERE
+    else: # 'all' view
+        # ... (rest of the 'all' view logic remains the same) ...
         query = Item.query.filter(Item.status == "Active", Item.user_id != current_user.user_id)
-        current_location_filter = form.location.data # Store active location filter
-
-        # --- Apply Keyword Search (from navbar or hidden field) ---
-        search = active_search_term # Use term from URL args
+        current_location_filter = form.location.data
+        search = active_search_term
         if search:
             search_term_like = f"%{search}%"
             query = query.filter(or_(Item.title.ilike(search_term_like), Item.description.ilike(search_term_like)))
-
-        # --- Apply Advanced Filters (from collapsible section) ---
-        location_filter = form.location.data # Already set with user default if needed
+        location_filter = form.location.data
         radius_str = form.radius.data
-        categories = form.categories.data # List of selected category names from the form
+        categories = form.categories.data
         urgency = form.urgency.data
         condition = form.condition.data
         sort_by = form.sort_by.data or 'newest'
-
-        # Category filter (handles multiple selections from modal or single from URL)
-        # If categories come from form (list), use it. Otherwise, check URL args (single).
         active_categories = categories if categories else []
-        if not active_categories and request.args.get('categories'): # Check URL args if form data is empty
-             active_categories = [request.args.get('categories')] # Treat URL param as a single category list
-
+        if not active_categories and request.args.get('categories'):
+             active_categories = [request.args.get('categories')]
         if active_categories:
             query = query.filter(Item.category.in_(active_categories))
-
-
-        # Other attribute filters
         if urgency: query = query.filter_by(urgency_level=urgency)
         if condition: query = query.filter_by(condition=condition)
-
-        # Quick filter for Trade/Share/Disaster
         filter_type = request.args.get('filter')
         if filter_type == 'Disaster':
-            # Query Disaster Needs instead of Items
             disaster_needs = DisasterNeed.query.order_by(DisasterNeed.posted_at.desc()).all()
-            items = [] # Ensure items list is empty
+            items = []
         else:
-            # Continue filtering Items if not Disaster
             if filter_type in ["Trade", "Share"]:
                 query = query.filter_by(type=filter_type)
-
-            all_items = query.order_by(Item.created_at.desc()).all() # Initial sort before distance
+            all_items = query.order_by(Item.created_at.desc()).all()
             results = []
-
-            # --- Location Filtering & Sorting ---
             user_lat, user_lon = None, None
             base_location_name = None
             items_with_distance = []
@@ -1707,58 +1748,41 @@ def dashboard():
                 base_location_name = location_filter
                 map_center_coords = geocode_location(location_filter)
             else: map_center_coords = None
-
             if radius_str:
                 try: map_radius_km = float(radius_str)
                 except ValueError: map_radius_km = None
             else: map_radius_km = None
-
             radius_active = map_radius_km is not None
             sort_by_distance_active = sort_by == 'distance'
             center_coords_valid = map_center_coords and map_center_coords[0] is not None
-
             if (radius_active or sort_by_distance_active) and center_coords_valid:
                 user_lat, user_lon = map_center_coords
                 radius_km_filter = map_radius_km if radius_active else float('inf')
                 for item in all_items:
-                    # Geocode item location if lat/lon are missing (consider performance implications)
                     item_lat, item_lon = item.latitude, item.longitude
                     if item_lat is None or item_lon is None:
                         coords = geocode_location(item.location)
                         if coords and coords[0] is not None:
                             item_lat, item_lon = coords
-                            # Optionally save back to item? db.session.commit() might be needed
-                            # item.latitude = item_lat
-                            # item.longitude = item_lon
-
                     if item_lat is not None and item_lon is not None:
                          dist = haversine_distance(user_lat, user_lon, item_lat, item_lon)
                          if dist <= radius_km_filter: items_with_distance.append({'item': item, 'distance': dist})
-                    # If item has no coords and radius is active, it's excluded
-                    # If item has no coords and radius is NOT active, include it with infinite distance
                     elif not radius_active:
                         items_with_distance.append({'item': item, 'distance': float('inf')})
-
                 if sort_by_distance_active: items_with_distance.sort(key=lambda x: x['distance'])
                 results = [item_dist['item'] for item_dist in items_with_distance]
             else:
-                 results = all_items # Use all items if distance logic doesn't apply
+                 results = all_items
                  if radius_active and not center_coords_valid: flash(f"Could not find coordinates for '{base_location_name or 'selected location'}'. Cannot filter by radius.", "warning")
-                 if sort_by_distance_active and not center_coords_valid: flash(f"Could not find coordinates for '{base_location_name or 'selected location'}'. Cannot sort by distance.", "warning"); sort_by = 'newest' # Fallback sort
-
-            # Apply non-distance sorting if needed
+                 if sort_by_distance_active and not center_coords_valid: flash(f"Could not find coordinates for '{base_location_name or 'selected location'}'. Cannot sort by distance.", "warning"); sort_by = 'newest'
             if sort_by == 'oldest' and (not sort_by_distance_active or not center_coords_valid):
                  results.sort(key=lambda item: item.created_at)
             elif sort_by == 'newest' and (not sort_by_distance_active or not center_coords_valid):
                  results.sort(key=lambda item: item.created_at, reverse=True)
-            # --- End Location Logic ---
-
             items = results
-
-            # Prepare item data for map markers
             items_for_map = [
                 {"item_id": item.item_id, "title": item.title, "latitude": item.latitude, "longitude": item.longitude}
-                for item in items if item.latitude and item.longitude # Only include items with coords
+                for item in items if item.latitude and item.longitude
             ]
             items_json = json.dumps(items_for_map)
 
@@ -1771,17 +1795,17 @@ def dashboard():
         my_offers=my_offers,
         regular_chats=regular_chats,
         disaster_chats=disaster_chats,
-        unread_session_ids=unread_session_ids,
+        unread_session_ids=unread_session_ids, # Pass the set of IDs
         has_unread_regular=has_unread_regular,
         has_unread_disaster=has_unread_disaster,
         has_unread_chats=has_unread_chats,
-        form=form, # Pass the single form instance
+        form=form,
         items_json=items_json,
         map_center_coords=map_center_coords,
         map_radius_km=map_radius_km,
         all_locations_coords=json.dumps(GEOCODE_DATA),
         current_location_filter=current_location_filter,
-        active_search_term=active_search_term # Pass search term for display/logic
+        active_search_term=active_search_term
     )
 
 # =========================
