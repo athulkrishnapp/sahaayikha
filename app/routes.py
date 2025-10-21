@@ -25,6 +25,8 @@ from wtforms import FieldList, FormField
 from app.models import User, Organization, Item, ChatSession # Ensure ChatSession is imported
 from app import db, login_manager
 from sqlalchemy import desc # <<< ADD THIS IMPORT AT THE TOP
+import json # Ensure this is imported
+from flask import jsonify
 
 from app.models import (
     User, Admin, Organization, LoginLog,
@@ -41,7 +43,7 @@ from app.forms import (
     CategoryFollowForm, DisasterNeedForm, DonationOfferForm, ChatForm, # <<< CORRECTED THIS LINE
     SearchForm, OtpForm, ForgotPasswordForm, ResetPasswordForm,
     ProfileForm, OfferedItemForm,
-    CATEGORIES
+    CATEGORIES, SUB_CATEGORIES
 )
 
 from flask import jsonify
@@ -1814,32 +1816,28 @@ def dashboard():
 
 @main.route("/trade/request/<int:item_id>", methods=['GET', 'POST'])
 @login_required
-@role_required("user") # Ensure only users can request trades
+@role_required("user")
 def request_trade(item_id):
-    """Handles the process of a user requesting to trade for an item."""
-    # Eager load item data
     item_to_get = Item.query.options(
         orm_joinedload(Item.images),
         orm_joinedload(Item.owner)
     ).get_or_404(item_id)
+    form = FlaskForm() # Base form for CSRF
 
-    form = FlaskForm() # Create a base form object to pass for CSRF token
-
-    # --- Input Validation and Checks ---
+    # Validations (remain the same)
     if item_to_get.user_id == current_user.user_id:
         flash("You cannot request your own item.", "warning")
         return redirect(url_for('main.view_item', item_id=item_id))
     if item_to_get.status != 'Active':
         flash("This item is no longer available.", "info")
         return redirect(url_for('main.items_list'))
-    # Ensure it's a 'Trade' item
     if item_to_get.type != 'Trade':
         flash("Requests can only be made for 'Trade' items.", "info")
         return redirect(url_for('main.view_item', item_id=item_id))
 
-
-    # --- Handle Monetary Trade Offers (No form needed) ---
-    if item_to_get.expected_return == 'Money':
+    # --- Monetary Trade Offer Logic (Remains the same, check expected_return_category) ---
+    if item_to_get.expected_return_category == 'Money':
+        # ... (Monetary offer logic using expected_return_category) ...
         # Check if an active request already exists
         existing_request = TradeRequest.query.filter(
             TradeRequest.item_requested_id == item_id,
@@ -1913,101 +1911,97 @@ def request_trade(item_id):
             current_app.logger.error(f"Error creating money request for item {item_id}: {e}")
             flash("An error occurred while sending your request.", "danger")
             return redirect(url_for('main.view_item', item_id=item_id))
+        # --- End Monetary Trade ---
 
-    # --- Handle Item-Based Trade Requests (POST) ---
+    # --- Item-for-Item Trade Logic ---
+
+    # Get expected categories from the item being requested
+    suggested_main_cat = item_to_get.expected_return_category
+    suggested_sub_cat = item_to_get.expected_return_sub_category
+
+    # Base query for items the current user owns and can trade
+    my_items_query = Item.query.filter_by(
+        user_id=current_user.user_id,
+        status='Active',
+        type='Trade'
+    )
+
+    # Apply category filters based on owner's expectation
+    if suggested_main_cat and suggested_main_cat != 'Money':
+        my_items_query = my_items_query.filter(Item.category == suggested_main_cat)
+        # --- *** ADD SUB-CATEGORY FILTER if specified *** ---
+        if suggested_sub_cat:
+            my_items_query = my_items_query.filter(Item.sub_category == suggested_sub_cat)
+        # --- *** END SUB-CATEGORY FILTER *** ---
+
+    # Exclude the item being requested itself (cannot offer item A for item A)
+    my_items_query = my_items_query.filter(Item.item_id != item_id)
+
+    # Fetch the filtered list of items the user can offer
+    my_items_for_trade = my_items_query.order_by(Item.title).all()
+
+
+    # --- Handle POST request (form submission) ---
     if request.method == 'POST':
-        if not form.validate_on_submit():
-            flash("The form submission was invalid (e.g., expired token). Please try again.", "danger")
-            my_items_for_trade = Item.query.filter_by(user_id=current_user.user_id, status='Active', type='Trade').order_by(Item.title).all()
-            suggested_category = item_to_get.expected_return if item_to_get.expected_return != 'Money' else None
-            if suggested_category:
-                my_items_for_trade = [item for item in my_items_for_trade if item.category == suggested_category]
-            return render_template("items/request_trade.html",
-                                   item_to_get=item_to_get,
-                                   my_items=my_items_for_trade,
-                                   suggested_category=suggested_category,
-                                   form=form)
+        if not form.validate_on_submit(): # Basic CSRF check
+            flash("Invalid form submission. Please try again.", "danger")
+            # Re-render with the already filtered list
+            return render_template("items/request_trade.html", item_to_get=item_to_get, my_items=my_items_for_trade,
+                                   suggested_category=suggested_main_cat, suggested_sub_category=suggested_sub_cat, form=form)
 
         item_to_offer_id = request.form.get('item_to_offer')
-        item_offered = Item.query.filter_by(item_id=item_to_offer_id, user_id=current_user.user_id, status='Active', type='Trade').first()
 
-        if not item_offered:
-            flash("Please select a valid, active item you own to offer.", "warning")
-            my_items_for_trade = Item.query.filter_by(user_id=current_user.user_id, status='Active', type='Trade').order_by(Item.title).all()
-            suggested_category = item_to_get.expected_return if item_to_get.expected_return != 'Money' else None
-            if suggested_category:
-                my_items_for_trade = [item for item in my_items_for_trade if item.category == suggested_category]
-            return render_template("items/request_trade.html",
-                                   item_to_get=item_to_get,
-                                   my_items=my_items_for_trade,
-                                   suggested_category=suggested_category,
-                                   form=form)
+        # Verify the selected item is in the *filtered* list the user was shown
+        valid_offer_ids = {item.item_id for item in my_items_for_trade}
+        try:
+            selected_offer_id = int(item_to_offer_id)
+        except (ValueError, TypeError):
+             selected_offer_id = None
 
-        existing_request = TradeRequest.query.filter(
-            TradeRequest.item_requested_id == item_id,
-            TradeRequest.requester_id == current_user.user_id,
-            TradeRequest.status.in_(['pending', 'accepted'])
-        ).first()
+        if not selected_offer_id or selected_offer_id not in valid_offer_ids:
+            flash("Please select a valid item from the suggested list to offer.", "warning")
+            # Re-render with the filtered list
+            return render_template("items/request_trade.html", item_to_get=item_to_get, my_items=my_items_for_trade,
+                                   suggested_category=suggested_main_cat, suggested_sub_category=suggested_sub_cat, form=form)
+
+        # Get the full object for the offered item (we know it's valid now)
+        item_offered = Item.query.get(selected_offer_id)
+
+        # Check for existing request (remains same)
+        existing_request = TradeRequest.query.filter( TradeRequest.item_requested_id == item_id, TradeRequest.requester_id == current_user.user_id, TradeRequest.status.in_(['pending', 'accepted']) ).first()
         if existing_request:
              flash("You already have an active trade request for this item.", "info")
              return redirect(url_for('main.view_item', item_id=item_id))
 
-        trade_request = TradeRequest(
-            item_offered_id=item_to_offer_id,
-            item_requested_id=item_id,
-            requester_id=current_user.user_id,
-            owner_id=item_to_get.user_id,
-            status='pending'
-        )
+        # Create request and notification (remains same)
+        trade_request = TradeRequest(item_offered_id=selected_offer_id, item_requested_id=item_id, requester_id=current_user.user_id, owner_id=item_to_get.user_id, status='pending')
         db.session.add(trade_request)
-
         notification_message = f"{current_user.first_name} requested to trade their '{item_offered.title}' for your '{item_to_get.title}'."
-        notification = Notification(
-            user_id=item_to_get.user_id,
-            message=notification_message,
-            item_id=item_id
-        )
+        notification = Notification(user_id=item_to_get.user_id, message=notification_message, item_id=item_id)
         db.session.add(notification)
 
         try:
             db.session.commit()
             owner = item_to_get.owner
             if owner and owner.fcm_token:
-                try:
-                    send_push_notification(
-                        token=owner.fcm_token,
-                        title="New Trade Request!",
-                        body=notification_message,
-                        data={'itemId': str(item_id), 'type': 'trade_request'}
-                    )
-                except Exception as e:
-                     current_app.logger.error(f"FCM failed for trade request notification to user {owner.user_id}: {e}")
+                 # ...(Send Push Notification)...
+                 try: send_push_notification( token=owner.fcm_token, title="New Trade Request!", body=notification_message, data={'itemId': str(item_id), 'type': 'trade_request'} )
+                 except Exception as e: current_app.logger.error(f"FCM failed for trade request notification to user {owner.user_id}: {e}")
 
             flash("Trade request sent successfully!", "success")
             return redirect(url_for('main.view_item', item_id=item_id))
-
         except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error creating item trade request for item {item_id}: {e}")
+            db.session.rollback(); current_app.logger.error(f"Error creating item trade request for item {item_id}: {e}")
             flash("An error occurred while sending your request.", "danger")
             return redirect(url_for('main.view_item', item_id=item_id))
 
-    # --- GET Request: Show items user can offer for item-for-item trades ---
-    my_items_for_trade = Item.query.filter_by(
-        user_id=current_user.user_id,
-        status='Active',
-        type='Trade'
-    ).order_by(Item.title).all()
-
-    suggested_category = item_to_get.expected_return if item_to_get.expected_return != 'Money' else None
-
-    if suggested_category:
-        my_items_for_trade = [item for item in my_items_for_trade if item.category == suggested_category]
-
+    # --- GET Request ---
+    # Render the page, passing the *filtered* list of items
     return render_template("items/request_trade.html",
                            item_to_get=item_to_get,
-                           my_items=my_items_for_trade,
-                           suggested_category=suggested_category,
+                           my_items=my_items_for_trade, # Pass the filtered list
+                           suggested_category=suggested_main_cat,
+                           suggested_sub_category=suggested_sub_cat,
                            form=form)
 
 
@@ -2219,21 +2213,52 @@ def reject_trade(request_id):
 # =========================
 @main.route("/item/new", methods=["GET", "POST"])
 @login_required
-@role_required("user") # Only users can post items
+@role_required("user")
 def new_item():
     """Handles posting a new item."""
     form = ItemForm()
+    submitted_item_sub = None
+    submitted_expected_sub = None
+
+    if request.method == 'POST':
+        # --- *** Step 1: Populate choices BEFORE validation *** ---
+        main_cat_submitted = request.form.get('category')
+        expected_main_cat_submitted = request.form.get('expected_return_category')
+
+        # Populate item sub_category choices
+        if main_cat_submitted and main_cat_submitted in SUB_CATEGORIES:
+            form.sub_category.choices = SUB_CATEGORIES[main_cat_submitted]
+        else:
+            form.sub_category.choices = [] # Ensure it's empty if no valid main cat
+
+        # Populate expected_return_sub_category choices
+        if expected_main_cat_submitted and expected_main_cat_submitted in SUB_CATEGORIES:
+            form.expected_return_sub_category.choices = SUB_CATEGORIES[expected_main_cat_submitted]
+        else:
+            form.expected_return_sub_category.choices = []
+
+        # Store submitted values for potential re-population if validation fails later
+        submitted_item_sub = request.form.get('sub_category')
+        submitted_expected_sub = request.form.get('expected_return_sub_category')
+        # --- *** End Step 1 *** ---
+
+    # --- *** Step 2: Run WTForms validation *** ---
     if form.validate_on_submit():
+        # Validation passed, proceed to save
         lat, lon = geocode_location(getattr(current_user, "location", None))
         item = Item(
             title=form.title.data.strip(),
             description=form.description.data.strip() if form.description.data else None,
             category=form.category.data,
+            # Use data from the validated form object
+            sub_category=form.sub_category.data if form.sub_category.data else None,
             type=form.type.data,
             condition=form.condition.data,
             urgency_level=form.urgency_level.data,
-            # Set expected_return only if type is 'Trade'
-            expected_return=form.expected_return.data if form.type.data == 'Trade' else None,
+            # --- *** Save split expected return fields *** ---
+            expected_return_category=form.expected_return_category.data if form.type.data == 'Trade' else None,
+            expected_return_sub_category=form.expected_return_sub_category.data if form.type.data == 'Trade' and form.expected_return_sub_category.data else None,
+             # --- *** END CHANGE *** ---
             location=getattr(current_user, "location", None),
             status="Active",
             created_at=datetime.utcnow(),
@@ -2242,15 +2267,15 @@ def new_item():
             longitude=lon
         )
         db.session.add(item)
-        db.session.flush() # Flush to get item.item_id for images and history
+        db.session.flush()
 
-        # Handle image uploads
+        # ... (Image handling logic remains the same) ...
         images_added = []
         if form.images.data:
-            # WTForms sometimes returns a list, sometimes a single FileStorage if only one selected
             files = form.images.data if isinstance(form.images.data, list) else [form.images.data]
             for f in files:
-                if f and f.filename:
+                 # ...(rest of image saving)...
+                 if f and f.filename:
                     try:
                         filename = secure_filename(f"{item.item_id}_{datetime.utcnow().timestamp()}_{f.filename}")
                         filepath = os.path.join(ITEM_UPLOAD_FOLDER, filename)
@@ -2259,77 +2284,92 @@ def new_item():
                     except Exception as e:
                         current_app.logger.error(f"Failed to save image {f.filename} for item {item.item_id}: {e}")
                         flash(f"Could not save image: {f.filename}", "warning")
-
             if images_added:
                 db.session.add_all(images_added)
+
 
         # Log creation history
         db.session.add(ItemHistory(
             item_id=item.item_id,
             user_id=getattr(current_user, "user_id", None),
-            action="Item Created", # More descriptive action
+            action="Item Created",
             timestamp=datetime.utcnow()
         ))
         db.session.commit()
 
-        # Trigger notifications based on the new item
-        send_smart_notifications(item)
+        send_smart_notifications(item) # Trigger notifications
 
         flash("Item posted successfully!", "success")
-        return redirect(url_for("main.dashboard", view="mine")) # Redirect to 'My Items' view
-    elif request.method == 'POST':
-         # Flash errors if form validation fails on POST
-        for field, errors in form.errors.items():
-            for error in errors:
-                flash(f"Error in {getattr(form, field).label.text}: {error}", "danger")
+        return redirect(url_for("main.dashboard", view="mine"))
 
-    return render_template("items/post_item.html", form=form)
+    # --- *** Step 3: Handle Validation Errors (if POST and validate_on_submit failed) *** ---
+    elif request.method == 'POST':
+        # Flash WTForms errors (which now includes sub-category choice errors)
+        validation_failed = False
+        for fieldName, errorMessages in form.errors.items():
+            fieldLabel = getattr(getattr(form, fieldName, None), 'label', None)
+            display_name = fieldLabel.text if fieldLabel else fieldName.replace('_', ' ').title()
+            for error in errorMessages:
+                flash(f"Error in {display_name}: {error}", "danger")
+                validation_failed = True
+
+        # Restore submitted sub-category values if validation failed, so JS can re-select them
+        if validation_failed:
+             form.sub_category.data = submitted_item_sub
+             form.expected_return_sub_category.data = submitted_expected_sub
+             # Re-populate choices based on the *originally submitted* main categories
+             # (Form object still holds these after failed validation)
+             if form.category.data and form.category.data in SUB_CATEGORIES:
+                 form.sub_category.choices = SUB_CATEGORIES[form.category.data]
+             if form.expected_return_category.data and form.expected_return_category.data in SUB_CATEGORIES:
+                 form.expected_return_sub_category.choices = SUB_CATEGORIES[form.expected_return_category.data]
+
+    # --- *** Step 4: Render Template (for GET or failed POST) *** ---
+    # Ensure choices are set for GET request display as well (though JS handles it mainly)
+    if request.method == 'GET':
+        form.sub_category.choices = []
+        form.expected_return_sub_category.choices = []
+
+    return render_template(
+        "items/post_item.html",
+        form=form,
+        sub_categories_json=json.dumps(SUB_CATEGORIES)
+    )
 
 @main.route("/item/<int:item_id>")
 def view_item(item_id):
     """Displays the details page for a specific item."""
-    # Eager load related data to avoid multiple queries in the template
     item = Item.query.options(
         orm_joinedload(Item.images),
-        orm_joinedload(Item.owner) # Eager load the owner (User)
+        orm_joinedload(Item.owner)
     ).get_or_404(item_id)
 
     is_bookmarked = False
     chat_session = None
     deal = None
-    # trade_request: Existing request *from* current user *for* this item (Trade only)
     trade_request = None
-    # context_trade_request: Request *for* current user's item, linking *to this* item (used when owner reviews offered item)
     context_trade_request = None
-    # proposer: The user who is NOT the owner in the context of a deal/share
     proposer = None
     current_actor = current_user._get_current_object() if current_user.is_authenticated else None
 
-    # --- Check for Trade Request Context (User reviewing an offered item) ---
+    # Check for Trade Request Context
     context_trade_id = request.args.get('context_trade_id', type=int)
     if context_trade_id and current_actor and isinstance(current_actor, User):
-        # Eager load related items and users for the context request
         temp_trade_request = TradeRequest.query.options(
-            orm_joinedload(TradeRequest.requested_item), # Item owner is reviewing trade for
-            orm_joinedload(TradeRequest.offered_item) # Item being offered (this one)
+            orm_joinedload(TradeRequest.requested_item),
+            orm_joinedload(TradeRequest.offered_item)
         ).get(context_trade_id)
-
-        # Security check
         if (temp_trade_request and
                 temp_trade_request.item_offered_id == item_id and
                 temp_trade_request.owner_id == current_actor.user_id):
             context_trade_request = temp_trade_request
-            # If reviewing an offered item, the 'proposer' is the one who made the request
             proposer = temp_trade_request.requester
 
-    # --- Fetch details relevant only if a user is logged in ---
+    # Fetch details relevant only if a user is logged in
     if current_actor and isinstance(current_actor, User):
-        # Check bookmark status for user
         is_bookmarked = Bookmark.query.filter_by(user_id=current_actor.user_id, item_id=item.item_id).count() > 0
-
-        # Find relevant user-user chat session (needed for deal status, applies to Share & Trade)
         chat_session = ChatSession.query.filter(
-            ChatSession.trade_item_id == item.item_id, # Link by item_id
+            ChatSession.trade_item_id == item.item_id,
             ChatSession.participant_org_id == None,
             or_(
                 (ChatSession.user_one_id == current_actor.user_id) & (ChatSession.user_two_id == item.user_id),
@@ -2339,40 +2379,34 @@ def view_item(item_id):
 
         if chat_session:
             deal = DealProposal.query.filter_by(chat_session_id=chat_session.session_id).first()
-            # Determine proposer (the other user in the chat) if not already set by context_trade_request
             if not proposer:
                 other_user_obj = chat_session.get_other_user(current_actor.user_id)
-                if other_user_obj:
-                     proposer = User.query.get(other_user_obj.user_id) # Fetch full object if needed
+                if other_user_obj: proposer = User.query.get(other_user_obj.user_id)
 
-        # Find any active trade request FROM the current user FOR this item (Trade only)
         if item.user_id != current_actor.user_id and item.type == 'Trade':
             trade_request = TradeRequest.query.filter(
                 TradeRequest.item_requested_id == item.item_id,
                 TradeRequest.requester_id == current_actor.user_id,
                 TradeRequest.status.in_(['pending', 'accepted'])
             ).first()
-
-        # If current user IS the owner, find the relevant accepted trade request to identify proposer
         elif item.user_id == current_actor.user_id and not proposer:
-             # Find the *accepted* trade request involving this item
              accepted_trade_request = TradeRequest.query.filter(
                  TradeRequest.item_requested_id == item.item_id,
                  TradeRequest.owner_id == current_actor.user_id,
                  TradeRequest.status == 'accepted'
-             ).options(orm_joinedload(TradeRequest.requester)).first() # Eager load requester
+             ).options(orm_joinedload(TradeRequest.requester)).first()
              if accepted_trade_request:
                  proposer = accepted_trade_request.requester
-                 # Assign this to trade_request for consistency in template if needed
                  trade_request = accepted_trade_request
 
-    # Fetch pending trade requests FOR this item if the viewer IS the owner (User only)
-    # Only relevant for item-for-item trades
+    # Fetch pending incoming trade requests if owner
     incoming_trade_requests = []
-    if current_actor and isinstance(current_actor, User) and item.user_id == current_actor.user_id and item.type == 'Trade' and item.expected_return != 'Money':
+    # --- *** Check expected_return_category instead of expected_return *** ---
+    if current_actor and isinstance(current_actor, User) and item.user_id == current_actor.user_id and item.type == 'Trade' and item.expected_return_category != 'Money':
+    # --- *** END CHANGE *** ---
         incoming_trade_requests = TradeRequest.query.options(
-            orm_joinedload(TradeRequest.requester), # Eager load requester details
-            orm_joinedload(TradeRequest.offered_item).joinedload(Item.images) # Eager load offered item + images
+            orm_joinedload(TradeRequest.requester),
+            orm_joinedload(TradeRequest.offered_item).joinedload(Item.images)
         ).filter_by(
             item_requested_id=item.item_id,
             status='pending'
@@ -2382,12 +2416,12 @@ def view_item(item_id):
         "items/view_item.html",
         item=item,
         is_bookmarked=is_bookmarked,
-        session=chat_session, # Pass chat session object (for Share & Trade)
+        session=chat_session,
         deal=deal,
         proposer=proposer,
-        trade_request=trade_request, # Pass trade request object (Trade only)
+        trade_request=trade_request,
         context_trade_request=context_trade_request,
-        incoming_trade_requests=incoming_trade_requests # Pass incoming item-trade requests
+        incoming_trade_requests=incoming_trade_requests
     )
 
 
@@ -2571,43 +2605,66 @@ def delete_item_image(image_id):
 
 @main.route("/item/<int:item_id>/edit", methods=["GET", "POST"])
 @login_required
-@role_required("user") # Only users edit items
+@role_required("user")
 def edit_item(item_id):
-    """Handles editing an existing item."""
-    item = Item.query.options(orm.joinedload(Item.images)).get_or_404(item_id) # Eager load images
-
-    # Security check: Only owner can edit
+    item = Item.query.options(orm.joinedload(Item.images)).get_or_404(item_id)
     if item.user_id != current_user.user_id:
         abort(403)
-    # Prevent editing non-active items?
-    # if item.status != 'Active':
-    #     flash("Cannot edit an item that is not active.", "warning")
-    #     return redirect(url_for('main.view_item', item_id=item_id))
 
+    # Populate form from object on GET, leave empty on POST (WTForms handles POST data)
+    form = ItemForm(obj=item if request.method == 'GET' else None)
+    submitted_item_sub = None
+    submitted_expected_sub = None
 
-    form = ItemForm(obj=item) # Pre-populate form with item data
+    if request.method == 'POST':
+        # --- *** Step 1: Populate choices BEFORE validation *** ---
+        main_cat_submitted = request.form.get('category')
+        expected_main_cat_submitted = request.form.get('expected_return_category')
 
+        if main_cat_submitted and main_cat_submitted in SUB_CATEGORIES:
+            form.sub_category.choices = SUB_CATEGORIES[main_cat_submitted]
+        else:
+             form.sub_category.choices = []
+
+        if expected_main_cat_submitted and expected_main_cat_submitted in SUB_CATEGORIES:
+            form.expected_return_sub_category.choices = SUB_CATEGORIES[expected_main_cat_submitted]
+        else:
+            form.expected_return_sub_category.choices = []
+
+        submitted_item_sub = request.form.get('sub_category')
+        submitted_expected_sub = request.form.get('expected_return_sub_category')
+        # --- *** End Step 1 *** ---
+
+    # --- *** Step 2: Run WTForms validation *** ---
     if form.validate_on_submit():
-        # Update item fields from form data
         item.title = form.title.data.strip()
         item.description = form.description.data.strip() if form.description.data else None
         item.category = form.category.data
+        item.sub_category = form.sub_category.data if form.sub_category.data else None
         item.type = form.type.data
         item.condition = form.condition.data
         item.urgency_level = form.urgency_level.data
-        item.expected_return = form.expected_return.data if form.type.data == 'Trade' else None
 
-        # Handle newly uploaded images
+        # --- *** Update split expected return fields *** ---
+        if item.type == 'Trade':
+            item.expected_return_category = form.expected_return_category.data
+            item.expected_return_sub_category = form.expected_return_sub_category.data if form.expected_return_sub_category.data else None
+        else:
+             item.expected_return_category = None
+             item.expected_return_sub_category = None
+        # --- *** END CHANGE *** ---
+
+        # ... (Image handling logic remains the same) ...
         images_added = []
         if form.images.data:
             files = form.images.data if isinstance(form.images.data, list) else [form.images.data]
-            # Check image limit before saving new ones
-            current_image_count = len(item.images) # Already loaded via joinedload
-            if current_image_count + len(files) > 8: # Assuming max 8 images
+            current_image_count = db.session.query(ItemImage).filter_by(item_id=item.item_id).count() # Query current count
+            if current_image_count + len(files) > 8:
                  flash(f"Cannot upload more than 8 images in total. You have {current_image_count} existing images.", "warning")
             else:
                 for f in files:
-                    if f and f.filename:
+                     # ...(rest of image saving)...
+                     if f and f.filename:
                         try:
                             filename = secure_filename(f"{item.item_id}_{datetime.utcnow().timestamp()}_{f.filename}")
                             filepath = os.path.join(ITEM_UPLOAD_FOLDER, filename)
@@ -2619,19 +2676,54 @@ def edit_item(item_id):
                 if images_added:
                     db.session.add_all(images_added)
 
+
         # Log edit history
         db.session.add(ItemHistory(item_id=item.item_id, user_id=current_user.user_id, action="Item Edited"))
         db.session.commit()
         flash("Item updated successfully.", "success")
         return redirect(url_for("main.view_item", item_id=item.item_id))
+
+    # --- *** Step 3: Handle Validation Errors (if POST and validate_on_submit failed) *** ---
     elif request.method == 'POST':
-         # Flash errors if form validation fails on POST
-        for field, errors in form.errors.items():
-            for error in errors:
-                flash(f"Error in {getattr(form, field).label.text}: {error}", "danger")
+        validation_failed = False
+        for fieldName, errorMessages in form.errors.items():
+            fieldLabel = getattr(getattr(form, fieldName, None), 'label', None)
+            display_name = fieldLabel.text if fieldLabel else fieldName.replace('_', ' ').title()
+            for error in errorMessages:
+                flash(f"Error in {display_name}: {error}", "danger")
+                validation_failed = True
+
+        # Restore submitted sub-category values if validation failed
+        if validation_failed:
+             form.sub_category.data = submitted_item_sub
+             form.expected_return_sub_category.data = submitted_expected_sub
+             # Re-populate choices based on the *originally submitted* main categories
+             if form.category.data and form.category.data in SUB_CATEGORIES:
+                 form.sub_category.choices = SUB_CATEGORIES[form.category.data]
+             if form.expected_return_category.data and form.expected_return_category.data in SUB_CATEGORIES:
+                 form.expected_return_sub_category.choices = SUB_CATEGORIES[form.expected_return_category.data]
+
+    # --- *** Step 4: Render Template (for GET or failed POST) *** ---
+    # For GET, ensure form object data is set for JS (obj=item should handle this)
+    # Also ensure choices are pre-populated for JS based on existing item data
+    if request.method == 'GET':
+        if item.category and item.category in SUB_CATEGORIES:
+            form.sub_category.choices = SUB_CATEGORIES[item.category]
+        else:
+            form.sub_category.choices = [] # Set choices to empty list initially for GET
+
+        if item.expected_return_category and item.expected_return_category in SUB_CATEGORIES:
+            form.expected_return_sub_category.choices = SUB_CATEGORIES[item.expected_return_category]
+        else:
+             form.expected_return_sub_category.choices = []
 
 
-    return render_template("items/edit_item.html", form=form, item=item)
+    return render_template(
+        "items/edit_item.html",
+        form=form,
+        item=item,
+        sub_categories_json=json.dumps(SUB_CATEGORIES)
+    )
 
 
 @main.route("/item/<int:item_id>/delete", methods=["POST"])
@@ -4048,16 +4140,17 @@ def items_list():
     search = form.search.data.strip() if form.search.data else None
     location_filter = form.location.data # Single location for distance sort base
     radius_str = form.radius.data # String: '', '5', '10', etc.
-    
-    # --- START FIX ---
+
     # Get categories from the form (which is populated by request.args)
     categories = form.categories.data # This handles the multi-select filter
-    
     # If the form field is empty, check for a single 'category' param from the navbar link
     if not categories and request.args.get('category'):
-        categories = [request.args.get('category')] # Put the single category into a list
-    # --- END FIX ---
-    
+        categories = [request.args.get('category')]
+
+    # --- *** GET SUB-CATEGORY FROM FORM *** ---
+    sub_category = form.sub_category.data if form.sub_category.data else None # Ensure empty string becomes None
+    # --- *** END ADDITION *** ---
+
     urgency = form.urgency.data
     condition = form.condition.data
     sort_by = form.sort_by.data or 'newest' # Default sort
@@ -4071,13 +4164,27 @@ def items_list():
     if categories:
         query = query.filter(Item.category.in_(categories))
 
+    # --- *** ADD SUB-CATEGORY FILTER *** ---
+    # Only filter by sub_category if a *single* main category is selected
+    # (Filtering by sub-category across multiple main categories gets complex)
+    if sub_category and categories and len(categories) == 1:
+        query = query.filter(Item.sub_category == sub_category)
+    elif sub_category:
+        # If sub-category is selected but multiple/no main categories are, ignore sub-category filter (or show warning)
+        # flash("Sub-category filter only applies when a single main category is selected.", "info")
+        form.sub_category.data = '' # Clear the selection in the form for clarity
+    # --- *** END ADDITION *** ---
+
     # Other attribute filters
     if urgency: query = query.filter_by(urgency_level=urgency)
     if condition: query = query.filter_by(condition=condition)
 
     # --- Execute Initial Query ---
-    all_items = query.order_by(Item.created_at.desc()).all() # Default sort needed before distance sort overrides
+    # Default sort needed before distance sort overrides (or applied later)
+    # Applying order_by here might be less efficient if distance sorting happens later
+    all_items = query.all()
     results = []
+
 
     # --- Location Filtering & Sorting ---
     user_lat, user_lon = None, None
@@ -4109,9 +4216,16 @@ def items_list():
     if (radius_active or sort_by_distance_active) and center_coords_valid:
         radius_km_filter = map_radius_km if radius_active else float('inf')
         for item in all_items:
-            dist = haversine_distance(user_lat, user_lon, item.latitude, item.longitude)
-            if dist <= radius_km_filter:
-                items_with_distance.append({'item': item, 'distance': dist})
+            # --- *** Ensure Lat/Lon exist before calculating distance *** ---
+            item_lat, item_lon = item.latitude, item.longitude
+            if item_lat is not None and item_lon is not None:
+                dist = haversine_distance(user_lat, user_lon, item_lat, item_lon)
+                if dist <= radius_km_filter:
+                    items_with_distance.append({'item': item, 'distance': dist})
+            elif not radius_active: # If not filtering by radius, include items without coords for non-distance sort
+                items_with_distance.append({'item': item, 'distance': float('inf')})
+            # --- *** END CHANGE *** ---
+
 
         # Sort by distance if requested
         if sort_by_distance_active:
@@ -4127,10 +4241,10 @@ def items_list():
 
 
     # --- Apply Non-Distance Sorting (if distance wasn't used or failed) ---
-    if sort_by == 'oldest' and not sort_by_distance_active:
-        results.sort(key=lambda item: item.created_at)
-    elif sort_by == 'newest' and not sort_by_distance_active:
-        results.sort(key=lambda item: item.created_at, reverse=True)
+    if sort_by == 'oldest' and not (sort_by_distance_active and center_coords_valid):
+        results.sort(key=lambda item: item.created_at if item.created_at else datetime.min) # Handle potential None
+    elif sort_by == 'newest' and not (sort_by_distance_active and center_coords_valid):
+        results.sort(key=lambda item: item.created_at if item.created_at else datetime.min, reverse=True)
 
 
     # --- Prepare data for Map View ---
@@ -4142,6 +4256,7 @@ def items_list():
     all_locations_coords_json = json.dumps(GEOCODE_DATA) # Pass all coords for JS lookup
 
 
+    # --- *** ADD `sub_categories_json` TO RENDER_TEMPLATE *** ---
     return render_template("items/search_results.html",
                            items=results,
                            form=form,
@@ -4149,7 +4264,8 @@ def items_list():
                            # Pass map data similar to dashboard
                            map_center_coords=map_center_coords,
                            map_radius_km=map_radius_km,
-                           all_locations_coords=all_locations_coords_json
+                           all_locations_coords=all_locations_coords_json,
+                           sub_categories_json=json.dumps(SUB_CATEGORIES) # *** ADD THIS ***
                            )
 
 

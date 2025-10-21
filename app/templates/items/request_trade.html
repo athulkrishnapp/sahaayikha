@@ -1,76 +1,210 @@
 {% extends "base.html" %}
+
 {% block content %}
+<style>
+    /* Modernized Request Trade Styles */
+    :root {
+        --border-color: #dee2e6;
+        --border-color-dark: rgba(255, 255, 255, 0.1);
+        --card-bg-dark: #2c2c3a;
+        --subtle-bg: #f8f9fa;
+        --subtle-bg-dark: rgba(255, 255, 255, 0.05);
+    }
+     .dark-mode {
+        --border-color: var(--border-color-dark);
+        --subtle-bg: var(--subtle-bg-dark);
+     }
+
+    /* Requested Item Card */
+    .requested-item-card {
+        border: 1px solid var(--border-color);
+        border-radius: 0.75rem;
+        background-color: var(--subtle-bg);
+        overflow: hidden; /* Ensure image respects border radius */
+    }
+     .dark-mode .requested-item-card {
+        background-color: var(--card-bg-dark);
+     }
+    .requested-item-card img {
+        max-height: 200px; /* Limit image height */
+        width: 100%;
+        object-fit: cover;
+    }
+     @media (min-width: 768px) { /* Adjust image height/width for medium screens and up */
+        .requested-item-card img {
+            max-height: none; /* Remove height limit */
+            height: 100%; /* Fill column height */
+            border-top-left-radius: 0.75rem;
+            border-bottom-left-radius: 0.75rem;
+            border-top-right-radius: 0; /* Reset side radius */
+        }
+    }
+
+
+    /* Offer Item Selection */
+    .offer-item-selection {
+        margin-top: 2.5rem; /* More space */
+    }
+
+    /* Offer Item Card (Radio Button Style) */
+    .offer-item-card {
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        cursor: pointer;
+        position: relative; /* Needed for radio positioning */
+    }
+     .offer-item-card:hover {
+         border-color: var(--bs-primary);
+         box-shadow: 0 0.25rem 0.75rem rgba(0,0,0,.08);
+     }
+     .dark-mode .offer-item-card:hover {
+        box-shadow: 0 0.25rem 0.75rem rgba(255,255,255,.05);
+     }
+    .offer-item-card.selected {
+        border-color: var(--bs-success);
+        box-shadow: 0 0 0 0.25rem rgba(var(--bs-success-rgb), 0.25);
+    }
+    .offer-item-card img {
+        width: 60px; /* Fixed size image */
+        height: 60px;
+        object-fit: cover;
+        border-radius: 0.3rem;
+        border: 1px solid var(--border-color);
+    }
+    .offer-item-card .form-check-input {
+        position: absolute;
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 1.25em; /* Slightly larger radio */
+        height: 1.25em;
+        margin: 0;
+        pointer-events: none; /* Let label handle click */
+    }
+     .form-check-label { /* Ensure label itself isn't clickable here */
+        cursor: default;
+     }
+
+</style>
+
 <div class="container py-5">
-    <h1 class="fw-bold">Request a Trade for: {{ item_to_get.title }}</h1>
-    {# Display suggested category if available and not 'Money' #}
-    {% if suggested_category %}
-        <p class="text-muted">The owner is looking for an item in the '{{ suggested_category }}' category. Here are your items that might match:</p>
-    {% elif item_to_get.expected_return == 'Money' %}
-        <p class="text-muted">The owner is looking for 'Money'. You can start a chat to make an offer.</p> {# Should have redirected already, but added for clarity #}
-    {% else %}
-        <p class="text-muted">Select one of your items to offer in trade:</p>
-    {% endif %}
+    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
+        <h1 class="mb-0">Request Trade</h1>
+         <a href="{{ url_for('main.view_item', item_id=item_to_get.item_id) }}" class="btn btn-sm btn-outline-secondary">
+             <i class="fas fa-arrow-left me-1"></i> Back to Item
+         </a>
+    </div>
 
 
-    <div class="row">
-        <div class="col-md-8">
-            <form method="POST">
-                {# ***** CORRECTION HERE ***** #}
-                {{ form.hidden_tag() }}
-                {# ***** END CORRECTION ***** #}
-
-                <div class="list-group">
-                    {% for item in my_items %}
-                    <label class="list-group-item d-flex gap-3">
-                        <input class="form-check-input flex-shrink-0" type="radio" name="item_to_offer" value="{{ item.item_id }}" id="offer_{{ item.item_id }}">
-                        {# Corrected image access for offered item #}
-                        <img src="{{ url_for('static', filename=item.images[0].image_url if item.images else 'images/item_placeholder.jpg') }}"
-                            style="width: 100px; height: 100px; object-fit: cover; border-radius: 0.5rem;"
-                            alt="{{ item.title }}">
-                        {# Use label's for attribute to link text to radio button #}
-                        <span class="pt-1 form-checked-content w-100" for="offer_{{ item.item_id }}">
-                            <strong class="d-block">{{ item.title }}</strong>
-                            <small class="d-block text-muted">{{ item.description|truncate(100) }}</small>
-                        </span>
-                    </label>
-                    {% else %}
-                        {# Improved message based on suggested category #}
-                        {% if suggested_category %}
-                             <div class="alert alert-warning">You don't currently have any active 'Trade' items listed in the '{{ suggested_category }}' category to offer directly. You can still select another item below if available.</div>
-                        {% else %}
-                            <div class="alert alert-warning">You don't have any active items available for trade. Post an item first!</div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-                {% if my_items %}
-                <div class="d-grid mt-4">
-                    <button type="submit" class="btn btn-primary btn-lg">Send Trade Request</button>
-                </div>
-                {% else %}
-                 <div class="d-grid mt-4">
-                     <a href="{{ url_for('main.new_item') }}" class="btn btn-secondary btn-lg">Post an Item to Trade</a>
-                 </div>
-                {% endif %}
-            </form>
-        </div>
-        <div class="col-md-4">
-            <div class="card position-sticky top-0"> {# Added sticky top for context #}
-                {# Image access was already corrected in previous step #}
-                <img src="{{ url_for('static', filename=item_to_get.images[0].image_url if item_to_get.images else 'images/item_placeholder.jpg') }}" class="card-img-top" alt="{{ item_to_get.title }}">
+    {# --- Item Being Requested --- #}
+     <div class="mb-4 requested-item-card shadow-sm">
+        <div class="row g-0">
+            <div class="col-md-3 d-flex align-items-center justify-content-center p-2">
+                 <img src="{% if item_to_get.images %}{{ url_for('static', filename=item_to_get.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" class="img-fluid rounded" alt="{{ item_to_get.title }}">
+            </div>
+            <div class="col-md-9">
                 <div class="card-body">
-                    <h5 class="card-title">{{ item_to_get.title }}</h5>
-                    <p class="card-text small text-muted">Owner: {{ item_to_get.owner.first_name }}</p>
-                    <p class="card-text">{{ item_to_get.description|truncate(150) }}</p>
-                    <span class="badge bg-secondary">{{ item_to_get.condition }}</span>
-                    <span class="badge bg-info">{{ item_to_get.category }}</span>
-                    {% if item_to_get.expected_return != 'Money' %}
-                        <span class="badge bg-primary">Wants: {{ item_to_get.expected_return }}</span>
-                    {% else %}
-                        <span class="badge bg-success">Wants: Money</span>
-                    {% endif %}
+                    <h5 class="card-title fw-bold">{{ item_to_get.title }}</h5>
+                    <p class="card-text mb-2">
+                        <span class="badge text-bg-secondary me-1">{{ item_to_get.category }}{% if item_to_get.sub_category %} - {{ item_to_get.sub_category }}{% endif %}</span>
+                        <span class="badge text-bg-light border text-dark-emphasis">{{ item_to_get.condition }}</span>
+                    </p>
+                    <p class="card-text">
+                        <small class="text-muted">Owner is looking for:</small><br>
+                        <strong class="text-primary">
+                             {{ item_to_get.expected_return_category }}
+                            {% if item_to_get.expected_return_sub_category %}
+                                ({{ item_to_get.expected_return_sub_category }})
+                            {% elif item_to_get.expected_return_category != 'Money' %}
+                                (Any Sub-Category)
+                            {% endif %}
+                        </strong>
+                    </p>
+                     <p class="card-text mt-2"><small class="text-muted">Posted by {{ item_to_get.owner.first_name }} in {{ item_to_get.location }}</small></p>
                 </div>
             </div>
         </div>
     </div>
+
+    {# --- Form to Select Item to Offer --- #}
+    <div class="offer-item-selection">
+        <h3 class="mb-2">Select Your Item to Offer</h3>
+         {% if suggested_category and suggested_category != 'Money' %}
+            <p class="text-muted mb-3">
+                Based on the owner's preference for
+                <strong>{{ suggested_category }}{% if suggested_sub_category %} ({{ suggested_sub_category }}){% else %} (Any Sub-Category){% endif %}</strong>,
+                here are your matching 'Trade' items:
+            </p>
+        {% else %}
+             <p class="text-muted mb-3">Select one of your active 'Trade' items to offer:</p>
+        {% endif %}
+
+        {% if my_items %}
+            <form method="POST" action="{{ url_for('main.request_trade', item_id=item_to_get.item_id) }}">
+                {{ form.hidden_tag() }} {# CSRF Token #}
+                <div class="row row-cols-1 row-cols-md-2 g-3 mb-4">
+                    {% for item in my_items %}
+                    <div class="col">
+                        <label class="offer-item-card p-3 d-flex gap-3 align-items-center" for="item_{{ item.item_id }}" onclick="selectOfferItemCard(this)">
+                            <input class="form-check-input" type="radio" name="item_to_offer" id="item_{{ item.item_id }}" value="{{ item.item_id }}" required>
+                             <img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" alt="{{ item.title }}" class="flex-shrink-0">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ item.title }}</h6>
+                                <p class="mb-0 text-muted small">
+                                    {{ item.category }}{% if item.sub_category %} - {{ item.sub_category }}{% endif %} | {{ item.condition }}
+                                </p>
+                            </div>
+                         </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                 <button type="submit" class="btn btn-success btn-lg w-100">
+                    <i class="fas fa-paper-plane me-2"></i>Send Trade Request
+                </button>
+            </form>
+        {% else %}
+            <div class="alert alert-secondary text-center shadow-sm" role="alert">
+                 <i class="fas fa-info-circle me-2"></i>
+                 You don't have any active 'Trade' items{% if suggested_category and suggested_category != 'Money' %} matching <strong>"{{ suggested_category }}{% if suggested_sub_category %} - {{ suggested_sub_category }}{% endif %}"</strong>{% endif %} to offer.
+            </div>
+            <a href="{{ url_for('main.new_item') }}" class="btn btn-outline-primary">
+                <i class="fas fa-plus me-1"></i> Post an Item to Trade
+            </a>
+        {% endif %}
+    </div> {# End offer-item-selection #}
+
 </div>
+
+<script>
+    // Function to visually select the card when the label area is clicked
+    function selectOfferItemCard(labelElement) {
+        // Find the radio button within this label
+        const radio = labelElement.querySelector('input[type="radio"]');
+        if (radio) {
+            // Deselect all other cards visually
+            document.querySelectorAll('.offer-item-card').forEach(card => {
+                card.classList.remove('selected');
+                card.style.borderColor = ''; // Reset border color
+            });
+            // Select this card visually
+            labelElement.classList.add('selected');
+            labelElement.style.borderColor = 'var(--bs-success)'; // Use success color border
+
+            // Ensure the radio button is checked programmatically (though click usually handles it)
+            radio.checked = true;
+        }
+    }
+
+     // Optional: If a radio is checked on page load (e.g., after validation error), select its card
+     document.addEventListener('DOMContentLoaded', () => {
+         const checkedRadio = document.querySelector('input[name="item_to_offer"]:checked');
+         if (checkedRadio) {
+             const parentLabel = checkedRadio.closest('.offer-item-card');
+             if (parentLabel) {
+                 selectOfferItemCard(parentLabel);
+             }
+         }
+     });
+</script>
+
 {% endblock %}

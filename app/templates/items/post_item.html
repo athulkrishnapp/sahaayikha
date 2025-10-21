@@ -12,7 +12,11 @@
         --subtle-bg: #f8f9fa;
         --subtle-bg-dark: rgba(255, 255, 255, 0.03);
     }
-    
+    .dark-mode { /* Apply dark mode styles */
+      --border-color: var(--border-color-dark);
+      --subtle-bg: var(--subtle-bg-dark);
+    }
+
     /* Image Manager Panel */
     .image-manager {
         background: var(--subtle-bg);
@@ -20,10 +24,6 @@
         border-radius: 0.75rem;
         padding: 1.5rem;
         height: 100%;
-    }
-    .dark-mode .image-manager {
-        background: var(--subtle-bg-dark);
-        border-color: var(--border-color-dark);
     }
 
     /* Drag and Drop Zone */
@@ -63,6 +63,9 @@
         background-color: #e9ecef;
         animation: fadeIn 0.3s ease;
     }
+    .dark-mode .image-preview-container {
+        background-color: var(--bs-secondary-bg);
+    }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
     .image-preview-container img {
@@ -99,63 +102,112 @@
     <form method="POST" enctype="multipart/form-data" id="post-item-form" novalidate>
         {{ form.hidden_tag() }}
         <div class="row g-4">
-            
+
             <div class="col-lg-7">
                 <div class="d-flex flex-column gap-3">
+                    {# --- Title --- #}
                     <div>
                         {{ form.title.label(class="form-label") }}
-                        {{ form.title(class="form-control") }}
+                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                        {% for error in form.title.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
                     </div>
+                    {# --- Description --- #}
                     <div>
                         {{ form.description.label(class="form-label") }}
-                        {{ form.description(class="form-control", rows="5") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="5") }}
+                         {% for error in form.description.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
                     </div>
+                    {# --- Category, Sub-Category, Type Row --- #}
                     <div class="row g-3">
                         <div class="col-md-4">
                             {{ form.category.label(class="form-label") }}
-                            {{ form.category(class="form-select") }}
+                            {{ form.category(class="form-select" + (" is-invalid" if form.category.errors else ""), id="mainCategorySelect") }}
+                             {% for error in form.category.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4" id="sub-category-wrapper" style="display: none;">
+                            {{ form.sub_category.label(class="form-label") }}
+                            {{ form.sub_category(class="form-select" + (" is-invalid" if form.sub_category.errors else ""), id="subCategorySelect") }}
+                             {% for error in form.sub_category.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
                         <div class="col-md-4">
                             {{ form.type.label(class="form-label") }}
-                            {{ form.type(class="form-select") }}
-                        </div>
-                        <div class="col-md-4">
-                            {{ form.condition.label(class="form-label") }}
-                            {{ form.condition(class="form-select") }}
+                            {{ form.type(class="form-select" + (" is-invalid" if form.type.errors else ""), id="typeSelectField") }}
+                            {% for error in form.type.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
                     </div>
-                    <div class="row g-3">
+                    {# --- Condition, Urgency Row --- #}
+                     <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ form.condition.label(class="form-label") }}
+                            {{ form.condition(class="form-select" + (" is-invalid" if form.condition.errors else "")) }}
+                             {% for error in form.condition.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
                         <div class="col-md-6">
                             {{ form.urgency_level.label(class="form-label") }}
-                            {{ form.urgency_level(class="form-select") }}
-                        </div>
-                        <div class="col-md-6" id="expected-return-wrapper">
-                            {{ form.expected_return.label(class="form-label") }}
-                            {{ form.expected_return(class="form-select") }}
+                            {{ form.urgency_level(class="form-select" + (" is-invalid" if form.urgency_level.errors else "")) }}
+                             {% for error in form.urgency_level.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
                     </div>
-                </div>
-            </div>
+                    {# --- Expected Return Row (Wrapper for Trade Type) --- #}
+                    <div id="expected-return-fields-wrapper" style="display: none;"> {# Wrapper for both expected return fields #}
+                        <div class="row g-3">
+                            {# --- *** EXPECTED RETURN CATEGORY *** --- #}
+                            <div class="col-md-6">
+                                {{ form.expected_return_category.label(class="form-label") }}
+                                {{ form.expected_return_category(class="form-select" + (" is-invalid" if form.expected_return_category.errors else ""), id="expectedMainCategorySelect") }}
+                                {% for error in form.expected_return_category.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {# --- *** EXPECTED RETURN SUB-CATEGORY *** --- #}
+                            <div class="col-md-6" id="expected-sub-category-wrapper" style="display: none;">
+                                {{ form.expected_return_sub_category.label(class="form-label") }}
+                                {{ form.expected_return_sub_category(class="form-select" + (" is-invalid" if form.expected_return_sub_category.errors else ""), id="expectedSubCategorySelect") }}
+                                {% for error in form.expected_return_sub_category.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div> {# End expected-return-fields-wrapper #}
+                </div> {# End d-flex flex-column #}
+            </div> {# End col-lg-7 #}
 
+            {# --- Image Upload Column --- #}
             <div class="col-lg-5">
                 <div class="image-manager">
                     <h5 class="fw-bold">Upload Images</h5>
-                    <p class="text-muted small">You can upload up to 8 images.</p>
-                    
-                    <label for="images-input" class="drop-zone" id="dropZone">
+                    <p class="text-muted small mb-3">You can upload up to 8 images.</p>
+                    <label for="images-input" class="drop-zone mb-3" id="dropZone">
                         <div class="drop-zone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
                         <div><strong>Drag & drop images here</strong></div>
                         <div class="text-muted small">or click to browse</div>
                     </label>
-                    
-                    {{ form.images(id="images-input", multiple=True, accept="image/*") }}
-                    
-                    <div class="image-gallery" id="image-gallery">
-                        </div>
+                    {{ form.images(id="images-input", multiple=True, accept="image/*", class="d-none") }}
+                    {% for error in form.images.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                    <div class="image-gallery" id="image-gallery"></div>
+                    <p id="image-count-feedback" class="text-muted small mt-2" style="display: none;">
+                        <span id="current-image-count">0</span> / 8 images selected.
+                    </p>
                 </div>
-            </div>
-        </div>
-        
+            </div> {# End col-lg-5 #}
+        </div> {# End row g-4 #}
+
         <div class="d-grid mt-4">
             {{ form.submit(class="btn btn-primary btn-lg") }}
         </div>
@@ -164,117 +216,128 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- Image Preview Logic (Same as before) ---
     const postForm = document.getElementById('post-item-form');
     const imageGallery = document.getElementById('image-gallery');
     const fileInput = document.getElementById('images-input');
     const dropZone = document.getElementById('dropZone');
+    const imageCountFeedback = document.getElementById('image-count-feedback');
+    const currentImageCountSpan = document.getElementById('current-image-count');
     const maxImages = 8;
-    let stagedFiles = []; // Array to hold file objects
-
-    // --- Drag & Drop Functionality ---
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('is-dragging');
-    });
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('is-dragging');
-    });
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('is-dragging');
-        const droppedFiles = e.dataTransfer.files;
-        if (droppedFiles.length) {
-            fileInput.files = droppedFiles;
-            fileInput.dispatchEvent(new Event('change'));
-        }
-    });
-
-    // --- Re-render all previews based on the stagedFiles array ---
-    const renderPreviews = () => {
-        imageGallery.innerHTML = ''; // Clear existing previews
-        stagedFiles.forEach((file, index) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const container = document.createElement('div');
-                container.classList.add('image-preview-container');
-                container.dataset.index = index; // Use index for removal
-                
-                container.innerHTML = `
-                    <img src="${e.target.result}" alt="Image preview">
-                    <div class="image-overlay">
-                         <button type="button" class="remove-btn" title="Remove Image"><i class="fas fa-times"></i></button>
-                    </div>`;
-                imageGallery.appendChild(container);
-            }
-            reader.readAsDataURL(file);
-        });
+    let stagedFiles = [];
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('is-dragging'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('is-dragging'); });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragging'); const files = Array.from(e.dataTransfer.files); handleFileSelection(files); });
+    dropZone.addEventListener('click', () => fileInput.click());
+    const renderPreviewsAndUpdateCount = () => { /* ... (same render logic) ... */
+        imageGallery.innerHTML = ''; stagedFiles.forEach((file, index) => { const reader = new FileReader(); reader.onload = function(e) { const container = document.createElement('div'); container.classList.add('image-preview-container'); container.dataset.index = index; container.innerHTML = `<img src="${e.target.result}" alt="Preview"><div class="image-overlay"><button type="button" class="remove-btn" title="Remove"><i class="fas fa-times"></i></button></div>`; imageGallery.appendChild(container); }; reader.readAsDataURL(file); }); const count = stagedFiles.length; currentImageCountSpan.textContent = count; imageCountFeedback.style.display = count > 0 ? 'block' : 'none';
     };
-
-    // --- Handle new file selection ---
-    fileInput.addEventListener('change', function(event) {
-        const newFiles = Array.from(event.target.files);
-        
-        if (stagedFiles.length + newFiles.length > maxImages) {
-            alert(`You can only upload a maximum of ${maxImages} images.`);
-            fileInput.value = ''; // Clear the input's own file list
-            return;
-        }
-        // Add new files to our staged array
-        stagedFiles.push(...newFiles);
-        renderPreviews();
+    const handleFileSelection = (newFiles) => { /* ... (same selection logic) ... */
+         const allowed = newFiles.filter(f => f.type.startsWith('image/')); const current = stagedFiles.length; const remaining = maxImages - current; if (allowed.length === 0) return; if (allowed.length > remaining) { alert(`Only ${remaining} more allowed.`); stagedFiles.push(...allowed.slice(0, remaining)); } else { stagedFiles.push(...allowed); } renderPreviewsAndUpdateCount(); fileInput.value = '';
+    };
+    fileInput.addEventListener('change', (e) => { handleFileSelection(Array.from(e.target.files)); });
+    imageGallery.addEventListener('click', (e) => { /* ... (same remove logic) ... */
+        const btn = e.target.closest('.remove-btn'); if (!btn) return; const cont = btn.closest('.image-preview-container'); const idx = parseInt(cont.dataset.index, 10); stagedFiles.splice(idx, 1); renderPreviewsAndUpdateCount();
     });
-
-    // --- Handle removing a preview ---
-    imageGallery.addEventListener('click', function(event) {
-        const button = event.target.closest('.remove-btn');
-        if (button) {
-            const container = button.closest('.image-preview-container');
-            const indexToRemove = parseInt(container.dataset.index, 10);
-            
-            // Remove the file from our staged array
-            stagedFiles.splice(indexToRemove, 1);
-            
-            // Re-render all previews to update indices
-            renderPreviews();
-        }
+    postForm.addEventListener('submit', (e) => { /* ... (same dataTransfer logic) ... */
+        const dt = new DataTransfer(); stagedFiles.forEach(f => dt.items.add(f)); fileInput.files = dt.files;
     });
+    // --- End Image Preview Logic ---
 
-    // --- Before submitting the form, update the file input with our staged files ---
-    postForm.addEventListener('submit', function(event) {
-        // The DataTransfer object is the standard way to create a FileList
-        const dataTransfer = new DataTransfer();
-        stagedFiles.forEach(file => {
-            dataTransfer.items.add(file);
-        });
-        
-        // Assign our custom FileList to the real file input
-        fileInput.files = dataTransfer.files;
-    });
-});
+    // --- Type and Expected Return Logic ---
+    const typeSelectField = document.getElementById('typeSelectField');
+    const expectedReturnWrapper = document.getElementById('expected-return-fields-wrapper'); // Target the main wrapper
+    const expectedMainCategorySelect = document.getElementById('expectedMainCategorySelect');
+    const expectedSubCategoryWrapper = document.getElementById('expected-sub-category-wrapper');
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Select the 'Type' dropdown and the 'Expected Return' field's wrapper
-    const typeSelect = document.getElementById('type');
-    const expectedReturnWrapper = document.getElementById('expected-return-wrapper');
-
-    // Function to check the value and toggle visibility
-    const toggleExpectedReturn = () => {
-        if (!typeSelect || !expectedReturnWrapper) return;
-
-        // If the selected value is 'Share' or 'Disaster', hide the field
-        if (typeSelect.value === 'Share' || typeSelect.value === 'Disaster') {
-            expectedReturnWrapper.style.display = 'none';
+    const toggleExpectedReturnFields = () => {
+        const show = typeSelectField.value === 'Trade';
+        expectedReturnWrapper.style.display = show ? 'block' : 'none';
+        // Also ensure expected sub-category is hidden if main wrapper is hidden
+        if (!show) {
+            expectedSubCategoryWrapper.style.display = 'none';
         } else {
-            // Otherwise, show it
-            expectedReturnWrapper.style.display = 'block';
+            // If showing, re-evaluate if the sub-category dropdown should be shown based on main selection
+            const showSub = expectedMainCategorySelect.value !== '' && expectedMainCategorySelect.value !== 'Money';
+            populateSubCategoryDropdown(expectedMainCategorySelect.value, expectedSubCategorySelect, expectedSubCategoryWrapper, '', showSub);
         }
     };
 
-    // Run the check when the page first loads
-    toggleExpectedReturn();
+    // --- Sub-Category Data & Functions ---
+    const mainCategorySelect = document.getElementById('mainCategorySelect');
+    const subCategorySelect = document.getElementById('subCategorySelect');
+    const subCategoryWrapper = document.getElementById('sub-category-wrapper');
+    const expectedSubCategorySelect = document.getElementById('expectedSubCategorySelect'); // New selector
+    const subCategories = JSON.parse('{{ sub_categories_json | safe }}');
 
-    // Add an event listener to run the check whenever the 'Type' changes
-    typeSelect.addEventListener('change', toggleExpectedReturn);
+    // Values potentially submitted before validation failure
+    const previouslySelectedItemSub = "{{ form.sub_category.data or '' }}";
+    const previouslySelectedExpectedCat = "{{ form.expected_return_category.data or '' }}";
+    const previouslySelectedExpectedSub = "{{ form.expected_return_sub_category.data or '' }}";
+
+    // Generic function to update a sub-category dropdown
+    function populateSubCategoryDropdown(mainCatValue, subSelectElement, subWrapperElement, previouslySelectedSubValue, showWrapper) {
+        subSelectElement.innerHTML = ''; // Clear existing
+        // Add the 'Any Sub-Category...' or 'Select Sub-Category...' option first
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = "";
+        // Use different placeholder text based on context maybe?
+        placeholderOption.textContent = subSelectElement.id === 'expectedSubCategorySelect' ? "Any Sub-Category (Optional)" : "Select Sub-Category...";
+        subSelectElement.appendChild(placeholderOption);
+
+        const subCatsForMain = subCategories[mainCatValue];
+        let hasValidSubCats = false;
+
+        if (mainCatValue && subCatsForMain && subCatsForMain.length > 0) {
+            subCatsForMain.forEach(function(option) {
+                // Skip the placeholder defined in SUB_CATEGORIES dict if it exists
+                if (option[0] === '') return;
+
+                const opt = document.createElement('option');
+                opt.value = option[0];
+                opt.textContent = option[1];
+                // Reselect previous value if it exists for this dropdown
+                if (option[0] === previouslySelectedSubValue) {
+                    opt.selected = true;
+                }
+                subSelectElement.appendChild(opt);
+                hasValidSubCats = true; // Mark that we added actual sub-categories
+            });
+        }
+
+        // Show/Hide Logic
+        // Show if showWrapper is true AND there are valid sub-categories to show
+        if (showWrapper && hasValidSubCats) {
+            subWrapperElement.style.display = 'block';
+        } else {
+            subWrapperElement.style.display = 'none';
+        }
+    }
+
+    // --- Event Listeners and Initial Calls ---
+
+    // 1. Item Sub-Category
+    mainCategorySelect.addEventListener('change', function() {
+        populateSubCategoryDropdown(this.value, subCategorySelect, subCategoryWrapper, '', true); // Show wrapper on change
+    });
+    // Initial call for item sub-category
+    populateSubCategoryDropdown(mainCategorySelect.value, subCategorySelect, subCategoryWrapper, previouslySelectedItemSub, mainCategorySelect.value !== '');
+
+    // 2. Expected Return Sub-Category
+    expectedMainCategorySelect.addEventListener('change', function() {
+        // Show sub-category wrapper only if a main category (not 'Money') is selected
+        const showSub = this.value !== '' && this.value !== 'Money';
+        populateSubCategoryDropdown(this.value, expectedSubCategorySelect, expectedSubCategoryWrapper, '', showSub);
+    });
+    // Initial call for expected return sub-category (show only if relevant main cat selected)
+    const showExpectedSubInitially = previouslySelectedExpectedCat !== '' && previouslySelectedExpectedCat !== 'Money';
+    populateSubCategoryDropdown(previouslySelectedExpectedCat, expectedSubCategorySelect, expectedSubCategoryWrapper, previouslySelectedExpectedSub, showExpectedSubInitially);
+
+
+    // 3. Trade Type Toggle
+    toggleExpectedReturnFields(); // Initial check for Trade type visibility
+    typeSelectField.addEventListener('change', toggleExpectedReturnFields);
+
 });
 </script>
 

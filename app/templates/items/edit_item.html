@@ -1,10 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 
+{# --- Re-use styles from post_item.html --- #}
 <style>
-    /* ---------------------------------- */
-    /* --- Modern Edit Item Styles --- */
-    /* ---------------------------------- */
     :root {
         --border-color: #dee2e6;
         --border-color-dark: rgba(255, 255, 255, 0.15);
@@ -12,278 +10,282 @@
         --subtle-bg: #f8f9fa;
         --subtle-bg-dark: rgba(255, 255, 255, 0.03);
     }
-    
-    /* Image Manager Panel */
-    .image-manager {
-        background: var(--subtle-bg);
-        border: 1px solid var(--border-color);
-        border-radius: 0.75rem;
-        padding: 1.5rem;
-        height: 100%;
+    .dark-mode { /* Apply dark mode styles */
+      --border-color: var(--border-color-dark);
+      --subtle-bg: var(--subtle-bg-dark);
     }
-    .dark-mode .image-manager {
-        background: var(--subtle-bg-dark);
-        border-color: var(--border-color-dark);
-    }
-
-    /* Drag and Drop Zone */
-    .drop-zone {
-        border: 2px dashed #adb5bd;
-        border-radius: 0.5rem;
-        padding: 2rem;
-        text-align: center;
-        cursor: pointer;
-        transition: background-color 0.2s ease, border-color 0.2s ease;
-    }
-    .dark-mode .drop-zone {
-        border-color: #495057;
-    }
-    .drop-zone:hover, .drop-zone.is-dragging {
-        background-color: var(--bs-primary-bg-subtle);
-        border-color: var(--bs-primary);
-    }
-    .drop-zone-icon {
-        font-size: 2.5rem;
-        color: var(--bs-primary);
-        margin-bottom: 0.5rem;
-    }
-
-    /* Image Preview Gallery */
-    .image-gallery {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-        gap: 1rem;
-        margin-top: 1.5rem;
-    }
-    .image-preview-container {
-        position: relative;
-        aspect-ratio: 1 / 1;
-        border-radius: 0.5rem;
-        overflow: hidden;
-        background-color: #e9ecef;
-        animation: fadeIn 0.3s ease;
-    }
+    .image-manager { background: var(--subtle-bg); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1.5rem; height: 100%; }
+    .drop-zone { border: 2px dashed #adb5bd; border-radius: 0.5rem; padding: 2rem; text-align: center; cursor: pointer; transition: background-color 0.2s ease, border-color 0.2s ease; }
+    .dark-mode .drop-zone { border-color: #495057; }
+    .drop-zone:hover, .drop-zone.is-dragging { background-color: var(--bs-primary-bg-subtle); border-color: var(--bs-primary); }
+    .drop-zone-icon { font-size: 2.5rem; color: var(--bs-primary); margin-bottom: 0.5rem; }
+    .image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .image-preview-container { position: relative; aspect-ratio: 1 / 1; border-radius: 0.5rem; overflow: hidden; background-color: #e9ecef; animation: fadeIn 0.3s ease; }
+    .dark-mode .image-preview-container { background-color: var(--bs-secondary-bg); }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-
-    .image-preview-container img {
-        width: 100%; height: 100%; object-fit: cover;
-    }
-    .image-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0,0,0,0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        opacity: 0;
-        transition: opacity 0.2s ease;
-    }
-    .image-preview-container:hover .image-overlay {
-        opacity: 1;
-    }
-    .delete-btn {
-        background: none; border: none; color: white;
-        font-size: 1.2rem; cursor: pointer;
-    }
-
-    /* Hide the actual file input */
+    .image-preview-container img { width: 100%; height: 100%; object-fit: cover; }
+    .image-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.2s ease; }
+    .image-preview-container:hover .image-overlay { opacity: 1; }
+    .remove-btn, .delete-existing-btn { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
     #images-input { display: none; }
 </style>
 
 <div class="container py-5">
     <div class="mb-4">
         <h1 class="fw-bold">Edit Item</h1>
-        <p class="text-muted">Update your item's details and manage its images.</p>
+        <p class="text-muted">Update the details for "{{ item.title }}".</p>
     </div>
 
-    <form method="POST" enctype="multipart/form-data" novalidate>
+    <form method="POST" enctype="multipart/form-data" id="edit-item-form" novalidate>
         {{ form.hidden_tag() }}
         <div class="row g-4">
-            
+
             <div class="col-lg-7">
                 <div class="d-flex flex-column gap-3">
+                     {# --- Title --- #}
                     <div>
                         {{ form.title.label(class="form-label") }}
-                        {{ form.title(class="form-control") }}
+                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                        {% for error in form.title.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
                     </div>
+                     {# --- Description --- #}
                     <div>
                         {{ form.description.label(class="form-label") }}
-                        {{ form.description(class="form-control", rows="5") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="5") }}
+                         {% for error in form.description.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
                     </div>
+                     {# --- Category, Sub-Category, Type Row --- #}
                     <div class="row g-3">
                         <div class="col-md-4">
                             {{ form.category.label(class="form-label") }}
-                            {{ form.category(class="form-select") }}
+                            {{ form.category(class="form-select" + (" is-invalid" if form.category.errors else ""), id="mainCategorySelect") }}
+                             {% for error in form.category.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4" id="sub-category-wrapper" style="display: none;">
+                            {{ form.sub_category.label(class="form-label") }}
+                            {{ form.sub_category(class="form-select" + (" is-invalid" if form.sub_category.errors else ""), id="subCategorySelect") }}
+                             {% for error in form.sub_category.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
                         <div class="col-md-4">
                             {{ form.type.label(class="form-label") }}
-                            {{ form.type(class="form-select") }}
-                        </div>
-                        <div class="col-md-4">
-                            {{ form.condition.label(class="form-label") }}
-                            {{ form.condition(class="form-select") }}
+                            {{ form.type(class="form-select" + (" is-invalid" if form.type.errors else ""), id="typeSelectField") }}
+                            {% for error in form.type.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
                     </div>
-                    <div class="row g-3">
+                    {# --- Condition, Urgency Row --- #}
+                     <div class="row g-3">
+                        <div class="col-md-6">
+                            {{ form.condition.label(class="form-label") }}
+                            {{ form.condition(class="form-select" + (" is-invalid" if form.condition.errors else "")) }}
+                             {% for error in form.condition.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
                         <div class="col-md-6">
                             {{ form.urgency_level.label(class="form-label") }}
-                            {{ form.urgency_level(class="form-select") }}
-                        </div>
-                        <div class="col-md-6" id="expected-return-wrapper">
-                            {{ form.expected_return.label(class="form-label") }}
-                            {{ form.expected_return(class="form-select") }}
+                            {{ form.urgency_level(class="form-select" + (" is-invalid" if form.urgency_level.errors else "")) }}
+                             {% for error in form.urgency_level.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
                         </div>
                     </div>
-                </div>
-            </div>
+                     {# --- Expected Return Row (Wrapper for Trade Type) --- #}
+                    <div id="expected-return-fields-wrapper" style="display: none;"> {# Wrapper for both expected return fields #}
+                        <div class="row g-3">
+                            {# --- *** EXPECTED RETURN CATEGORY *** --- #}
+                            <div class="col-md-6">
+                                {{ form.expected_return_category.label(class="form-label") }}
+                                {{ form.expected_return_category(class="form-select" + (" is-invalid" if form.expected_return_category.errors else ""), id="expectedMainCategorySelect") }}
+                                {% for error in form.expected_return_category.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                            {# --- *** EXPECTED RETURN SUB-CATEGORY *** --- #}
+                            <div class="col-md-6" id="expected-sub-category-wrapper" style="display: none;">
+                                {{ form.expected_return_sub_category.label(class="form-label") }}
+                                {{ form.expected_return_sub_category(class="form-select" + (" is-invalid" if form.expected_return_sub_category.errors else ""), id="expectedSubCategorySelect") }}
+                                {% for error in form.expected_return_sub_category.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div> {# End expected-return-fields-wrapper #}
+                </div> {# End d-flex flex-column #}
+            </div> {# End col-lg-7 #}
 
+            {# --- Image Upload Column --- #}
             <div class="col-lg-5">
                 <div class="image-manager">
                     <h5 class="fw-bold">Manage Images</h5>
-                    <p class="text-muted small">You can upload up to 8 images.</p>
-                    
-                    <label for="images-input" class="drop-zone" id="dropZone">
-                        <div class="drop-zone-icon"><i class="fas fa-cloud-upload-alt"></i></div>
-                        <div><strong>Drag & drop images here</strong></div>
-                        <div class="text-muted small">or click to browse</div>
-                    </label>
-                    
-                    {{ form.images(id="images-input", multiple=True, accept="image/*") }}
-                    
-                    <div class="image-gallery" id="image-gallery">
+                    <p class="text-muted small mb-3">Add new or remove existing images (Max 8 total).</p>
+                    <div class="image-gallery mb-3" id="existing-image-gallery">
                         {% for image in item.images %}
-                        <div class="image-preview-container" id="image-container-{{ image.image_id }}">
-                            <img src="{{ url_for('static', filename=image.image_url) }}" alt="Item Image">
+                        <div class="image-preview-container existing-image" data-image-id="{{ image.image_id }}">
+                            <img src="{{ url_for('static', filename=image.image_url) }}" alt="Existing image">
                             <div class="image-overlay">
-                                <button type="button" class="delete-btn" data-image-id="{{ image.image_id }}" title="Delete Image">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
+                                <button type="button" class="delete-existing-btn" title="Remove Existing Image"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
+                    <label for="images-input" class="drop-zone mb-3" id="dropZone">
+                        <div class="drop-zone-icon"><i class="fas fa-plus-circle"></i></div>
+                        <div><strong>Add More Images</strong></div>
+                        <div class="text-muted small">Drag & drop or click to browse</div>
+                    </label>
+                    {{ form.images(id="images-input", multiple=True, accept="image/*", class="d-none") }}
+                    {% for error in form.images.errors %}
+                        <div class="text-danger small mt-1">{{ error }}</div>
+                    {% endfor %}
+                    <div class="image-gallery" id="new-image-gallery"></div>
+                    <p id="image-count-feedback" class="text-muted small mt-2" style="display: none;">
+                        Total images: <span id="total-image-count">0</span> / 8.
+                    </p>
                 </div>
-            </div>
-        </div>
-        
+            </div> {# End col-lg-5 #}
+        </div> {# End row g-4 #}
+
         <div class="d-grid mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">Update Item</button>
+            {{ form.submit(value='Update Item', class="btn btn-primary btn-lg") }}
         </div>
     </form>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const imageGallery = document.getElementById('image-gallery');
+    // --- Image Management Logic (Same as before) ---
+    const editForm = document.getElementById('edit-item-form');
+    const existingImageGallery = document.getElementById('existing-image-gallery');
+    const newImageGallery = document.getElementById('new-image-gallery');
     const fileInput = document.getElementById('images-input');
     const dropZone = document.getElementById('dropZone');
+    const imageCountFeedback = document.getElementById('image-count-feedback');
+    const totalImageCountSpan = document.getElementById('total-image-count');
     const maxImages = 8;
-
-    // --- Drag & Drop Functionality ---
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('is-dragging');
+    let stagedFiles = [];
+    let existingImageCount = existingImageGallery.querySelectorAll('.existing-image').length;
+    const updateTotalImageCount = () => { /* ... (same count logic) ... */
+        const total = existingImageCount + stagedFiles.length; totalImageCountSpan.textContent = total; imageCountFeedback.style.display = total > 0 ? 'block' : 'none'; dropZone.style.display = total >= maxImages ? 'none' : 'block'; fileInput.disabled = total >= maxImages;
+    };
+    updateTotalImageCount();
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('is-dragging'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('is-dragging'); });
+    dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.classList.remove('is-dragging'); const files = Array.from(e.dataTransfer.files); handleFileSelection(files); });
+    dropZone.addEventListener('click', () => fileInput.click());
+    const renderNewPreviews = () => { /* ... (same render logic) ... */
+        newImageGallery.innerHTML = ''; stagedFiles.forEach((file, index) => { const reader = new FileReader(); reader.onload = function(e) { const container = document.createElement('div'); container.classList.add('image-preview-container'); container.dataset.index = index; container.innerHTML = `<img src="${e.target.result}" alt="Preview"><div class="image-overlay"><button type="button" class="remove-btn" title="Remove"><i class="fas fa-times"></i></button></div>`; newImageGallery.appendChild(container); }; reader.readAsDataURL(file); }); updateTotalImageCount();
+    };
+    const handleFileSelection = (newFiles) => { /* ... (same selection logic) ... */
+        const allowed = newFiles.filter(f => f.type.startsWith('image/')); const currentTotal = existingImageCount + stagedFiles.length; const remaining = maxImages - currentTotal; if(allowed.length === 0) return; if (allowed.length > remaining) { alert(`Only ${remaining} more allowed.`); stagedFiles.push(...allowed.slice(0, remaining)); } else { stagedFiles.push(...allowed); } renderNewPreviews(); fileInput.value = '';
+    };
+    fileInput.addEventListener('change', (e) => { handleFileSelection(Array.from(e.target.files)); });
+    newImageGallery.addEventListener('click', (e) => { /* ... (same remove new logic) ... */
+         const btn = e.target.closest('.remove-btn'); if (!btn) return; const cont = btn.closest('.image-preview-container'); const idx = parseInt(cont.dataset.index, 10); stagedFiles.splice(idx, 1); renderNewPreviews();
     });
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('is-dragging');
+    existingImageGallery.addEventListener('click', (e) => { /* ... (same delete existing AJAX logic) ... */
+        const btn = e.target.closest('.delete-existing-btn'); if (!btn) return; const cont = btn.closest('.existing-image'); const imgId = cont.dataset.imageId; const csrf = editForm.querySelector('input[name="csrf_token"]'); if (!imgId || !confirm('Delete existing image?')) return; fetch(`/item/image/${imgId}/delete`, { method: 'POST', headers: {'X-CSRFToken': csrf ? csrf.value : ''} }).then(r => {if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json();}).then(d => { if (d.success) { cont.remove(); existingImageCount--; updateTotalImageCount(); } else { alert(`Error: ${d.error || 'Unknown'}`); } }).catch(err => { console.error('Delete error:', err); alert('Failed to delete image.'); });
     });
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('is-dragging');
-        const droppedFiles = e.dataTransfer.files;
-        if (droppedFiles.length) {
-            fileInput.files = droppedFiles;
-            // Manually trigger the 'change' event to run the preview logic
-            fileInput.dispatchEvent(new Event('change'));
-        }
+    editForm.addEventListener('submit', (e) => { /* ... (same dataTransfer logic) ... */
+        const dt = new DataTransfer(); stagedFiles.forEach(f => dt.items.add(f)); fileInput.files = dt.files;
     });
+    // --- End Image Management Logic ---
 
-    // --- Function to handle previewing new images ---
-    fileInput.addEventListener('change', function(event) {
-        const files = event.target.files;
-        if (!files.length) return;
+    // --- Type and Expected Return Logic ---
+    const typeSelectField = document.getElementById('typeSelectField');
+    const expectedReturnWrapper = document.getElementById('expected-return-fields-wrapper'); // Target the main wrapper
+    const expectedMainCategorySelect = document.getElementById('expectedMainCategorySelect');
+    const expectedSubCategoryWrapper = document.getElementById('expected-sub-category-wrapper');
 
-        const currentImageCount = imageGallery.children.length;
-        if (currentImageCount + files.length > maxImages) {
-            alert(`You can only upload a maximum of ${maxImages} images. You have ${currentImageCount}, so you can add ${maxImages - currentImageCount} more.`);
-            fileInput.value = ''; // Clear the selection
-            return;
-        }
-
-        for (const file of files) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const container = document.createElement('div');
-                container.classList.add('image-preview-container');
-                container.innerHTML = `
-                    <img src="${e.target.result}" alt="Image preview">
-                    <div class="image-overlay">
-                         <button type="button" class="delete-btn is-new" title="Remove Image"><i class="fas fa-trash-alt"></i></button>
-                    </div>`;
-                imageGallery.appendChild(container);
-                
-                // Add event listener to remove newly added previews
-                container.querySelector('.delete-btn.is-new').addEventListener('click', () => {
-                    container.remove();
-                    // This is complex, but we need to remove the file from the FileList
-                    // For simplicity, we'll just let the user re-select if they make a mistake
-                });
-            }
-            reader.readAsDataURL(file);
-        }
-    });
-
-    // --- Function to handle deleting EXISTING images from the server ---
-    imageGallery.addEventListener('click', function(event) {
-        const button = event.target.closest('.delete-btn:not(.is-new)');
-        if (button) {
-            const imageId = button.dataset.imageId;
-            if (!imageId) return;
-
-            if (confirm('Are you sure you want to permanently delete this image?')) {
-                fetch(`/item/image/${imageId}/delete`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById(`image-container-${imageId}`).remove();
-                    } else {
-                        alert('Error deleting image: ' + (data.error || 'Unknown error'));
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-            }
-        }
-    });
-});
-
-
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Select the 'Type' dropdown and the 'Expected Return' field's wrapper
-    const typeSelect = document.getElementById('type');
-    const expectedReturnWrapper = document.getElementById('expected-return-wrapper');
-
-    // Function to check the value and toggle visibility
-    const toggleExpectedReturn = () => {
-        if (!typeSelect || !expectedReturnWrapper) return;
-
-        // If the selected value is 'Share' or 'Disaster', hide the field
-        if (typeSelect.value === 'Share' || typeSelect.value === 'Disaster') {
-            expectedReturnWrapper.style.display = 'none';
+    const toggleExpectedReturnFields = () => {
+        const show = typeSelectField.value === 'Trade';
+        expectedReturnWrapper.style.display = show ? 'block' : 'none';
+        if (!show) {
+            expectedSubCategoryWrapper.style.display = 'none';
         } else {
-            // Otherwise, show it
-            expectedReturnWrapper.style.display = 'block';
+             // Re-evaluate if the expected sub-category dropdown should be shown
+             const showSub = expectedMainCategorySelect.value !== '' && expectedMainCategorySelect.value !== 'Money';
+             populateSubCategoryDropdown(expectedMainCategorySelect.value, expectedSubCategorySelect, expectedSubCategoryWrapper, getExpectedSubValue(), showSub);
         }
     };
 
-    // Run the check when the page first loads
-    toggleExpectedReturn();
+    // --- Sub-Category Data & Functions ---
+    const mainCategorySelect = document.getElementById('mainCategorySelect');
+    const subCategorySelect = document.getElementById('subCategorySelect');
+    const subCategoryWrapper = document.getElementById('sub-category-wrapper');
+    const expectedSubCategorySelect = document.getElementById('expectedSubCategorySelect');
+    const subCategories = JSON.parse('{{ sub_categories_json | safe }}');
 
-    // Add an event listener to run the check whenever the 'Type' changes
-    typeSelect.addEventListener('change', toggleExpectedReturn);
+    // Helper to get current item's or form's sub-category value
+    function getItemSubValue() { return "{{ form.sub_category.data or item.sub_category or '' }}"; }
+    // Helper to get current item's or form's expected category value
+    function getExpectedCatValue() { return "{{ form.expected_return_category.data or item.expected_return_category or '' }}"; }
+     // Helper to get current item's or form's expected sub-category value
+    function getExpectedSubValue() { return "{{ form.expected_return_sub_category.data or item.expected_return_sub_category or '' }}"; }
+
+
+    // Generic function to update a sub-category dropdown
+    function populateSubCategoryDropdown(mainCatValue, subSelectElement, subWrapperElement, selectedSubValue, showWrapper) {
+        subSelectElement.innerHTML = ''; // Clear existing
+        const placeholderOption = document.createElement('option');
+        placeholderOption.value = "";
+        placeholderOption.textContent = subSelectElement.id === 'expectedSubCategorySelect' ? "Any Sub-Category (Optional)" : "Select Sub-Category...";
+        subSelectElement.appendChild(placeholderOption);
+
+        const subCatsForMain = subCategories[mainCatValue];
+        let hasValidSubCats = false;
+
+        if (mainCatValue && subCatsForMain && subCatsForMain.length > 0) {
+            subCatsForMain.forEach(function(option) {
+                if (option[0] === '') return; // Skip placeholder from definition
+                const opt = document.createElement('option');
+                opt.value = option[0];
+                opt.textContent = option[1];
+                if (option[0] === selectedSubValue) { // Use passed selected value
+                    opt.selected = true;
+                }
+                subSelectElement.appendChild(opt);
+                hasValidSubCats = true;
+            });
+        }
+
+        if (showWrapper && hasValidSubCats) {
+            subWrapperElement.style.display = 'block';
+        } else {
+            subWrapperElement.style.display = 'none';
+        }
+    }
+
+    // --- Event Listeners and Initial Calls ---
+
+    // 1. Item Sub-Category
+    mainCategorySelect.addEventListener('change', function() {
+        populateSubCategoryDropdown(this.value, subCategorySelect, subCategoryWrapper, '', true);
+    });
+    populateSubCategoryDropdown(mainCategorySelect.value, subCategorySelect, subCategoryWrapper, getItemSubValue(), mainCategorySelect.value !== '');
+
+    // 2. Expected Return Sub-Category
+    expectedMainCategorySelect.addEventListener('change', function() {
+        const showSub = this.value !== '' && this.value !== 'Money';
+        populateSubCategoryDropdown(this.value, expectedSubCategorySelect, expectedSubCategoryWrapper, '', showSub);
+    });
+     // Initial call using potentially pre-filled values
+    const showExpectedSubInitially = getExpectedCatValue() !== '' && getExpectedCatValue() !== 'Money';
+    populateSubCategoryDropdown(getExpectedCatValue(), expectedSubCategorySelect, expectedSubCategoryWrapper, getExpectedSubValue(), showExpectedSubInitially);
+
+    // 3. Trade Type Toggle
+    toggleExpectedReturnFields(); // Initial check
+    typeSelectField.addEventListener('change', toggleExpectedReturnFields);
+
 });
 </script>
 

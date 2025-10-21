@@ -16,9 +16,9 @@ from werkzeug.security import check_password_hash # Ensure import
 from .utils import GEOCODE_DATA # Import GEOCODE_DATA instead
 # ----------------------
 
-# --- Keep KERALA_LOCATIONS (used elsewhere, e.g., Registration) ---
-# This list provides display names including sub-locations
+# --- Keep KERALA_LOCATIONS ---
 KERALA_LOCATIONS = sorted([
+    # ... (location list remains the same) ...
     ('', 'Select Location'),
     ('Alappuzha', 'Alappuzha'),
     ('Alappuzha - Ambalapuzha', 'Alappuzha - Ambalapuzha'),
@@ -98,7 +98,7 @@ KERALA_LOCATIONS = sorted([
     ('Kasaragod - Poinachi', 'Kasaragod - Poinachi'),
 ], key=lambda x: x[1])
 
-# --- Keep CATEGORIES, EXPECTED_RETURN_CHOICES ---
+# --- Main Categories ---
 CATEGORIES = [
     ('', 'Select Category...'),
     ('Books', 'Books'), ('Clothes', 'Clothes'), ('Electronics', 'Electronics'),
@@ -117,13 +117,34 @@ CATEGORIES = [
     ('Other', 'Other')
 ]
 
-EXPECTED_RETURN_CHOICES = [('', 'Select Expected Return...')] + CATEGORIES[1:] + [('Money', 'Money')]
+# --- Sub-Categories ---
+SUB_CATEGORIES = {
+    # Match keys exactly to CATEGORIES values
+    'Electronics': [('', 'Any Sub-Category...'), ('Mobile', 'Mobile'), ('TV', 'TV'), ('Laptop', 'Laptop'), ('Headphones', 'Headphones'), ('Charger', 'Charger'), ('Camera', 'Camera'), ('Other', 'Other')],
+    'Computers & Accessories': [('', 'Any Sub-Category...'), ('Laptop', 'Laptop'), ('Desktop', 'Desktop'), ('Monitor', 'Monitor'), ('Keyboard', 'Keyboard'), ('Mouse', 'Mouse'), ('Printer', 'Printer'), ('Other', 'Other')],
+    'Clothes': [('', 'Any Sub-Category...'), ('Mens', 'Mens'), ('Womens', 'Womens'), ('Kids', 'Kids'), ('Baby', 'Baby'), ('Other', 'Other')],
+    'Shoes & Footwear': [('', 'Any Sub-Category...'), ('Mens', 'Mens'), ('Womens', 'Womens'), ('Kids', 'Kids'), ('Other', 'Other')],
+    'Food & Snacks': [('', 'Any Sub-Category...'), ('Water', 'Water'), ('Canned Goods', 'Canned Goods'), ('Baby Food', 'Baby Food'), ('Snacks', 'Snacks'), ('Dry Goods (Rice, Pulses)', 'Dry Goods (Rice, Pulses)'), ('Other', 'Other')],
+    'Medicines': [('', 'Any Sub-Category...'), ('Pain Relief', 'Pain Relief'), ('First Aid', 'First Aid'), ('Vitamins', 'Vitamins'), ('Prescription (Verify!)', 'Prescription (Verify!)'), ('Other', 'Other')],
+    'Furniture': [('', 'Any Sub-Category...'), ('Chair', 'Chair'), ('Table', 'Table'), ('Bed', 'Bed'), ('Sofa', 'Sofa'), ('Storage', 'Storage'), ('Other', 'Other')],
+    'Tools & Hardware': [('', 'Any Sub-Category...'), ('Power Tools', 'Power Tools'), ('Hand Tools', 'Hand Tools'), ('Hardware (Screws, etc)', 'Hardware (Screws, etc)'), ('Other', 'Other')],
+    'Gardening Items': [('', 'Any Sub-Category...'), ('Seeds', 'Seeds'), ('Pots', 'Pots'), ('Soil/Fertilizer', 'Soil/Fertilizer'), ('Garden Tools', 'Garden Tools'), ('Other', 'Other')],
+    'Baby Products': [('', 'Any Sub-Category...'), ('Diapers', 'Diapers'), ('Baby Food', 'Baby Food'), ('Toys', 'Toys'), ('Clothes', 'Clothes'), ('Gear (Strollers, etc)', 'Gear (Strollers, etc)'), ('Other', 'Other')],
+    'Health & Wellness': [('', 'Any Sub-Category...'), ('Supplements', 'Supplements'), ('Personal Care', 'Personal Care'), ('Medical Devices', 'Medical Devices'), ('Other', 'Other')],
+    # Add other main categories and their sub-categories as needed
+    'Other': [('', 'Any Sub-Category...'), ('Other', 'Other')] # Default for 'Other'
+}
 
-# --- Keep CONDITIONS, URGENCY_LEVELS ---
+# --- *** NEW CHOICES FOR EXPECTED RETURN CATEGORY *** ---
+EXPECTED_CATEGORY_RETURN_CHOICES = [('', 'Select Expected Return...')] + CATEGORIES[1:] + [('Money', 'Money')]
+# --- *** END NEW CHOICES *** ---
+
 CONDITIONS = [
     ('', 'Select Condition...'), ('New', 'New'), ('Like New', 'Like New'),
     ('Good', 'Good'), ('Fair', 'Fair'), ('Needs Repair', 'Needs Repair')
 ]
+CONDITION_CHOICES = [('New', 'New'), ('Like New', 'Like New'), ('Good', 'Good'), ('Fair', 'Fair'), ('Needs Repair', 'Needs Repair')]
+
 
 URGENCY_LEVELS = [
     ('', 'Select Urgency...'), ('Low', 'Low'), ('Medium', 'Medium'), ('Urgent', 'Urgent')
@@ -134,12 +155,13 @@ URGENCY_LEVELS = [
 # Search and Filter Forms
 # -------------------------
 class SearchForm(FlaskForm):
-    search = StringField('Search', validators=[Optional()])
+    search = StringField('Search', validators=[Optional(), Length(max=255)])
     location = SelectField('Near Location', choices=KERALA_LOCATIONS, validators=[Optional()])
     radius = SelectField('Radius',
                          choices=[('', 'Any Distance'), ('5', '5 km'), ('10', '10 km'), ('20', '20 km'), ('50', '50 km'), ('100', '100+ km')],
                          default='', validators=[Optional()])
     categories = SelectMultipleField('Categories', choices=CATEGORIES[1:], validators=[Optional()])
+    sub_category = SelectField('Sub-Category', choices=[('', 'Any Sub-Category')], validators=[Optional()])
     urgency = SelectField('Urgency', choices=[('', 'All Urgencies')] + [(level[0], level[1]) for level in URGENCY_LEVELS if level[0]], validators=[Optional()])
     condition = SelectField('Condition', choices=[('', 'All Conditions')] + [(cond[0], cond[1]) for cond in CONDITIONS if cond[0]], validators=[Optional()])
     sort_by = SelectField('Sort by', choices=[('newest', 'Newest'), ('oldest', 'Oldest'), ('distance', 'Distance (Nearest First)')], default='newest', validators=[Optional()])
@@ -159,8 +181,8 @@ class RegistrationForm(FlaskForm):
     location = SelectField('Location', choices=KERALA_LOCATIONS, validators=[DataRequired()])
     profile_picture = FileField('Profile Picture', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'])])
     search_radius = SelectField('Default Search Radius',
-                                choices=[('5', '5 km'), ('10', '10 km'), ('20', '20 km'), ('50', '50 km'), ('100', '100+ km')],
-                                default='20', validators=[DataRequired()])
+                                 choices=[('5', '5 km'), ('10', '10 km'), ('20', '20 km'), ('50', '50 km'), ('100', '100+ km')],
+                                 default='20', validators=[DataRequired()])
     submit = SubmitField('Register')
 
 class OrganizationRegistrationForm(FlaskForm):
@@ -200,18 +222,49 @@ class ItemForm(FlaskForm):
     title = StringField('Title', validators=[DataRequired(), Length(max=255)])
     description = TextAreaField('Description', validators=[Optional()])
     category = SelectField('Category', choices=CATEGORIES, validators=[DataRequired()])
+    sub_category = SelectField('Sub-Category', choices=[], validators=[Optional()]) # JS populated
     type = SelectField('Type', choices=[('Trade', 'Trade'), ('Share', 'Share')], validators=[DataRequired()])
     condition = SelectField('Condition', choices=CONDITIONS, validators=[DataRequired()])
     urgency_level = SelectField('Urgency', choices=URGENCY_LEVELS, validators=[Optional()])
-    expected_return = SelectField('Expected Return (for Trade)', choices=EXPECTED_RETURN_CHOICES, validators=[Optional()])
+
+    # --- *** SPLIT Expected Return into TWO FIELDS *** ---
+    expected_return_category = SelectField(
+        'Expected Return Category (for Trade)',
+        choices=EXPECTED_CATEGORY_RETURN_CHOICES, # Use the new choices list
+        validators=[Optional()]
+    )
+    expected_return_sub_category = SelectField(
+        'Expected Return Sub-Category (Optional)',
+        choices=[], # JS populated
+        validators=[Optional()]
+    )
+    # --- *** END SPLIT *** ---
+
     images = MultipleFileField('Upload Images (Max 8)', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'])])
     submit = SubmitField('Post Item')
 
-    def validate_expected_return(self, field):
+    # --- *** MODIFY VALIDATION for expected_return_category *** ---
+    def validate_expected_return_category(self, field):
         if self.type.data == 'Trade' and not field.data:
-            raise ValidationError('Please specify what you expect in return for a trade.')
+            raise ValidationError('Please specify what category you expect in return for a trade (or select "Money").')
         if self.type.data == 'Share' and field.data:
+            # Silently clear the fields if type is Share
             field.data = ''
+            # Also clear the sub-category if it was somehow set
+            if self.expected_return_sub_category:
+                self.expected_return_sub_category.data = ''
+    # --- *** END MODIFICATION *** ---
+
+    # --- *** ADD VALIDATION for expected_return_sub_category *** ---
+    # This validation is best done in the route after getting data via request.form
+    # because the valid choices depend on expected_return_category.
+    # We'll add a placeholder here, but the main check will be in routes.py.
+    def validate_expected_return_sub_category(self, field):
+        if self.type.data == 'Share' and field.data:
+             field.data = '' # Clear if type is Share
+        # Logic to check if sub_category is valid for the selected main category
+        # will be handled in the route.
+    # --- *** END ADDITION *** ---
 
 # -------------------------
 # Disaster Needs & Donations
@@ -226,13 +279,13 @@ class DisasterNeedForm(FlaskForm):
 class OfferedItemForm(FlaskForm):
     """Sub-form for a single item within a larger donation offer."""
     class Meta:
-        csrf = False
+        csrf = False # Disable CSRF for sub-forms handled by the parent
 
     title = StringField('Item Name', validators=[DataRequired(), Length(max=255)])
     category = SelectField('Category', choices=CATEGORIES, validators=[DataRequired()])
     description = TextAreaField('Description', validators=[Optional(), Length(max=1000)])
     quantity = IntegerField('Quantity', validators=[DataRequired(), NumberRange(min=1)], default=1)
-    condition = SelectField('Condition', choices=[('New', 'New'), ('Used', 'Used')], validators=[DataRequired()])
+    condition = SelectField('Condition', choices=[('New', 'New'), ('Used', 'Used')], validators=[DataRequired()]) # Simplified choices
     image = FileField('Image', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'])])
     manufacture_date = DateField('Manufacture Date', validators=[Optional()])
     expiry_date = DateField('Expiry Date', validators=[Optional()])
@@ -276,9 +329,8 @@ class ProfileForm(FlaskForm):
     last_name = StringField('Last Name', validators=[Optional(), Length(max=64)])
     email = StringField('Email', render_kw={'readonly': True, 'disabled': True}, validators=[DataRequired(), Email()])
     phone = StringField('Phone Number', validators=[Optional(), Length(min=10, max=15)])
+    # Use GEOCODE_DATA keys for the Location dropdown in the profile for consistency with distance calcs
     location = SelectField('Location (District)', choices=[('', 'Select District...')] + [(d, d) for d in sorted(GEOCODE_DATA.keys())], validators=[DataRequired()])
     search_radius = SelectField('Default Search Radius (km)', choices=[('5', '5 km'), ('10', '10 km'), ('20', '20 km'), ('50', '50 km'), ('', 'Any distance')], default='10', validators=[Optional()])
     profile_picture = FileField('Update Profile Picture', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'], 'Images only!')])
-    # REMOVED password field
-    # REMOVED confirm_password field
     submit = SubmitField('Update Profile')

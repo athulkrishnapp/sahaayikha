@@ -18,14 +18,19 @@
 
     /* Styles for the mini-map */
     #miniMapContainer {
-        height: 150px; /* Adjust height as needed */
+        height: 250px; /* Made slightly taller */
         width: 100%;
-        border-radius: 0.5rem; /* Slightly smaller radius */
-        margin-top: 1rem; /* Space above map */
+        border-radius: 0.5rem;
+        margin-top: 0.5rem; /* Reduced top margin as label is added */
         border: 1px solid var(--bs-border-color);
+        background-color: var(--bs-secondary-bg); /* Placeholder background */
     }
+     .dark-mode #miniMapContainer {
+         border-color: var(--bs-border-color-translucent);
+     }
 
-    /* Reusing item card styles from previous correction or dashboard */
+
+    /* Reusing item card styles */
      .item-card {
         border: 1px solid var(--bs-border-color);
         border-radius: 0.75rem;
@@ -35,10 +40,17 @@
         display: flex;
         flex-direction: column;
     }
+     .dark-mode .item-card {
+         background-color: var(--bs-dark-bg-subtle);
+         border-color: var(--bs-border-color-translucent);
+     }
     .item-card:hover {
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+        transform: translateY(-3px);
     }
+     .dark-mode .item-card:hover {
+         box-shadow: 0 0.5rem 1rem rgba(255, 255, 255, 0.05);
+     }
     .item-card-image-container {
         height: 200px;
         overflow: hidden;
@@ -70,11 +82,11 @@
         font-size: 0.9rem;
         color: var(--bs-secondary-text);
         margin-bottom: 1rem;
-        flex-grow: 1;
+        flex-grow: 1; /* Pushes footer down */
     }
     .item-card-footer {
         padding: 0 1rem 1rem 1rem;
-        margin-top: auto;
+        margin-top: auto; /* Aligns button to bottom */
         border-top: none;
         background-color: transparent;
     }
@@ -88,14 +100,22 @@
      .ts-wrapper .ts-control {
         border-radius: 0.375rem; /* Match Bootstrap inputs */
         border-color: var(--bs-border-color);
+        background-color: var(--bs-body-bg); /* Match background */
         min-height: calc(1.5em + 0.75rem + 2px); /* Match BS input height */
         padding: 0.375rem 0.75rem;
+        color: var(--bs-body-color); /* Match text color */
     }
+     .dark-mode .ts-wrapper .ts-control {
+         border-color: var(--bs-border-color-translucent);
+     }
     /* Ensure TomSelect dropdown matches dark/light mode */
     .ts-wrapper .ts-dropdown {
         background: var(--bs-body-bg);
         border-color: var(--bs-border-color);
         color: var(--bs-body-color);
+    }
+    .dark-mode .ts-wrapper .ts-dropdown {
+         border-color: var(--bs-border-color-translucent);
     }
     .ts-wrapper .ts-dropdown .active {
         background-color: var(--bs-primary);
@@ -104,23 +124,22 @@
     .ts-wrapper .ts-dropdown .option:hover {
          background-color: var(--bs-secondary-bg);
     }
-    /* Dark mode specifics for TomSelect */
-    .dark-mode .ts-wrapper .ts-control {
-         background-color: var(--bs-body-bg);
-         border-color: var(--bs-border-color-translucent);
-         color: var(--bs-body-color);
-     }
-     .dark-mode .ts-wrapper.multi .ts-control > div {
+    .dark-mode .ts-wrapper .ts-dropdown .option:hover {
+         background-color: rgba(255, 255, 255, 0.1); /* Lighter hover for dark mode */
+    }
+    /* Style for selected items in multi-select */
+     .ts-wrapper.multi .ts-control > div {
          background: var(--bs-secondary-bg);
          color: var(--bs-emphasis-color);
          border-color: var(--bs-border-color);
+         border-radius: 0.25rem;
+         margin: 0.1rem;
      }
-    .dark-mode .ts-wrapper .ts-dropdown .active {
-        background-color: var(--bs-primary); /* Keep primary for active selection */
-    }
-     .dark-mode .ts-wrapper .ts-dropdown .option:hover {
-         background-color: rgba(255, 255, 255, 0.1); /* Lighter hover for dark mode */
-    }
+      .dark-mode .ts-wrapper.multi .ts-control > div {
+         background: var(--bs-dark-bg-subtle);
+         border-color: var(--bs-border-color-translucent);
+     }
+
 
 </style>
 
@@ -132,19 +151,20 @@
     <h1 class="mb-4">Search Items</h1>
 
     <div class="mb-3 d-flex justify-content-end">
-        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
-            <i class="fas fa-filter me-1"></i> Show Filters & Map
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+            <i class="fas fa-filter me-1"></i> Filters & Map
         </button>
     </div>
 
     <div class="collapse mb-4" id="filterCollapse">
-        <div class="filter-section"> {# Keep original styling wrapper #}
+        <div class="filter-section shadow-sm"> {# Added shadow-sm #}
             <form method="GET" action="{{ url_for('main.items_list') }}" id="filterForm">
                  <div class="row g-3">
+                     {# --- Filter Fields Column --- #}
                      <div class="col-lg-8">
                         <div class="row g-3">
                              <div class="col-md-6">
-                                {{ render_field(form.search, placeholder='Search by keyword...', label_visible=True, id='searchFilter', value=active_search_term or '') }}
+                                {{ render_field(form.search, placeholder='Search by keyword...', label_visible=True, id='searchFilter', value=request.args.get('search', '')) }} {# Use request.args #}
                             </div>
                             <div class="col-md-6">
                                  {{ render_select_field(form.location, label_visible=True, id='locationFilter') }}
@@ -156,7 +176,11 @@
                                  {{ render_select_field(form.sort_by, label_visible=True) }}
                              </div>
                              <div class="col-md-6">
+                               {# Give the main category select an ID #}
                                {{ render_multiple_select_field(form.categories, label_visible=True, id='categoryFilter', placeholder='Select categories...') }}
+                            </div>
+                             <div class="col-md-6" id="sub-category-filter-wrapper" style="display: none;">
+                                {{ render_select_field(form.sub_category, label_visible=True, id='subCategoryFilter') }}
                             </div>
                             <div class="col-md-6">
                                  {{ render_select_field(form.condition, label_visible=True) }}
@@ -165,15 +189,16 @@
                                  {{ render_select_field(form.urgency, label_visible=True) }}
                              </div>
                         </div>
-                         <div class="mt-4 d-flex justify-content-start">
-                             <button type="submit" class="btn btn-primary me-2">Apply Filters</button>
-                             <a href="{{ url_for('main.items_list') }}" class="btn btn-secondary">Reset Filters</a>
+                         <div class="mt-4 d-flex justify-content-start flex-wrap gap-2"> {# Added flex-wrap and gap #}
+                             <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i> Apply Filters</button>
+                             <a href="{{ url_for('main.items_list') }}" class="btn btn-outline-secondary"><i class="fas fa-undo me-1"></i> Reset Filters</a>
                          </div>
                     </div>
 
+                     {# --- Map Column --- #}
                      <div class="col-lg-4">
                          <label class="form-label">Location Preview</label>
-                         <div id="miniMapContainer" class="bg-secondary bg-opacity-10" style="height: 250px;"> {# Slightly taller map maybe? #}
+                         <div id="miniMapContainer">
                              {# Map will be initialized here by JS #}
                          </div>
                      </div>
@@ -181,33 +206,30 @@
             </form>
         </div>
     </div>
-    <div id="resultsView"> {# Changed ID for clarity #}
+
+    {# --- Results View --- #}
+    <div id="resultsView">
         {% if items %}
             <p class="text-muted mb-3">Found {{ items|length }} item(s).</p>
             <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4 results-grid">
                 {% for item in items %}
                     <div class="col d-flex align-items-stretch">
-                        <div class="card item-card item-card-hover">
+                        <div class="card item-card"> {# Removed hover class, can add back if desired #}
                             <div class="item-card-image-container bg-light">
                                 <a href="{{ url_for('main.view_item', item_id=item.item_id) }}">
-                                    {# Corrected image access #}
                                     <img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" class="item-card-image" alt="{{ item.title }}">
                                 </a>
                             </div>
                             <div class="item-card-body">
                                 <h5 class="card-title item-card-title">{{ item.title }}</h5>
                                 <div class="item-card-details">
-                                     <span class="badge rounded-pill
-                                        {% if item.type == 'Trade' %} bg-primary
-                                        {% elif item.type == 'Share' %} bg-success
-                                        {% else %} bg-secondary
-                                        {% endif %} me-1">{{ item.type }}</span>
-                                    <span class="badge rounded-pill bg-info-subtle text-info-emphasis">{{ item.category }}</span>
-                                    <p class="card-text small mt-2">
+                                     <span class="badge rounded-pill text-bg-{{ 'primary' if item.type == 'Trade' else 'success' }} me-1">{{ item.type }}</span>
+                                    <span class="badge rounded-pill text-bg-secondary">{{ item.category }}{% if item.sub_category %} - {{ item.sub_category }}{% endif %}</span>
+                                    <p class="card-text small mt-2 mb-0">
                                         <i class="fas fa-map-marker-alt me-1 text-muted"></i>{{ item.location }} <br>
                                         <i class="fas fa-clock me-1 text-muted"></i>Posted {{ (item.created_at | localdatetime).strftime('%b %d') }}
-                                        {# Optional Distance Display - Uncomment if passing distance #}
-                                        {# {% if item.distance is defined and item.distance != none %} - {{ "%.1f"|format(item.distance) }} km away {% endif %} #}
+                                        {# Optional Distance Display #}
+                                        {# {% if item.distance is defined and item.distance != none and item.distance != float('inf') %} <br> <i class="fas fa-route me-1 text-muted"></i> {{ "%.1f"|format(item.distance) }} km away {% endif %} #}
                                     </p>
                                 </div>
                                 <div class="item-card-footer">
@@ -219,8 +241,8 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="alert alert-info text-center" role="alert">
-                No items found matching your criteria. Try adjusting your filters.
+            <div class="alert alert-secondary text-center shadow-sm" role="alert"> {# Changed to secondary, added shadow #}
+               <i class="fas fa-info-circle me-2"></i> No items found matching your criteria. Try adjusting your filters.
             </div>
         {% endif %}
     </div>
@@ -232,32 +254,106 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- Initialize Tom Select (Keep this as is) ---
-        const categorySelect = document.getElementById('categoryFilter');
-        // ... (rest of Tom Select initializations) ...
-        const locationSelect = document.getElementById('locationFilter');
-        let locationTomSelect = null;
-        if (locationSelect) {
-             locationTomSelect = new TomSelect(locationSelect, { create: false });
+        // --- Initialize Tom Select for Multi-Category ---
+        const categoryMultiSelectEl = document.getElementById('categoryFilter');
+        let categoryTomSelect = null;
+        if (categoryMultiSelectEl) {
+            categoryTomSelect = new TomSelect(categoryMultiSelectEl,{
+                plugins: ['remove_button'], // Optional: allow easy removal of selected items
+                create: false
+            });
         }
-        const radiusSelect = document.getElementById('radiusFilter');
-         let radiusTomSelect = null;
-        if (radiusSelect) {
-            radiusTomSelect = new TomSelect(radiusSelect, { create: false });
+
+        // --- Initialize Tom Select for other dropdowns (Single Select) ---
+        const locationSelectEl = document.getElementById('locationFilter');
+        let locationTomSelect = locationSelectEl ? new TomSelect(locationSelectEl, { create: false }) : null;
+
+        const radiusSelectEl = document.getElementById('radiusFilter');
+        let radiusTomSelect = radiusSelectEl ? new TomSelect(radiusSelectEl, { create: false }) : null;
+
+        // --- Sub-Category Logic ---
+        const subCategoryFilterSelect = document.getElementById('subCategoryFilter');
+        const subCategoryFilterWrapper = document.getElementById('sub-category-filter-wrapper');
+        const subCategories = JSON.parse('{{ sub_categories_json | safe }}');
+        const previouslySelectedSub = "{{ request.args.get('sub_category', '') }}"; // Get from request args
+
+        // Initialize TomSelect for Sub-Category (do this once)
+        let subCategoryTomSelect = subCategoryFilterSelect ? new TomSelect(subCategoryFilterSelect, { create: false }) : null;
+
+
+        function updateSearchSubCategories() {
+            if (!categoryTomSelect || !subCategoryTomSelect) return;
+
+            const selectedMainCategories = categoryTomSelect.getValue(); // This is an array for multi-select
+            let showSubCategory = false;
+            let optionsToAdd = [];
+
+            // Only show/populate sub-category if exactly ONE main category is selected
+            if (selectedMainCategories.length === 1) {
+                const selectedMain = selectedMainCategories[0];
+                const subCatsForMain = subCategories[selectedMain];
+
+                if (selectedMain && subCatsForMain && subCatsForMain.length > 0) {
+                     // Add the "Any" option first
+                     optionsToAdd.push({ value: "", text: "Any Sub-Category" });
+
+                    let hasValidSubCats = false;
+                    subCatsForMain.forEach(function(option) {
+                        if (option[0] === '') return; // Skip the defined placeholder ('Select Sub-Category...')
+                        optionsToAdd.push({ value: option[0], text: option[1] });
+                        hasValidSubCats = true;
+                    });
+                    showSubCategory = hasValidSubCats; // Only show if there are actual sub-cats
+                }
+            }
+
+            // Update TomSelect options
+            subCategoryTomSelect.clearOptions(); // Clear existing options
+            subCategoryTomSelect.addOption(optionsToAdd); // Add the new options
+            subCategoryTomSelect.setValue(showSubCategory ? previouslySelectedSub : '', true); // Set value, silent=true prevents event loop
+            subCategoryTomSelect.refreshOptions(false); // Refresh dropdown display
+
+            // Show/hide wrapper
+            subCategoryFilterWrapper.style.display = showSubCategory ? 'block' : 'none';
         }
+
+        // Add event listener to main category TomSelect
+        if (categoryTomSelect) {
+            categoryTomSelect.on('change', updateSearchSubCategories);
+        }
+
+        // Run once on page load to set initial state
+        updateSearchSubCategories();
+
 
         // --- Mini Map Initialization ---
         const mapContainer = document.getElementById('miniMapContainer');
-        const filterCollapseElement = document.getElementById('filterCollapse'); // Get collapse element
-        let miniMap = null; // Initialize map variable to null
+        const filterCollapseElement = document.getElementById('filterCollapse');
+        let miniMap = null;
         let radiusCircle = null;
         let centerMarker = null;
-        const defaultCenter = [10.8505, 76.2711];
+        const defaultCenter = [10.8505, 76.2711]; // Center of Kerala approx.
         const defaultZoom = 7;
         const allLocations = JSON.parse('{{ all_locations_coords | safe }}');
 
-        // Function to initialize or update the map
-        function updateMiniMap(forceResize = false) {
+        function initializeMap() {
+             if (!mapContainer || miniMap) return; // Don't re-initialize
+             try {
+                miniMap = L.map(mapContainer).setView(defaultCenter, defaultZoom);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 18,
+                    attribution: '&copy; OSM contributors'
+                }).addTo(miniMap);
+                updateMapViewAndCircle(); // Set initial view based on filters
+            } catch (e) {
+                console.error("Error initializing mini map:", e);
+                if (mapContainer) mapContainer.innerHTML = '<p class="text-danger text-center small p-2">Map could not be loaded.</p>';
+            }
+        }
+
+        function updateMapViewAndCircle(forceResize = false) {
+             if (!miniMap) return; // Don't update if map not initialized
+
             const selectedLocationName = locationTomSelect ? locationTomSelect.getValue() : null;
             const selectedRadiusKmStr = radiusTomSelect ? radiusTomSelect.getValue() : null;
             let centerCoords = defaultCenter;
@@ -266,7 +362,8 @@
 
             if (selectedLocationName && allLocations[selectedLocationName]) {
                 centerCoords = allLocations[selectedLocationName];
-                zoomLevel = selectedRadiusKmStr ? 10 : 12;
+                // Adjust zoom based on whether radius is selected
+                zoomLevel = selectedRadiusKmStr ? 10 : 12; // Zoom in more if no radius
             }
 
             if (selectedRadiusKmStr) {
@@ -274,6 +371,7 @@
                     const radiusKm = parseFloat(selectedRadiusKmStr);
                     if (radiusKm > 0) {
                         radiusMeters = radiusKm * 1000;
+                        // Adjust zoom based on radius size
                         if (radiusKm <= 5) zoomLevel = 13;
                         else if (radiusKm <= 15) zoomLevel = 11;
                         else if (radiusKm <= 50) zoomLevel = 9;
@@ -282,85 +380,74 @@
                 } catch (e) { radiusMeters = null; }
             }
 
-            // --- Modified Initialization Logic ---
-            if (!miniMap && mapContainer) { // Initialize only if map doesn't exist yet
-                try {
-                    miniMap = L.map(mapContainer).setView(centerCoords, zoomLevel);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        maxZoom: 18,
-                        attribution: '&copy; OSM'
-                    }).addTo(miniMap);
-                    centerMarker = L.circleMarker(centerCoords, { radius: 5, color: '#0d6efd', fillOpacity: 0.6 }).addTo(miniMap);
-                } catch (e) {
-                    console.error("Error initializing mini map:", e);
-                    if (mapContainer) mapContainer.innerHTML = '<p class="text-danger text-center small p-2">Map error</p>';
-                    return;
-                }
-            } else if (miniMap) { // Map exists, update view
-                miniMap.setView(centerCoords, zoomLevel);
-                if (centerMarker) {
-                    centerMarker.setLatLng(centerCoords);
-                } else if (centerCoords !== defaultCenter) {
-                    centerMarker = L.circleMarker(centerCoords, { radius: 5, color: '#0d6efd', fillOpacity: 0.6 }).addTo(miniMap);
+            // Update map view
+            miniMap.setView(centerCoords, zoomLevel);
+
+            // Update or remove center marker
+             if (centerMarker) {
+                miniMap.removeLayer(centerMarker);
+                centerMarker = null;
+            }
+            if (centerCoords !== defaultCenter) { // Only add marker if not default center
+                 centerMarker = L.circleMarker(centerCoords, { radius: 5, color: '#0d6efd', fillColor: '#0d6efd', fillOpacity: 0.6 }).addTo(miniMap);
+                 if (!radiusMeters) { // Add popup only if no radius circle
+                    centerMarker.bindPopup(selectedLocationName || 'Selected Location').openPopup();
+                    setTimeout(() => { if (centerMarker && miniMap.hasLayer(centerMarker)) centerMarker.closePopup(); }, 3000);
                 }
             }
 
-            // --- Invalidate Size if forced (e.g., after collapse shown) ---
-            if (miniMap && forceResize) {
-                // Wait briefly for collapse animation to likely finish
-                setTimeout(() => {
-                    miniMap.invalidateSize();
-                     // Re-center if needed after invalidation
-                    // miniMap.setView(centerCoords, zoomLevel);
-                 }, 200); // Adjust delay if needed
-            }
-             // --- End Size Invalidation ---
 
-
+            // Update or remove radius circle
             if (radiusCircle) {
                 miniMap.removeLayer(radiusCircle);
                 radiusCircle = null;
             }
-
-            if (radiusMeters && centerCoords !== defaultCenter && miniMap) {
+            if (radiusMeters && centerCoords !== defaultCenter) {
                 radiusCircle = L.circle(centerCoords, {
                     radius: radiusMeters,
                     color: '#0d6efd',
                     fillColor: '#0d6efd',
-                    fillOpacity: 0.1
+                    fillOpacity: 0.1,
+                    weight: 1 // Thin line
                 }).addTo(miniMap);
-            } else if (centerCoords !== defaultCenter && centerMarker && miniMap) {
-                 centerMarker.bindPopup(selectedLocationName || 'Selected Location').openPopup();
-                 setTimeout(() => { if (centerMarker) centerMarker.closePopup(); }, 3000);
+            }
+
+            // Invalidate Size if forced (e.g., after collapse shown)
+            if (forceResize) {
+                setTimeout(() => {
+                    if (miniMap) {
+                        miniMap.invalidateSize();
+                        // Re-center after invalidation might be needed if bounds change drastically
+                        // miniMap.setView(centerCoords, zoomLevel);
+                    }
+                 }, 200); // Small delay for collapse animation
             }
         }
 
-        // --- Event Listener for Collapse ---
+        // Event Listener for Collapse show
         if (filterCollapseElement) {
             filterCollapseElement.addEventListener('shown.bs.collapse', function () {
-                // Initialize map OR invalidate its size when collapse is shown
                 if (!miniMap) {
-                    updateMiniMap(); // First time shown, initialize
+                    initializeMap(); // Initialize map on first show
                 } else {
-                    updateMiniMap(true); // Already initialized, force resize
+                    updateMapViewAndCircle(true); // Force resize on subsequent shows
                 }
             });
         }
-        // --- End Event Listener ---
 
-        // Initial map setup (IF the collapse starts open, otherwise remove this)
-        // If the collapse starts closed, you don't need this initial call.
-        // if (mapContainer && filterCollapseElement && !filterCollapseElement.classList.contains('collapse')) {
-        //     updateMiniMap();
+        // Initial map setup ONLY if the collapse starts open
+        // if (mapContainer && filterCollapseElement && !filterCollapseElement.classList.contains('show')) {
+        // Remove this initial call if collapse starts closed
+        //     initializeMap();
         // }
 
 
-        // Update map visuals when location or radius changes (no resize needed here)
+        // Update map visuals when location or radius changes (no resize needed)
         if (locationTomSelect) {
-            locationTomSelect.on('change', () => updateMiniMap(false)); // Pass false for resize
+            locationTomSelect.on('change', () => updateMapViewAndCircle(false));
         }
         if (radiusTomSelect) {
-            radiusTomSelect.on('change', () => updateMiniMap(false)); // Pass false for resize
+            radiusTomSelect.on('change', () => updateMapViewAndCircle(false));
         }
 
     });

@@ -154,14 +154,15 @@ class Item(db.Model):
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     category = db.Column(db.String(255), index=True)
+    sub_category = db.Column(db.String(255), nullable=True, index=True)
     type = db.Column(db.String(50), index=True) # Trade or Share
     condition = db.Column(db.String(50))
     urgency_level = db.Column(db.String(50))
-    expected_return = db.Column(db.String(255)) # Category or 'Money' for Trade type
+    expected_return_category = db.Column(db.String(255), nullable=True) # Category or 'Money' for Trade type
+    expected_return_sub_category = db.Column(db.String(255), nullable=True)    
     location = db.Column(db.String(255), index=True)
     status = db.Column(db.String(50), default="Active", index=True) # Active, Traded, Deleted, etc.
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    # expires_at = db.Column(db.DateTime, nullable=True) # <-- REMOVED THIS LINE
     deal_finalized_at = db.Column(db.DateTime, nullable=True) # Time when deal was confirmed
     latitude = db.Column(db.Float, nullable=True)
     longitude = db.Column(db.Float, nullable=True)
