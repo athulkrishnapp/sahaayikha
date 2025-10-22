@@ -2955,6 +2955,29 @@ def make_donation_offer(need_id):
     need = DisasterNeed.query.get_or_404(need_id)
     form = DonationOfferForm()
 
+    # --- *** THIS IS THE FIX *** ---
+    # Get the specific item form from the field list (assuming JS adds at least one)
+    # This logic applies *before* validation for GET and *during* validation for POST
+    # We must set choices *before* validation is run on POST.
+    # A better way might be to set this in the form's __init__ if we passed the need,
+    # but for this route, we can set it dynamically.
+
+    # Get categories from the specific DisasterNeed
+    if need.categories:
+        # Split the comma-separated string of categories into a list
+        org_categories_list = [cat.strip() for cat in need.categories.split(',') if cat.strip()]
+        # Create the (value, label) tuples for the form
+        category_choices = [(cat, cat) for cat in org_categories_list]
+    else:
+        # Provide an empty list as a fallback if the need has no categories
+        category_choices = []
+
+    # Apply these choices to *all* item forms in the FieldList
+    for item_form in form.offered_items.entries:
+        item_form.category.choices = category_choices
+    # --- *** END OF FIX *** ---
+
+
     if form.validate_on_submit():
         # --- Custom Validation for Critical Items ---
         critical_categories = ['Medicines', 'Food & Snacks', 'Baby Products', 'Health & Wellness']
@@ -2972,6 +2995,9 @@ def make_donation_offer(need_id):
 
         if not is_custom_valid:
             # Re-render form with errors if custom validation fails
+            # We must re-apply choices on failure
+            for item_form in form.offered_items.entries:
+                item_form.category.choices = category_choices
             return render_template("features/make_offer.html", form=form, need=need)
         # --- End Custom Validation ---
 
@@ -3025,6 +3051,10 @@ def make_donation_offer(need_id):
         return redirect(url_for('main.dashboard', view='donations')) # Redirect to "My Donations" view
 
     elif request.method == 'POST': # Handle WTForms validation errors on POST
+        # We must re-apply choices if validation fails
+        for item_form in form.offered_items.entries:
+            item_form.category.choices = category_choices
+
         for field, errors in form.errors.items():
              if field == 'offered_items': # Handle FieldList errors
                  for i, item_errors in enumerate(errors):
@@ -3320,18 +3350,15 @@ def start_chat_from_offer(offer_id):
         flash("Cannot start chat: the related organization no longer exists.", "danger")
         return redirect(request.referrer or url_for('main.dashboard', view='donations'))
 
-    # Find existing chat for this need between this user and this org
-    # User is always user_one_id in user-org chats
+    # --- FIX: Find existing chat based on OFFER ID ---
     chat_session = ChatSession.query.filter_by(
-        disaster_need_id=need.need_id, #
-        user_one_id=current_user.user_id, #
-        participant_org_id=organization.org_id #
+        donation_offer_id=offer.offer_id
     ).first()
 
     if not chat_session:
-        # Create a new chat session if one doesn't exist
+        # --- FIX: Create a new chat session linked to OFFER ID ---
         chat_session = ChatSession(
-            disaster_need_id=need.need_id, #
+            donation_offer_id=offer.offer_id, # Link to the specific offer
             user_one_id=current_user.user_id, #
             participant_org_id=organization.org_id, #
             status='Active' # Ensure status is set
@@ -3347,7 +3374,7 @@ def start_chat_from_offer(offer_id):
             return redirect(request.referrer or url_for('main.dashboard', view='donations'))
 
     elif chat_session.status != 'Active':
-         # Reactivate chat if it was previously blocked or finalized (though less likely for org chats)
+         # Reactivate chat if it was previously blocked or finalized
          chat_session.status = 'Active' #
          try:
             db.session.commit()
@@ -3371,14 +3398,18 @@ def review_donation_offer(offer_id):
     """Handles an organization reviewing a specific donation offer."""
     offer = DonationOffer.query.options(orm.joinedload(DonationOffer.offered_items), orm.joinedload(DonationOffer.user)).get_or_404(offer_id) # Eager load user
 
-    # Security & Status Check
+    # Security Check
     if offer.org_id != current_user.org_id: abort(403)
-    if offer.status != 'Pending Review':
-         flash('This offer has already been reviewed or actioned.', 'info')
-         return redirect(url_for('main.org_dashboard', filter='incoming'))
-
-
+    
+    # --- LOGIC CHANGE START ---
+    # Only check status if the request is POST (i.e., trying to submit a review)
     if request.method == 'POST':
+        # Status Check: Can only POST to a pending review
+        if offer.status != 'Pending Review':
+             flash('This offer has already been reviewed or actioned and cannot be submitted again.', 'info')
+             return redirect(url_for('main.org_dashboard', filter='incoming'))
+
+        # --- Existing POST logic ---
         has_rejections = False
         has_acceptances = False
         item_decisions = {} # Store decisions {offered_item_id: 'Accepted'/'Rejected'}
@@ -3456,11 +3487,11 @@ def review_donation_offer(offer_id):
             current_app.logger.error(f"Error finalizing offer review for {offer_id}: {e}")
             db.session.rollback()
             flash("An error occurred while saving the review.", "danger")
+    # --- LOGIC CHANGE END ---
 
-    # GET request: Render the review form
+    # GET request: Render the review/view template regardless of status.
+    # The template will use its {% if offer.status == 'Pending Review' %} logic.
     return render_template('features/review_offer.html', offer=offer)
-
-# ---
 
 @main.route('/org/offer/<int:offer_id>/pickup_status', methods=['POST'])
 @login_required
@@ -3663,18 +3694,18 @@ def start_org_chat(offer_id):
         # Redirect based on where the org likely clicked from
         return redirect(request.referrer or url_for('main.org_dashboard'))
 
-    # Find existing chat for this need between this user and this org
+    # --- FIX: Find existing chat based on OFFER ID ---
     chat_session = ChatSession.query.filter_by(
-        disaster_need_id=need.need_id,
-        user_one_id=offer.user_id,         # User is always user_one in user-org
-        participant_org_id=current_user.org_id
+        donation_offer_id=offer.offer_id
     ).first()
 
     if not chat_session:
+        # --- FIX: Create a new chat session linked to OFFER ID ---
         chat_session = ChatSession(
-            disaster_need_id=need.need_id,
+            donation_offer_id=offer.offer_id, # Link to the specific offer
             user_one_id=offer.user_id,
-            participant_org_id=current_user.org_id
+            participant_org_id=current_user.org_id,
+            status='Active' # Add status
         )
         db.session.add(chat_session)
         db.session.commit()
@@ -3953,7 +3984,9 @@ def chat(session_id):
     """Handles displaying and sending messages within a chat session."""
     chat_session = ChatSession.query.options(
         orm.joinedload(ChatSession.trade_item).joinedload(Item.images), # Eager load related data
-        orm.joinedload(ChatSession.disaster_need), # Eager load need
+        orm.joinedload(ChatSession.disaster_need), # Eager load need (for old chats)
+        # --- ADD THIS LINE to load the new relationship ---
+        orm.joinedload(ChatSession.donation_offer).joinedload(DonationOffer.need),
         # Load fcm_token for push notifications
         orm.joinedload(ChatSession.user_one).load_only(User.user_id, User.first_name, User.last_name, User.profile_picture, User.fcm_token),
         orm.joinedload(ChatSession.user_two).load_only(User.user_id, User.first_name, User.last_name, User.profile_picture, User.fcm_token),
@@ -3987,52 +4020,69 @@ def chat(session_id):
              current_app.logger.error(f"Error marking messages read for session {session_id}: {e}")
              db.session.rollback()
 
-    # --- Determine Participants and Subject ---
-    the_item = chat_session.subject # Item or DisasterNeed
-    if not the_item: # Placeholder if subject deleted
-        class DummyItem:
-            title, images, item_id, need_id, owner, organization, type = "[Deleted Item/Need]", [], 0, 0, None, None, "Unknown"
-        the_item = DummyItem()
+    # --- FIX: REVISED LOGIC for Participants and Subject ---
+    the_subject = chat_session.subject # This now returns Item, DonationOffer, or DisasterNeed
+    the_item = None # For user-user trade item
+    donation_offer = None # For user-org donation offer
+    disaster_need = None # For subject display
+    trade_request = None # For user-user trade logic
 
     other_user, organization_participant = None, None
-    donation_offer = None
-    trade_request = None # <<< Initialize trade_request variable
 
     if chat_session.is_org_chat:
+        # This is a User-Org chat
         if is_org:
             other_user = chat_session.user_one # Org is viewing chat with User One
         else: # User is viewing chat with Org
             organization_participant = chat_session.participant_org
 
-        # Fetch the relevant DonationOffer for Org chats
-        if chat_session.disaster_need_id and chat_session.user_one_id and chat_session.participant_org_id: # Check all IDs
-             donation_offer = DonationOffer.query.filter_by(
-                 need_id=chat_session.disaster_need_id,
+        # Get the donation offer (which is the subject)
+        if isinstance(the_subject, DonationOffer):
+            donation_offer = the_subject
+            disaster_need = donation_offer.need # Get the need from the offer
+        elif isinstance(the_subject, DisasterNeed):
+            # Fallback for old chats
+            disaster_need = the_subject
+            # Try to find the offer (old, flawed logic, but best we can do)
+            donation_offer = DonationOffer.query.filter_by(
+                 need_id=disaster_need.need_id,
                  user_id=chat_session.user_one_id,
                  org_id=chat_session.participant_org_id
-             ).first()
+            ).first()
+        
+        if not disaster_need and donation_offer: # Ensure need is set if possible
+            disaster_need = donation_offer.need
 
-    else: # User-user chat
-        # Correctly identify the other user
+    else:
+        # This is a User-User chat
         other_user = chat_session.get_other_user(actor_id) if is_user else None
-
-        # ---> ADDED: Fetch the relevant TradeRequest for User-User chats <---
-        if the_item and isinstance(the_item, Item) and other_user:
-            # Find the trade request associated with this item and these two users
-            trade_request = TradeRequest.query.filter(
-                TradeRequest.item_requested_id == the_item.item_id,
-                or_(
-                    (TradeRequest.requester_id == current_user.user_id and TradeRequest.owner_id == other_user.user_id),
-                    (TradeRequest.requester_id == other_user.user_id and TradeRequest.owner_id == current_user.user_id)
-                )
-            ).options(
-                orm_joinedload(TradeRequest.offered_item).joinedload(Item.images) # Eager load offered item images for sidebar
-            ).first() # Assuming only one active request between two users for an item
-        # ---> END ADDITION <---
-
-
+        
+        if isinstance(the_subject, Item):
+            the_item = the_subject # The subject is the item being traded
+            # Find the trade request
+            if other_user: # Ensure other_user was found before querying
+                trade_request = TradeRequest.query.filter(
+                    TradeRequest.item_requested_id == the_item.item_id,
+                    or_(
+                        (TradeRequest.requester_id == current_user.user_id and TradeRequest.owner_id == other_user.user_id),
+                        (TradeRequest.requester_id == other_user.user_id and TradeRequest.owner_id == current_user.user_id)
+                    )
+                ).options(
+                    orm_joinedload(TradeRequest.offered_item).joinedload(Item.images) # Eager load offered item images for sidebar
+                ).first() # Assuming only one active request between two users for an item
+    
     # DealProposal logic only for user-user chats
     deal = DealProposal.query.filter_by(chat_session_id=session_id).first() if not chat_session.is_org_chat else None
+
+    # Handle placeholder subject if it was deleted
+    if not the_subject:
+        class DummySubject:
+            title, images, item_id, need_id, owner, organization, type = "[Deleted Item/Need]", [], 0, 0, None, None, "Unknown"
+        if chat_session.is_org_chat:
+            disaster_need = DummySubject()
+        else:
+            the_item = DummySubject()
+    # --- END OF REVISED LOGIC ---
 
     # --- Handle Form Submission ---
     form = ChatForm()
@@ -4118,7 +4168,7 @@ def chat(session_id):
         organization=organization_participant,
         deal=deal,
         donation_offer=donation_offer,
-        the_item=the_item,
+        the_item=(the_item or disaster_need), # Pass the item (for trade) or the need (for offer) as the main subject
         trade_request=trade_request # <<< Pass the fetched trade_request
     )
 

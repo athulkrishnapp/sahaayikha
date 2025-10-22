@@ -47,6 +47,19 @@
         height: 1.5em;
     }
 
+    /* ## NEW: Added styles for proof card ## */
+    .proof-card img {
+        max-height: 400px;
+        width: 100%;
+        object-fit: cover;
+        border-radius: 0.5rem;
+        cursor: pointer; 
+    }
+    .dark-mode .proof-card img {
+        border: 1px solid var(--border-color);
+    }
+
+
     /* --- Image Lightbox Styles --- */
     .lightbox-overlay {
         position: fixed;
@@ -105,7 +118,8 @@
 <div class="container py-5">
     <div class="page-header">
         <h1 class="display-5">Review Donation Offer</h1>
-        <p class="lead text-muted">From <strong>{{ offer.user.first_name }} {{ offer.user.last_name }}</strong> for the need: <strong>{{ offer.need.title }}</strong></p>
+        {# ## Added safety check for deleted user/need ## #}
+        <p class="lead text-muted">From <strong>{% if offer.user %}{{ offer.user.first_name }} {{ offer.user.last_name }}{% else %}[Deleted User]{% endif %}</strong> for the need: <strong>{% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</strong></p>
     </div>
 
     <div class="row g-4 main-content">
@@ -151,7 +165,29 @@
                 </div>
             </form>
             {% else %}
-                <div class="alert alert-success">This offer has already been reviewed.</div>
+                <div class="alert alert-info">This offer has already been reviewed. Current status: <strong>{{ offer.status }}</strong></div>
+
+                {# --- THIS IS THE NEWLY ADDED PROOF CARD --- #}
+                {% if offer.status == 'Completed' %}
+                <div class="card proof-card mb-4">
+                    <div class="card-header bg-transparent border-0 pt-3">
+                        <h5 class="mb-0 fw-bold">Donation Proof</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">You marked this donation as complete. This is the proof you uploaded.</p>
+                        {% if offer.proof_image_url %}
+                            {# Use the direct static path fix we found earlier #}
+                            <img src="/static/{{ offer.proof_image_url }}" 
+                                 alt="Proof of Donation" 
+                                 class="img-fluid rounded border enlargeable-image">
+                        {% else %}
+                            <p class="text-center text-muted">You did not provide a proof of donation image.</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                {# --- END OF NEWLY ADDED PROOF CARD --- #}
+
                 <div class="row g-4">
                     {% for item in offer.offered_items %}
                     <div class="col-md-6">
@@ -197,7 +233,9 @@
                     <ul class="list-group list-group-flush">
                         <li class="list-group-item d-flex justify-content-between"><span>Status:</span> <span class="badge bg-info">{{ offer.status }}</span></li>
                         <li class="list-group-item d-flex justify-content-between"><span>Date Offered:</span> <strong>{{ offer.created_at.strftime('%d %b %Y') }}</strong></li>
-                        <li class="list-group-item d-flex justify-content-between"><span>Items:</span> <strong>{{ offer.offered_items.count() }}</strong></li>
+                        
+                        {# --- This is the fix for the 500 Error --- #}
+                        <li class="list-group-item d-flex justify-content-between"><span>Items:</span> <strong>{{ offer.offered_items | length }}</strong></li>
                     </ul>
                 </div>
             </div>
@@ -220,10 +258,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const images = document.querySelectorAll('.enlargeable-image');
 
     images.forEach(image => {
+        // Skip placeholders
+        if (image.src.includes('item_placeholder.jpg')) return;
+        
         image.addEventListener('click', function() {
             const imgSrc = this.src;
-            lightbox.classList.add('visible');
-            lightboxImg.src = imgSrc;
+            if (lightbox) lightbox.classList.add('visible');
+            if (lightboxImg) lightboxImg.src = imgSrc;
         });
     });
 

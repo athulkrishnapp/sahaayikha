@@ -234,85 +234,6 @@ class ItemHistory(db.Model):
     # item relationship defined via backref
 
 
-# ---------- CHAT (MODIFIED) ----------
-class ChatSession(db.Model):
-    __tablename__ = "chat_sessions"
-    session_id = db.Column(db.Integer, primary_key=True)
-
-    # Subject of the chat
-    trade_item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=True, index=True)
-    disaster_need_id = db.Column(db.Integer, db.ForeignKey("disaster_needs.need_id"), nullable=True, index=True)
-
-    # Participants (Renamed for clarity)
-    user_one_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=False, index=True)
-    user_two_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=True, index=True)
-    participant_org_id = db.Column(db.Integer, db.ForeignKey("organizations.org_id"), nullable=True, index=True)
-
-    status = db.Column(db.String(50), default="Active", index=True) # Active, Blocked, Confirmed (deal)
-    started_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
-    messages = db.relationship("ChatMessage", backref="session", lazy="dynamic", cascade="all, delete-orphan")
-
-    # Relationships to participants using back_populates
-    user_one = db.relationship("User", foreign_keys=[user_one_id], back_populates="initiated_chats")
-    user_two = db.relationship("User", foreign_keys=[user_two_id], back_populates="received_chats")
-    participant_org = db.relationship("Organization", foreign_keys=[participant_org_id], back_populates="chat_sessions") # Use back_populates
-
-    # Relationships to subject using back_populates
-    trade_item = db.relationship("Item", back_populates="chat_sessions", foreign_keys=[trade_item_id])
-    disaster_need = db.relationship("DisasterNeed", back_populates="chat_sessions", foreign_keys=[disaster_need_id])
-
-    # Constraints
-    __table_args__ = (
-        db.CheckConstraint('(participant_org_id IS NOT NULL AND user_two_id IS NULL) OR (participant_org_id IS NULL AND user_two_id IS NOT NULL)', name='chk_participant_type'),
-        db.CheckConstraint('(trade_item_id IS NOT NULL AND disaster_need_id IS NULL) OR (trade_item_id IS NULL AND disaster_need_id IS NOT NULL)', name='chk_chat_subject'),
-    )
-
-    # --- CORRECTED DECORATOR USAGE ---
-    @reconstructor
-    def init_on_load(self):
-        """Initializes instance variables on load from DB."""
-        self._other_user_instance = None # Cache for get_other_user
-
-    def get_other_user(self, current_user_id):
-        """Returns the User object who is NOT the current_user_id in a user-user chat."""
-        if not self.is_org_chat: # Only for user-user chats
-            other_id = self.user_two_id if self.user_one_id == current_user_id else self.user_one_id
-
-            # Check cache before querying
-            if self._other_user_instance and self._other_user_instance.user_id == other_id:
-                return self._other_user_instance
-
-            # Query and cache
-            self._other_user_instance = User.query.get(other_id)
-            return self._other_user_instance
-        return None
-
-    @property
-    def is_org_chat(self):
-        """Helper property to check if the chat involves an organization."""
-        return self.participant_org_id is not None
-
-    @property
-    def subject(self):
-        """Helper property to get the item or need the chat is about."""
-        return self.trade_item or self.disaster_need
-
-
-class ChatMessage(db.Model):
-    __tablename__ = "chat_messages"
-    message_id = db.Column(db.Integer, primary_key=True)
-    session_id = db.Column(db.Integer, db.ForeignKey("chat_sessions.session_id"), nullable=False, index=True)
-    sender_type = db.Column(db.String(50), nullable=False) # 'user' or 'org'
-    sender_id = db.Column(db.Integer, nullable=False, index=True) # user_id or org_id
-    message = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.String(255), nullable=True) # Path relative to static folder
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    is_read = db.Column(db.Boolean, default=False, nullable=True, index=True) # Default False is safer.
-    deleted_at = db.Column(db.DateTime, nullable=True) # Timestamp for soft delete
-    # session relationship defined via backref
-
-
 # ---------- DISASTER NEEDS ----------
 class DisasterNeed(db.Model):
     __tablename__ = "disaster_needs"
@@ -361,6 +282,102 @@ class OfferedItem(db.Model):
     expiry_date = db.Column(db.Date, nullable=True, index=True)
     status = db.Column(db.String(50), default='Pending', index=True) # Pending, Accepted, Rejected
     # offer relationship defined via backref
+
+
+
+# ---------- CHAT (MODIFIED) ----------
+class ChatSession(db.Model):
+    __tablename__ = "chat_sessions"
+    session_id = db.Column(db.Integer, primary_key=True)
+
+    # Subject of the chat (Only ONE should be non-NULL)
+    trade_item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=True, index=True)
+    disaster_need_id = db.Column(db.Integer, db.ForeignKey("disaster_needs.need_id"), nullable=True, index=True) # Kept for older chats
+    
+    # --- THIS IS THE CORRECTED ForeignKey ---
+    donation_offer_id = db.Column(db.Integer, db.ForeignKey('donation_offers.offer_id'), nullable=True, unique=True, index=True) # Link to specific offer
+
+    # Participants (Renamed for clarity)
+    user_one_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=False, index=True) # Always the User in User-Org chats
+    user_two_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=True, index=True) # Null for User-Org chats
+    participant_org_id = db.Column(db.Integer, db.ForeignKey("organizations.org_id"), nullable=True, index=True) # Null for User-User chats
+
+    status = db.Column(db.String(50), default="Active", index=True) # Active, Blocked, Confirmed (deal)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    messages = db.relationship("ChatMessage", backref="session", lazy="dynamic", cascade="all, delete-orphan")
+
+    # Relationships to participants using back_populates
+    user_one = db.relationship("User", foreign_keys=[user_one_id], back_populates="initiated_chats")
+    user_two = db.relationship("User", foreign_keys=[user_two_id], back_populates="received_chats")
+    participant_org = db.relationship("Organization", foreign_keys=[participant_org_id], back_populates="chat_sessions") # Use back_populates
+
+    # Relationships to subject using back_populates
+    trade_item = db.relationship("Item", back_populates="chat_sessions", foreign_keys=[trade_item_id])
+    disaster_need = db.relationship("DisasterNeed", back_populates="chat_sessions", foreign_keys=[disaster_need_id])
+    donation_offer = db.relationship(
+        'DonationOffer',
+        # --- Adjusted primaryjoin to use correct table name ---
+        primaryjoin='ChatSession.donation_offer_id == foreign(DonationOffer.offer_id)', # Explicit join using foreign()
+        foreign_keys=[donation_offer_id],
+        backref=db.backref('chat_session', uselist=False)
+    )
+
+    # Constraints (Ensure CheckConstraint is imported: from sqlalchemy import CheckConstraint)
+    __table_args__ = (
+        db.CheckConstraint('(participant_org_id IS NOT NULL AND user_two_id IS NULL) OR (participant_org_id IS NULL AND user_two_id IS NOT NULL)', name='chk_participant_type'),
+        db.CheckConstraint(
+            "(CASE WHEN trade_item_id IS NOT NULL THEN 1 ELSE 0 END + "
+            " CASE WHEN donation_offer_id IS NOT NULL THEN 1 ELSE 0 END + "
+            " CASE WHEN disaster_need_id IS NOT NULL THEN 1 ELSE 0 END) = 1",
+            name='chk_chat_subject_exclusive'
+        ),
+    )
+
+    @reconstructor
+    def init_on_load(self):
+        """Initializes instance variables on load from DB."""
+        self._other_user_instance = None # Cache for get_other_user
+
+    def get_other_user(self, current_user_id):
+        """Returns the User object who is NOT the current_user_id in a user-user chat."""
+        if not self.is_org_chat: # Only for user-user chats
+            other_id = self.user_two_id if self.user_one_id == current_user_id else self.user_one_id
+            if self._other_user_instance and self._other_user_instance.user_id == other_id: return self._other_user_instance
+            self._other_user_instance = User.query.get(other_id)
+            return self._other_user_instance
+        return None
+
+    @property
+    def is_org_chat(self):
+        """Helper property to check if the chat involves an organization."""
+        return self.participant_org_id is not None
+
+    @property
+    def subject(self):
+        """Helper property to get the item, offer, or need the chat is about."""
+        if self.trade_item_id: return self.trade_item
+        if self.donation_offer_id: return self.donation_offer
+        if self.disaster_need_id: return self.disaster_need
+        return None
+
+# Add back_populates to DisasterNeed *after* ChatSession is defined
+DisasterNeed.chat_sessions = db.relationship("ChatSession", back_populates="disaster_need", foreign_keys="ChatSession.disaster_need_id")
+
+class ChatMessage(db.Model):
+    __tablename__ = "chat_messages"
+    message_id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey("chat_sessions.session_id"), nullable=False, index=True)
+    sender_type = db.Column(db.String(50), nullable=False) # 'user' or 'org'
+    sender_id = db.Column(db.Integer, nullable=False, index=True) # user_id or org_id
+    message = db.Column(db.Text, nullable=True)
+    image_url = db.Column(db.String(255), nullable=True) # Path relative to static folder
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    is_read = db.Column(db.Boolean, default=False, nullable=True, index=True) # Default False is safer.
+    deleted_at = db.Column(db.DateTime, nullable=True) # Timestamp for soft delete
+    # session relationship defined via backref
+
+
 
 
 # ---------- FEEDBACK ----------

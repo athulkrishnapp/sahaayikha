@@ -272,43 +272,18 @@
                 <div class="card-body">
                     <p class="text-muted">The organization has marked this donation as complete. Thank you for your contribution!</p>
                     {% if offer.proof_image_url %}
-                        {# ## ADDED: enlargeable-image class ## #}
-                        <img src="{{ url_for('static', filename=offer.proof_image_url) }}" class="img-fluid rounded border enlargeable-image">
+                        
+                        {# --- REVISED IMAGE FIX --- #}
+                        {# Use a direct static path, assuming offer.proof_image_url is like 'images/chat_uploads/proof_...' #}
+                        <img src="/static/{{ offer.proof_image_url }}" 
+                             alt="Proof of Donation" 
+                             class="img-fluid rounded shadow-sm mb-3 enlargeable-image" 
+                             style="max-height: 400px; object-fit: contain;">
+                        {# --- END REVISED IMAGE FIX --- #}
+                        
                     {% else %}
                         <p class="text-center text-muted">Proof of donation image was not provided.</p>
                     {% endif %}
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header bg-transparent border-0 pt-3">
-                    <h5 class="mb-0 fw-bold">Items You Donated</h5>
-                </div>
-                <div class="card-body">
-                    {# ## MODIFIED: Item preview card structure ## #}
-                    <div class="row g-3">
-                        {% set accepted_items_exist = false %} {# Flag to check if any items were accepted #}
-                        {% for item in offer.offered_items %}
-                            {% if item.status == 'Accepted' %}
-                                {% set accepted_items_exist = true %}
-                                <div class="col-md-4 col-sm-6">
-                                    <div class="card h-100 donated-item-card">
-                                        {# Link to placeholder if no image #}
-                                        <img src="{{ url_for('static', filename=item.image_url or 'images/item_placeholder.jpg') }}"
-                                             class="enlargeable-image" {# Added class for lightbox #}
-                                             alt="{{ item.title }}">
-                                        <div class="card-body">
-                                            <p class="card-text">{{ item.title }}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endif %}
-                        {% endfor %}
-                        {# Display message if no items were accepted #}
-                        {% if not accepted_items_exist %}
-                            <p class="text-muted text-center">No items were accepted for this donation.</p>
-                        {% endif %}
-                    </div>
                 </div>
             </div>
             {% endif %}
@@ -374,18 +349,24 @@
                             <i class="fas fa-edit"></i> Edit Offer
                         </a>
                         <form action="{{ url_for('main.delete_donation_offer', offer_id=offer.offer_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to withdraw this offer?');" class="w-100">
+                            {# Need to add CSRF token if enabled #}
+                            {{ form.hidden_tag() }} 
                             <button type="submit" class="btn btn-danger w-100">
                                 <i class="fas fa-trash-alt"></i> Withdraw
                             </button>
                         </form>
                     </div>
                     {% endif %}
-                    {# ## NEW: Chat Button ## #}
-                     {% if offer.need and offer.organization and offer.status not in ['Rejected', 'Pickup Failed', 'Completed'] %}
+                    
+                    {# --- THIS IS THE CHAT BUTTON FIX --- #}
+                    {# Removed the status check to enable the button full time #}
+                     {% if offer.need and offer.organization %}
                          <a href="{{ url_for('main.start_chat_from_offer', offer_id=offer.offer_id) }}" class="btn btn-info w-100">
                              <i class="fas fa-comments"></i> Chat with Organization
                          </a>
                      {% endif %}
+                    {# --- END OF CHAT BUTTON FIX --- #}
+                    
                     <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#reportOrgModal">
                         <i class="fas fa-flag"></i> Report Organization
                     </button>
