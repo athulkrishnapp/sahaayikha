@@ -265,26 +265,18 @@
             </div>
 
             {% if offer.status == 'Completed' %}
-            <div class="card proof-card mb-4">
-                <div class="card-header bg-transparent border-0 pt-3">
-                    <h5 class="mb-0 fw-bold">Donation Proof</h5>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">The organization has marked this donation as complete. Thank you for your contribution!</p>
-                    {% if offer.proof_image_url %}
-                        
-                        {# --- REVISED IMAGE FIX --- #}
-                        {# Use a direct static path, assuming offer.proof_image_url is like 'images/chat_uploads/proof_...' #}
-                        <img src="/static/{{ offer.proof_image_url }}" 
-                             alt="Proof of Donation" 
-                             class="img-fluid rounded shadow-sm mb-3 enlargeable-image" 
-                             style="max-height: 400px; object-fit: contain;">
-                        {# --- END REVISED IMAGE FIX --- #}
-                        
-                    {% else %}
-                        <p class="text-center text-muted">Proof of donation image was not provided.</p>
-                    {% endif %}
-                </div>
+            <hr>
+            <div class="mt-4">
+                <h5 class="mb-3">Donation Completion Proof</h5>
+                {% if offer.proof_image_url %}
+                    <p>The organization uploaded the following proof of donation:</p>
+                    {# Add a link to view image in lightbox if you have one implemented #}
+                    <a href="{{ url_for('static', filename=offer.proof_image_url) }}" target="_blank" title="View Proof Image">
+                        <img src="{{ url_for('static', filename=offer.proof_image_url) }}" alt="Donation Proof" class="img-thumbnail" style="max-height: 300px; cursor: pointer;">
+                    </a>
+                {% else %}
+                    <p class="text-muted fst-italic">The organization did not upload a proof image for this completed donation.</p>
+                {% endif %}
             </div>
             {% endif %}
         </div>

@@ -209,7 +209,27 @@
 
         {# --- Display Offers (various statuses) --- #}
         {% elif view in ['incoming', 'pickup', 'pending_donation', 'completed'] %}
-             {% if offers %} <ul class="needs-list"> {% for offer in offers %} <li class="needs-list-item"> <i class="fas fa-box-heart needs-icon"></i> <div class="item-content-main"> <div class="item-title-main">Offer from {{ offer.user.first_name }} for: {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</div> <div class="item-user">Offered: {{ offer.created_at.strftime('%b %d, %Y') }} | Status: {{ offer.status }} | Items: {{ offer.offered_items|length }}</div> </div> <div class="needs-actions"> {% if view == 'incoming' %} <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-primary"><i class="fas fa-search"></i> Review</a> {% elif view == 'pickup' %} <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Completed" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Pickup OK</button> </form> <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Failed" class="btn btn-sm btn-warning" onclick="return confirm('Confirm pickup failed? {% if offer.pickup_retries >= 1 %}This will cancel the offer.{% else %}You can retry once more later.{% endif %}');"><i class="fas fa-times"></i> Pickup Failed</button> </form> {% elif view == 'pending_donation' %} <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#completeModal{{ offer.offer_id }}"><i class="fas fa-check-double"></i> Mark Complete</button> {% elif view == 'completed' %} <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">View Details</a> {% endif %} {% if view != 'completed' %} <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-info"><i class="fas fa-comments"></i> Chat</a> {% endif %} </div> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-inbox"></i><h3>No offers in this category.</h3></div> {% endif %}
+             {% if offers %} <ul class="needs-list"> {% for offer in offers %} <li class="needs-list-item"> <i class="fas fa-box-heart needs-icon"></i> <div class="item-content-main"> <div class="item-title-main">Offer from {{ offer.user.first_name }} for: {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</div> <div class="item-user">Offered: {{ offer.created_at.strftime('%b %d, %Y') }} | Status: {{ offer.status }} | Items: {{ offer.offered_items|length }}</div> </div>
+             <div class="needs-actions">
+                 {% if view == 'incoming' %}
+                     <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-primary"><i class="fas fa-search"></i> Review</a>
+                 {% elif view == 'pickup' %}
+                     <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-eye me-1"></i> View Details</a>
+                     <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Completed" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Pickup OK</button> </form>
+                     <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Failed" class="btn btn-sm btn-warning" onclick="return confirm('Confirm pickup failed? {% if offer.pickup_retries >= 1 %}This will cancel the offer.{% else %}You can retry once more later.{% endif %}');"><i class="fas fa-times"></i> Pickup Failed</button> </form>
+                 {# --- START MODIFICATION --- #}
+                 {% elif view == 'pending_donation' %}
+                     <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-eye me-1"></i> View Details</a>
+                     <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#completeModal{{ offer.offer_id }}"><i class="fas fa-check-double"></i> Mark Complete</button>
+                 {# --- END MODIFICATION --- #}
+                 {% elif view == 'completed' %}
+                     <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">View Details</a>
+                 {% endif %}
+                 {# Add Chat button for all non-completed states #}
+                 {% if view != 'completed' %}
+                     <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-info"><i class="fas fa-comments"></i> Chat</a>
+                 {% endif %}
+             </div> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-inbox"></i><h3>No offers in this category.</h3></div> {% endif %}
 
         {# *** REMOVED Bookmark Display Section *** #}
 
@@ -272,29 +292,29 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!tomSelectInstance) {
                  const categoriesSelect = document.getElementById('modalCategories');
                  if (categoriesSelect) {
-                    try {
-                        tomSelectInstance = new TomSelect(categoriesSelect, {
-                            plugins: ['remove_button'],
-                            create: false,
-                            placeholder: 'Select one or more categories...'
-                        });
-                    } catch (e) { console.error("Error initializing TomSelect:", e); }
-                }
+                     try {
+                         tomSelectInstance = new TomSelect(categoriesSelect, {
+                             plugins: ['remove_button'],
+                             create: false,
+                             placeholder: 'Select one or more categories...'
+                         });
+                     } catch (e) { console.error("Error initializing TomSelect:", e); }
+                 }
             }
         });
 
          // Optional: Destroy TomSelect when the modal is hidden
          postNeedModalElement.addEventListener('hidden.bs.modal', function () {
-             if (tomSelectInstance) {
+            if (tomSelectInstance) {
                  tomSelectInstance.destroy();
                  tomSelectInstance = null;
-             }
+            }
          });
 
          // --- Keep Modal Open on Validation Error ---
          {% if form.errors and request.method == 'POST' %}
-            var postNeedModal = new bootstrap.Modal(postNeedModalElement);
-            postNeedModal.show();
+           var postNeedModal = new bootstrap.Modal(postNeedModalElement);
+           postNeedModal.show();
          {% endif %}
     }
 });

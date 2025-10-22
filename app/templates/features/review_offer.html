@@ -22,6 +22,7 @@
         border-radius: 0.75rem;
         box-shadow: 0 5px 20px rgba(0,0,0,0.05);
         background-color: var(--card-bg);
+        margin-bottom: 1.5rem; /* Added margin between cards */
     }
     .dark-mode .main-content .card {
         box-shadow: none;
@@ -47,172 +48,150 @@
         height: 1.5em;
     }
 
-    /* ## NEW: Added styles for proof card ## */
+    /* ## Styles for proof card ## */
     .proof-card img {
-        max-height: 400px;
+        max-height: 350px; /* Slightly reduced height */
         width: 100%;
-        object-fit: cover;
+        object-fit: contain; /* Changed to contain */
         border-radius: 0.5rem;
-        cursor: pointer; 
+        cursor: pointer;
+        background-color: var(--subtle-bg); /* Add subtle background */
+        padding: 0.5rem; /* Add padding around image */
     }
     .dark-mode .proof-card img {
         border: 1px solid var(--border-color);
+        background-color: rgba(0,0,0,0.2);
     }
 
-
-    /* --- Image Lightbox Styles --- */
+    /* Image Lightbox Styles */
     .lightbox-overlay {
-        position: fixed;
-        z-index: 1070;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.85);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        backdrop-filter: blur(8px);
-        opacity: 0;
-        transition: opacity 0.3s ease;
+        position: fixed; z-index: 1070; top: 0; left: 0;
+        width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85);
+        display: none; justify-content: center; align-items: center;
+        backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s ease;
     }
-    .lightbox-overlay.visible {
-        display: flex;
-        opacity: 1;
-    }
-    .lightbox-content-wrapper {
-        position: relative;
-        max-width: 90vw;
-        max-height: 90vh;
-    }
-    .lightbox-content {
-        display: block;
-        max-width: 100%;
-        max-height: 100%;
-        border-radius: 0.5rem;
-    }
+    .lightbox-overlay.visible { display: flex; opacity: 1; }
+    .lightbox-content-wrapper { position: relative; max-width: 90vw; max-height: 90vh; }
+    .lightbox-content { display: block; max-width: 100%; max-height: 100%; border-radius: 0.5rem; }
     .lightbox-close-btn {
-        position: absolute;
-        top: -15px;
-        right: -15px;
-        background: white;
-        color: #333;
-        border: none;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        font-size: 1.5rem;
-        cursor: pointer;
-        transition: transform 0.2s;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        position: absolute; top: -15px; right: -15px; background: white;
+        color: #333; border: none; border-radius: 50%; width: 40px; height: 40px;
+        font-size: 1.5rem; cursor: pointer; transition: transform 0.2s;
+        display: flex; align-items: center; justify-content: center;
+        text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
-    .lightbox-close-btn:hover {
-        transform: scale(1.1);
-    }
+    .lightbox-close-btn:hover { transform: scale(1.1); }
 </style>
 
 <div class="container py-5">
     <div class="page-header">
-        <h1 class="display-5">Review Donation Offer</h1>
-        {# ## Added safety check for deleted user/need ## #}
+        <h1 class="display-5">Donation Offer Details</h1>
         <p class="lead text-muted">From <strong>{% if offer.user %}{{ offer.user.first_name }} {{ offer.user.last_name }}{% else %}[Deleted User]{% endif %}</strong> for the need: <strong>{% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</strong></p>
     </div>
 
     <div class="row g-4 main-content">
+        {# Main Content Area (Items or Proof) #}
         <div class="col-lg-8">
-            {% if offer.status == 'Pending Review' %}
-            <form method="POST">
-                <div class="row g-4">
-                    {% for item in offer.offered_items %}
-                    <div class="col-md-6">
-                        <div class="card h-100 item-card">
-                            <img src="{{ url_for('static', filename=item.image_url or 'images/item_placeholder.jpg') }}" class="item-image enlargeable-image" alt="{{ item.title }}">
-                            <div class="card-body">
-                                <h5 class="card-title fw-bold">{{ item.title }}</h5>
-                                <p class="card-text small text-muted">{{ item.description }}</p>
-                                <ul class="list-group list-group-flush">
-                                    <li class="list-group-item d-flex justify-content-between"><span>Quantity:</span> <strong>{{ item.quantity }}</strong></li>
-                                    <li class="list-group-item d-flex justify-content-between"><span>Condition:</span> <strong>{{ item.condition }}</strong></li>
-                                    {% if item.manufacture_date %}
-                                    <li class="list-group-item d-flex justify-content-between"><span>MFG Date:</span> <strong>{{ item.manufacture_date.strftime('%d %b %Y') }}</strong></li>
-                                    {% endif %}
-                                    {% if item.expiry_date %}
-                                    <li class="list-group-item d-flex justify-content-between text-danger"><span>EXP Date:</span> <strong>{{ item.expiry_date.strftime('%d %b %Y') }}</strong></li>
-                                    {% endif %}
-                                </ul>
-                            </div>
-                            <div class="card-footer bg-transparent d-flex justify-content-around p-3">
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="item_decision_{{ item.offered_item_id }}" id="accept_{{ item.offered_item_id }}" value="accept" checked>
-                                    <label class="form-check-label" for="accept_{{ item.offered_item_id }}">Accept</label>
-                                </div>
-                                <div class="form-check form-check-inline">
-                                    <input class="form-check-input" type="radio" name="item_decision_{{ item.offered_item_id }}" id="reject_{{ item.offered_item_id }}" value="reject">
-                                    <label class="form-check-label" for="reject_{{ item.offered_item_id }}">Reject</label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="d-grid gap-2 mt-4">
-                    <button type="submit" class="btn btn-primary btn-lg">Finalize Review</button>
-                    <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-outline-secondary">Chat with User</a>
-                </div>
-            </form>
-            {% else %}
-                <div class="alert alert-info">This offer has already been reviewed. Current status: <strong>{{ offer.status }}</strong></div>
 
-                {# --- THIS IS THE NEWLY ADDED PROOF CARD --- #}
-                {% if offer.status == 'Completed' %}
-                <div class="card proof-card mb-4">
-                    <div class="card-header bg-transparent border-0 pt-3">
-                        <h5 class="mb-0 fw-bold">Donation Proof</h5>
+             {# --- MOVED PROOF CARD TO THE TOP --- #}
+            {% if offer.status == 'Completed' %}
+                <div class="card mb-4 proof-card"> {# Added mb-4 for spacing below #}
+                    <div class="card-header fw-bold">
+                        <i class="fas fa-check-circle text-success me-2"></i>Donation Proof
                     </div>
-                    <div class="card-body">
-                        <p class="text-muted">You marked this donation as complete. This is the proof you uploaded.</p>
+                    <div class="card-body text-center">
                         {% if offer.proof_image_url %}
-                            {# Use the direct static path fix we found earlier #}
-                            <img src="/static/{{ offer.proof_image_url }}" 
-                                 alt="Proof of Donation" 
-                                 class="img-fluid rounded border enlargeable-image">
+                            <p class="text-start mb-2">Proof image uploaded by organization:</p>
+                            <img src="{{ url_for('static', filename=offer.proof_image_url) }}" alt="Donation Proof" class="enlargeable-image">
                         {% else %}
-                            <p class="text-center text-muted">You did not provide a proof of donation image.</p>
+                            <p class="text-muted fst-italic mt-3">No proof image was uploaded for this completed donation.</p>
                         {% endif %}
                     </div>
                 </div>
+                <hr class="mb-4"> {# Add a separator #}
+            {% endif %}
+            {# --- END MOVED PROOF CARD --- #}
+
+            {# -- Section Title: Items Offered -- #}
+            {# Conditionally hide title if only proof is shown and no items? (Optional) #}
+            <h4 class="mb-3">Item Details</h4>
+
+            {# -- Display Items or Form -- #}
+            {% if offer.status == 'Pending Review' %}
+                {# Form for Pending Review #}
+                <form method="POST">
+                    <div class="row g-4">
+                        {% for item in offer.offered_items %}
+                        <div class="col-md-6 d-flex"> {# Use d-flex for equal height #}
+                            <div class="card flex-fill item-card"> {# Use flex-fill #}
+                                <img src="{{ url_for('static', filename=item.image_url or 'images/item_placeholder.jpg') }}" class="item-image enlargeable-image" alt="{{ item.title }}">
+                                <div class="card-body d-flex flex-column"> {# Flex column for footer push #}
+                                    <h5 class="card-title fw-bold">{{ item.title }}</h5>
+                                    <p class="card-text small text-muted">{{ item.description }}</p>
+                                    <ul class="list-group list-group-flush mb-3">
+                                        <li class="list-group-item d-flex justify-content-between px-0"><span>Quantity:</span> <strong>{{ item.quantity }}</strong></li>
+                                        <li class="list-group-item d-flex justify-content-between px-0"><span>Condition:</span> <strong>{{ item.condition }}</strong></li>
+                                        {% if item.manufacture_date %}
+                                        <li class="list-group-item d-flex justify-content-between px-0"><span>MFG Date:</span> <strong>{{ item.manufacture_date.strftime('%d %b %Y') }}</strong></li>
+                                        {% endif %}
+                                        {% if item.expiry_date %}
+                                        <li class="list-group-item d-flex justify-content-between px-0 text-danger"><span>EXP Date:</span> <strong>{{ item.expiry_date.strftime('%d %b %Y') }}</strong></li>
+                                        {% endif %}
+                                    </ul>
+                                    {# Decision buttons pushed to bottom #}
+                                    <div class="mt-auto d-flex justify-content-around p-3 border-top mx-n3 mb-n3" style="background-color: var(--subtle-bg);">
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="item_decision_{{ item.offered_item_id }}" id="accept_{{ item.offered_item_id }}" value="accept" checked>
+                                            <label class="form-check-label" for="accept_{{ item.offered_item_id }}">Accept</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="item_decision_{{ item.offered_item_id }}" id="reject_{{ item.offered_item_id }}" value="reject">
+                                            <label class="form-check-label" for="reject_{{ item.offered_item_id }}">Reject</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">Finalize Review</button>
+                        <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-outline-secondary">Chat with User</a>
+                    </div>
+                </form>
+            {% else %}
+                {# Display Already Reviewed Items (No Form) #}
+                {# Only show alert if NOT completed (proof is shown above for completed) #}
+                {% if offer.status != 'Completed' %}
+                 <div class="alert alert-info">This offer has already been reviewed. Current status: <strong>{{ offer.status }}</strong></div>
                 {% endif %}
-                {# --- END OF NEWLY ADDED PROOF CARD --- #}
 
                 <div class="row g-4">
                     {% for item in offer.offered_items %}
-                    <div class="col-md-6">
-                        <div class="card h-100 item-card">
+                    <div class="col-md-6 d-flex">
+                        <div class="card flex-fill item-card">
                             <img src="{{ url_for('static', filename=item.image_url or 'images/item_placeholder.jpg') }}" class="item-image enlargeable-image" alt="{{ item.title }}">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <h5 class="card-title fw-bold">{{ item.title }}</h5>
+                            <div class="card-body d-flex flex-column">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title fw-bold mb-0">{{ item.title }}</h5>
+                                    {# Display item status clearly #}
                                     {% if item.status == 'Accepted' %}
-                                        <span class="badge bg-success fs-6">Accepted</span>
+                                        <span class="badge bg-success">Accepted</span>
                                     {% elif item.status == 'Rejected' %}
-                                        <span class="badge bg-danger fs-6">Rejected</span>
+                                        <span class="badge bg-danger">Rejected</span>
                                     {% else %}
-                                        <span class="badge bg-secondary fs-6">{{ item.status }}</span>
+                                        <span class="badge bg-secondary">{{ item.status }}</span> {# Fallback #}
                                     {% endif %}
                                 </div>
                                 <p class="card-text small text-muted">{{ item.description }}</p>
-                                <ul class="list-group list-group-flush">
-                                    <li class="list-group-item d-flex justify-content-between"><span>Quantity:</span> <strong>{{ item.quantity }}</strong></li>
-                                    <li class="list-group-item d-flex justify-content-between"><span>Condition:</span> <strong>{{ item.condition }}</strong></li>
+                                <ul class="list-group list-group-flush mt-auto"> {# mt-auto pushes details down #}
+                                    <li class="list-group-item d-flex justify-content-between px-0"><span>Quantity:</span> <strong>{{ item.quantity }}</strong></li>
+                                    <li class="list-group-item d-flex justify-content-between px-0"><span>Condition:</span> <strong>{{ item.condition }}</strong></li>
                                     {% if item.manufacture_date %}
-                                    <li class="list-group-item d-flex justify-content-between"><span>MFG Date:</span> <strong>{{ item.manufacture_date.strftime('%d %b %Y') }}</strong></li>
+                                    <li class="list-group-item d-flex justify-content-between px-0"><span>MFG Date:</span> <strong>{{ item.manufacture_date.strftime('%d %b %Y') }}</strong></li>
                                     {% endif %}
                                     {% if item.expiry_date %}
-                                    <li class="list-group-item d-flex justify-content-between text-danger"><span>EXP Date:</span> <strong>{{ item.expiry_date.strftime('%d %b %Y') }}</strong></li>
+                                    <li class="list-group-item d-flex justify-content-between px-0 text-danger"><span>EXP Date:</span> <strong>{{ item.expiry_date.strftime('%d %b %Y') }}</strong></li>
                                     {% endif %}
                                 </ul>
                             </div>
@@ -220,29 +199,64 @@
                     </div>
                     {% endfor %}
                 </div>
-                 <div class="d-grid gap-2 mt-4">
-                    <a href="{{ url_for('main.org_dashboard', filter='incoming') }}" class="btn btn-secondary">Back to Offers</a>
-                    <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-outline-info">Chat with User</a>
-                </div>
+                 {# Add Chat Button for non-pending/non-completed states #}
+                 {% if offer.status != 'Pending Review' and offer.status != 'Completed' %}
+                    <div class="d-grid gap-2 mt-4">
+                       <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-outline-info"><i class="fas fa-comments me-1"></i> Chat with User</a>
+                    </div>
+                 {% endif %}
             {% endif %}
-        </div>
+
+        </div> {# End col-lg-8 #}
+
+        {# Sidebar Area (Offer Summary) #}
         <div class="col-lg-4">
-            <div class="card position-sticky top-0">
+            <div class="card position-sticky" style="top: 7rem;"> {# Adjust top offset #}
                 <div class="card-body">
                     <h5 class="card-title fw-bold mb-3">Offer Summary</h5>
                     <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between"><span>Status:</span> <span class="badge bg-info">{{ offer.status }}</span></li>
-                        <li class="list-group-item d-flex justify-content-between"><span>Date Offered:</span> <strong>{{ offer.created_at.strftime('%d %b %Y') }}</strong></li>
-                        
-                        {# --- This is the fix for the 500 Error --- #}
-                        <li class="list-group-item d-flex justify-content-between"><span>Items:</span> <strong>{{ offer.offered_items | length }}</strong></li>
+                         <li class="list-group-item d-flex justify-content-between px-0">
+                            <span>Status:</span>
+                            {# More descriptive status badges #}
+                            {% set status_color = 'secondary' %}
+                            {% if offer.status == 'Pending Review' %} {% set status_color = 'warning text-dark' %}
+                            {% elif offer.status in ['Awaiting Pickup', 'Accepted', 'Partially Accepted'] %} {% set status_color = 'info' %}
+                            {% elif offer.status == 'Donation Pending' %} {% set status_color = 'primary' %}
+                            {% elif offer.status == 'Completed' %} {% set status_color = 'success' %}
+                            {% elif offer.status in ['Rejected', 'Pickup Failed'] %} {% set status_color = 'danger' %}
+                            {% endif %}
+                            <span class="badge bg-{{ status_color }}">{{ offer.status }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between px-0"><span>Date Offered:</span> <strong>{{ (offer.created_at | localdatetime).strftime('%d %b %Y') }}</strong></li>
+                         {% if offer.verified_at %}
+                         <li class="list-group-item d-flex justify-content-between px-0"><span>Date Reviewed:</span> <strong>{{ (offer.verified_at | localdatetime).strftime('%d %b %Y') }}</strong></li>
+                         {% endif %}
+                         {% if offer.picked_up_at %}
+                         <li class="list-group-item d-flex justify-content-between px-0"><span>Date Picked Up:</span> <strong>{{ (offer.picked_up_at | localdatetime).strftime('%d %b %Y') }}</strong></li>
+                         {% endif %}
+                         {% if offer.completed_at %}
+                         <li class="list-group-item d-flex justify-content-between px-0"><span>Date Completed:</span> <strong>{{ (offer.completed_at | localdatetime).strftime('%d %b %Y') }}</strong></li>
+                         {% endif %}
+                        <li class="list-group-item d-flex justify-content-between px-0"><span>Items Offered:</span> <strong>{{ offer.offered_items | length }}</strong></li>
+                         {% if offer.offered_items | selectattr('status', 'equalto', 'Accepted') | list | length > 0 %}
+                         <li class="list-group-item d-flex justify-content-between px-0"><span>Items Accepted:</span> <strong>{{ offer.offered_items | selectattr('status', 'equalto', 'Accepted') | list | length }}</strong></li>
+                         {% endif %}
+                          {% if offer.offered_items | selectattr('status', 'equalto', 'Rejected') | list | length > 0 %}
+                         <li class="list-group-item d-flex justify-content-between px-0"><span>Items Rejected:</span> <strong>{{ offer.offered_items | selectattr('status', 'equalto', 'Rejected') | list | length }}</strong></li>
+                         {% endif %}
+
                     </ul>
+                    {# Back Button #}
+                    <div class="d-grid mt-4">
+                         <a href="{{ url_for('main.org_dashboard', filter=request.args.get('ref_filter', 'incoming')) }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Back to Dashboard</a>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
+        </div> {# End col-lg-4 #}
+    </div> {# End row #}
+</div> {# End container #}
 
+{# Image Lightbox HTML (remains the same) #}
 <div id="imageLightbox" class="lightbox-overlay">
     <div class="lightbox-content-wrapper">
         <img class="lightbox-content" id="lightboxImg">
@@ -251,16 +265,18 @@
 </div>
 
 <script>
+// Image Lightbox JS (remains the same)
 document.addEventListener('DOMContentLoaded', () => {
     const lightbox = document.getElementById('imageLightbox');
     const lightboxImg = document.getElementById('lightboxImg');
     const closeBtn = document.querySelector('.lightbox-close-btn');
-    const images = document.querySelectorAll('.enlargeable-image');
+    // Select all images intended for lightbox
+    const images = document.querySelectorAll('.item-image, .proof-card img'); // Include proof image
 
     images.forEach(image => {
-        // Skip placeholders
-        if (image.src.includes('item_placeholder.jpg')) return;
-        
+        // Skip placeholders explicitly
+        if (image.src && image.src.includes('item_placeholder.jpg')) return;
+
         image.addEventListener('click', function() {
             const imgSrc = this.src;
             if (lightbox) lightbox.classList.add('visible');
@@ -269,21 +285,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const closeLightbox = () => {
-        if (lightbox) {
-            lightbox.classList.remove('visible');
-        }
+        if (lightbox) lightbox.classList.remove('visible');
     };
 
-    if (closeBtn) {
-        closeBtn.addEventListener('click', closeLightbox);
-    }
-    if (lightbox) {
-        lightbox.addEventListener('click', function(e) {
-            if (e.target === lightbox) {
-                closeLightbox();
-            }
-        });
-    }
+    if (closeBtn) closeBtn.addEventListener('click', closeLightbox);
+    if (lightbox) lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
 });
 </script>
 {% endblock %}
