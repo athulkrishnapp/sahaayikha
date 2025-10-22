@@ -192,7 +192,16 @@
                 {% endif %}
             </h2>
             <span class="badge-dashboard">
-                {% if view in ['incoming', 'pickup', 'pending_donation', 'completed'] %}{{ offers|length }}
+                {# --- CORRECTED COUNT LOGIC for Completed (using grouped_offers) --- #}
+                {% if view == 'completed' %}
+                    {% set total_completed = 0 %}
+                    {% if grouped_offers %}
+                        {% for need, offers_in_group in grouped_offers %}
+                            {% set total_completed = total_completed + offers_in_group|length %}
+                        {% endfor %}
+                    {% endif %} {# <<< Correctly closed endif #}
+                    {{ total_completed }}
+                {% elif view in ['incoming', 'pickup', 'pending_donation'] %}{{ offers|length }}
                 {% elif view == 'needs' %}{{ my_items|length }} {# my_items holds needs #}
                 {% elif view == 'chats' %}{{ chat_sessions|length }}
                 {% else %}{{ my_items|length }} {# Default Count #}
@@ -202,33 +211,114 @@
 
         {# --- Display Needs --- #}
         {% if view == 'needs' %}
-             {% if my_items %} <ul class="needs-list"> {% for need in my_items %} <li class="needs-list-item"> <i class="fas fa-bullhorn needs-icon"></i> <div class="item-content-main"> <div class="item-title-main">{{ need.title }}</div> <div class="item-user">Posted: {{ need.posted_at.strftime('%b %d, %Y') }} | Location: {{ need.location }}</div> <div class="item-badges mt-2"> {% if need.categories %} {% for cat in need.categories.split(',') %} <span class="badge-dashboard">{{ cat }}</span> {% endfor %} {% endif %} </div> </div> <div class="needs-actions"> <a href="{{ url_for('main.edit_disaster_need', need_id=need.need_id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i> Edit</a> <form action="{{ url_for('main.delete_disaster_need', need_id=need.need_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this need? This cannot be undone if there are no active offers.');"> <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Delete</button> </form> </div> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-bullhorn"></i><h3>No Needs Posted</h3><p>Click the '+' button below to post a new need for disaster relief.</p></div> {% endif %}
+             {% if my_items %}
+                <ul class="needs-list">
+                    {% for need in my_items %}
+                    <li class="needs-list-item">
+                        <i class="fas fa-bullhorn needs-icon"></i>
+                        <div class="item-content-main">
+                            <div class="item-title-main">{{ need.title }}</div>
+                            <div class="item-user">Posted: {{ need.posted_at.strftime('%b %d, %Y') }} | Location: {{ need.location }}</div>
+                            <div class="item-badges mt-2">
+                                {% if need.categories %}
+                                    {% for cat in need.categories.split(',') %}
+                                        <span class="badge-dashboard">{{ cat }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="needs-actions">
+                            <a href="{{ url_for('main.edit_disaster_need', need_id=need.need_id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i> Edit</a>
+                            {# --- CORRECTED ONSUBMIT MESSAGE --- #}
+                            <form action="{{ url_for('main.delete_disaster_need', need_id=need.need_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this need from public view? Existing offers will remain.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Remove Post</button>
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+             {% else %}
+                <div class="empty-state"><i class="fas fa-bullhorn"></i><h3>No Needs Posted</h3><p>Click the '+' button below to post a new need for disaster relief.</p></div>
+             {% endif %}
 
-        {# --- Display Offers (various statuses) --- #}
-        {% elif view in ['incoming', 'pickup', 'pending_donation', 'completed'] %}
-             {% if offers %} <ul class="needs-list"> {% for offer in offers %} <li class="needs-list-item"> <i class="fas fa-box-heart needs-icon"></i> <div class="item-content-main"> <div class="item-title-main">Offer from {{ offer.user.first_name }} for: {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</div> <div class="item-user">Offered: {{ offer.created_at.strftime('%b %d, %Y') }} | Status: {{ offer.status }} | Items: {{ offer.offered_items|length }}</div> </div>
-             <div class="needs-actions">
-                 {% if view == 'incoming' %}
-                     <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-primary"><i class="fas fa-search"></i> Review</a>
-                 {% elif view == 'pickup' %}
-                     <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-eye me-1"></i> View Details</a>
-                     <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Completed" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Pickup OK</button> </form>
-                     <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Failed" class="btn btn-sm btn-warning" onclick="return confirm('Confirm pickup failed? {% if offer.pickup_retries >= 1 %}This will cancel the offer.{% else %}You can retry once more later.{% endif %}');"><i class="fas fa-times"></i> Pickup Failed</button> </form>
-                 {% elif view == 'pending_donation' %}
-                     <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-eye me-1"></i> View Details</a>
-                     <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#completeModal{{ offer.offer_id }}"><i class="fas fa-check-double"></i> Mark Complete</button>
-                 {% elif view == 'completed' %}
-                     <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">View Details</a>
-                 {% endif %}
-                 {# Add Chat button for all non-completed states #}
-                 {% if view != 'completed' %}
-                     <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-info"><i class="fas fa-comments"></i> Chat</a>
-                 {% endif %}
-             </div> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-inbox"></i><h3>No offers in this category.</h3></div> {% endif %}
+        {# --- Display Offers (non-completed statuses) --- #}
+        {% elif view in ['incoming', 'pickup', 'pending_donation'] %}
+             {% if offers %}
+                <ul class="needs-list">
+                    {% for offer in offers %}
+                    <li class="needs-list-item">
+                        <i class="fas fa-box-heart needs-icon"></i>
+                        <div class="item-content-main">
+                            <div class="item-title-main">Offer from {{ offer.user.first_name if offer.user else '[Deleted User]' }} for: {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</div>
+                            <div class="item-user">Offered: {{ offer.created_at.strftime('%b %d, %Y') }} | Status: {{ offer.status }} | Items: {{ offer.offered_items|length }}</div>
+                        </div>
+                        <div class="needs-actions">
+                            {% if view == 'incoming' %}
+                                <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-primary"><i class="fas fa-search"></i> Review</a>
+                            {% elif view == 'pickup' %}
+                                <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-eye me-1"></i> View Details</a>
+                                <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Completed" class="btn btn-sm btn-success"><i class="fas fa-check"></i> Pickup OK</button> </form>
+                                <form action="{{ url_for('main.update_pickup_status', offer_id=offer.offer_id) }}" method="POST" class="d-inline"> <button type="submit" name="status" value="Pickup Failed" class="btn btn-sm btn-warning" onclick="return confirm('Confirm pickup failed? {% if offer.pickup_retries >= 1 %}This will cancel the offer.{% else %}You can retry once more later.{% endif %}');"><i class="fas fa-times"></i> Pickup Failed</button> </form>
+                            {% elif view == 'pending_donation' %}
+                                <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary me-2"><i class="fas fa-eye me-1"></i> View Details</a>
+                                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#completeModal{{ offer.offer_id }}"><i class="fas fa-check-double"></i> Mark Complete</button>
+                            {% endif %} {# Removed extra elif for completed here #}
+
+                            {# Add Chat button for all non-completed states #}
+                            {# This IF was correctly placed OUTSIDE the previous if/elif chain #}
+                            {% if view != 'completed' %}
+                                <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-info"><i class="fas fa-comments"></i> Chat</a>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty-state"><i class="fas fa-inbox"></i><h3>No offers in this category.</h3></div>
+            {% endif %}
+
+        {# --- CORRECTED: Display Completed Offers (using grouped_offers) --- #}
+        {% elif view == 'completed' %}
+            {# Check the new grouped_offers variable passed from the route #}
+            {% if grouped_offers %}
+                {# Loop 1: Iterate over each group (Need, [list of offers]) #}
+                {% for need, offers_in_group in grouped_offers %}
+                    <div class="mb-4">
+                        {# Display the Disaster Need title as a header #}
+                        <h4 class="mb-2 p-2 bg-light border rounded">
+                            {% if need %}{{ need.title }}{% else %}Offers for a Deleted Need{% endif %}
+                        </h4>
+                        <div class="list-group">
+                            {# Loop 2: Iterate over the offers *for this group* #}
+                            {% for offer in offers_in_group %}
+                                <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">Offer from {{ offer.user.first_name if offer.user else '[Deleted User]' }}</h5>
+                                        <small>Completed: {{ offer.completed_at.strftime('%Y-%m-%d') if offer.completed_at }}</small>
+                                    </div>
+                                    <p class="mb-1">
+                                        Donated {{ offer.offered_items|length }} item(s).
+                                        {% if offer.proof_image_url %}
+                                            <span class="badge bg-success">Proof Uploaded</span>
+                                        {% endif %}
+                                    </p>
+                                    {# Removed actions - the link itself is 'View Details' #}
+                                </a>
+                            {% endfor %}
+                        </div> {# End list-group #}
+                    </div> {# End mb-4 #}
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>No Completed Donations</h3>
+                    <p>There are no completed donation offers to display.</p>
+                </div>
+            {% endif %}
 
         {# --- Display Chats --- #}
         {% elif view == 'chats' %}
-             <h4 class="mb-3">Chat Sessions</h4> {# Added heading consistent with others #}
+             {# REMOVED the redundant h4 heading #}
              {% if chat_sessions %}
                 <ul class="chat-list">
                     {% for session in chat_sessions %}
@@ -264,17 +354,74 @@
              {% else %}
                 <div class="empty-state"><i class="fas fa-comments"></i><h3>No active chats.</h3></div>
              {% endif %}
-        {% else %} {# Fallback for any unexpected filter value - show needs #}
-             {% if my_items %} <ul class="needs-list"> {% for need in my_items %} <li class="needs-list-item"> <i class="fas fa-bullhorn needs-icon"></i> <div class="item-content-main"> <div class="item-title-main">{{ need.title }}</div> <div class="item-user">Posted: {{ need.posted_at.strftime('%b %d, %Y') }} | Location: {{ need.location }}</div> <div class="item-badges mt-2"> {% if need.categories %} {% for cat in need.categories.split(',') %} <span class="badge-dashboard">{{ cat }}</span> {% endfor %} {% endif %} </div> </div> <div class="needs-actions"> <a href="{{ url_for('main.edit_disaster_need', need_id=need.need_id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i> Edit</a> <form action="{{ url_for('main.delete_disaster_need', need_id=need.need_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this need? This cannot be undone if there are no active offers.');"> <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Delete</button> </form> </div> </li> {% endfor %} </ul> {% else %} <div class="empty-state"><i class="fas fa-bullhorn"></i><h3>No Needs Posted</h3><p>Click the '+' button below to post a new need for disaster relief.</p></div> {% endif %}
+
+        {# --- Fallback for any unexpected filter value - show needs --- #}
+        {% else %}
+             {% if my_items %}
+                <ul class="needs-list">
+                    {% for need in my_items %}
+                    <li class="needs-list-item">
+                        <i class="fas fa-bullhorn needs-icon"></i>
+                        <div class="item-content-main">
+                            <div class="item-title-main">{{ need.title }}</div>
+                            <div class="item-user">Posted: {{ need.posted_at.strftime('%b %d, %Y') }} | Location: {{ need.location }}</div>
+                            <div class="item-badges mt-2">
+                                {% if need.categories %}
+                                    {% for cat in need.categories.split(',') %}
+                                        <span class="badge-dashboard">{{ cat }}</span>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="needs-actions">
+                            <a href="{{ url_for('main.edit_disaster_need', need_id=need.need_id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i> Edit</a>
+                            {# --- CORRECTED ONSUBMIT MESSAGE --- #}
+                            <form action="{{ url_for('main.delete_disaster_need', need_id=need.need_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this need from public view? Existing offers will remain.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Remove Post</button>
+                            </form>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+             {% else %}
+                <div class="empty-state"><i class="fas fa-bullhorn"></i><h3>No Needs Posted</h3><p>Click the '+' button below to post a new need for disaster relief.</p></div>
+             {% endif %}
         {% endif %} {# End main view conditional #}
     </section>
 </main>
 
-{# --- Modals for Completing Donations (Remains the same) --- #}
-{% if view == 'pending_donation' and offers %} {% for offer in offers %} <div class="modal fade" id="completeModal{{ offer.offer_id }}" tabindex="-1" aria-labelledby="completeModalLabel{{ offer.offer_id }}" aria-hidden="true"> <div class="modal-dialog"> <div class="modal-content"> <form method="POST" action="{{ url_for('main.complete_donation', offer_id=offer.offer_id) }}" enctype="multipart/form-data"> <div class="modal-header"> <h5 class="modal-title" id="completeModalLabel{{ offer.offer_id }}">Complete Donation for {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</h5> <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button> </div> <div class="modal-body"> <p>Confirm that the donation process for items offered by {{ offer.user.first_name }} is complete.</p> <div class="mb-3"> <label for="proof_image_{{ offer.offer_id }}" class="form-label">Upload Proof Image (Optional)</label> <input class="form-control" type="file" name="proof_image" id="proof_image_{{ offer.offer_id }}" accept="image/*"> </div> </div> <div class="modal-footer"> <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button> <button type="submit" class="btn btn-success">Confirm Completion</button> </div> </form> </div> </div> </div> {% endfor %} {% endif %}
+{# --- Modals for Completing Donations --- #}
+{# Only generate these modals if viewing the 'pending_donation' tab AND offers exist #}
+{% if view == 'pending_donation' and offers %}
+    {% for offer in offers %}
+        <div class="modal fade" id="completeModal{{ offer.offer_id }}" tabindex="-1" aria-labelledby="completeModalLabel{{ offer.offer_id }}" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="POST" action="{{ url_for('main.complete_donation', offer_id=offer.offer_id) }}" enctype="multipart/form-data">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="completeModalLabel{{ offer.offer_id }}">Complete Donation for {% if offer.need %}{{ offer.need.title }}{% else %}[Deleted Need]{% endif %}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Confirm that the donation process for items offered by {{ offer.user.first_name if offer.user else '[Deleted User]' }} is complete.</p>
+                            <div class="mb-3">
+                                <label for="proof_image_{{ offer.offer_id }}" class="form-label">Upload Proof Image (Optional)</label>
+                                <input class="form-control" type="file" name="proof_image" id="proof_image_{{ offer.offer_id }}" accept="image/*">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-success">Confirm Completion</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endif %}
 
 
-{# --- Modal for Posting Need (Remains the same) --- #}
+{# --- Modal for Posting Need --- #}
 <div class="modal fade" id="postNeedModal" tabindex="-1" aria-labelledby="postNeedModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -284,12 +431,55 @@
       </div>
       <form method="POST" action="{{ url_for('main.org_dashboard', filter='needs') }}" novalidate>
         <div class="modal-body">
-            {% if form.errors %} <div class="alert alert-danger"> Please correct the errors below: <ul> {% for field, errors in form.errors.items() %} {% if field != 'csrf_token' %} <li>{{ form[field].label.text }}: {{ errors|join(', ') }}</li> {% endif %} {% endfor %} </ul> </div> {% endif %}
+            {# --- Display Form Errors --- #}
+            {% if form.errors and request.method == 'POST' %}
+              <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading">Errors Found!</h4>
+                <p>Please correct the following errors:</p>
+                <hr>
+                <ul class="mb-0">
+                  {% for field, errors in form.errors.items() %}
+                    {% if field != 'csrf_token' %}
+                      <li><strong>{{ form[field].label.text if form[field].label else field|replace('_', ' ')|title }}:</strong> {{ errors|join(', ') }}</li>
+                    {% endif %}
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+
             {{ form.hidden_tag() }}
-            <div class="mb-3"> {{ form.title.label(class="form-label") }} {{ form.title(class="form-control") }} </div>
-            <div class="mb-3"> {{ form.categories.label(class="form-label") }} {{ form.categories(class="form-select", id="modalCategories") }} </div>
-            <div class="mb-3"> {{ form.description.label(class="form-label") }} {{ form.description(class="form-control", rows="3") }} </div>
-            <div class="mb-3"> {{ form.location.label(class="form-label") }} {{ form.location(class="form-select") }} </div>
+            <div class="mb-3">
+                {{ form.title.label(class="form-label") }}
+                {# --- Added is-invalid class handling --- #}
+                {{ form.title(class="form-control" + (' is-invalid' if form.title.errors else '')) }}
+                {% if form.title.errors %}
+                    <div class="invalid-feedback">{{ form.title.errors|join(', ') }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                {{ form.categories.label(class="form-label") }}
+                 {# --- Added is-invalid class handling --- #}
+                {{ form.categories(class="form-select" + (' is-invalid' if form.categories.errors else ''), id="modalCategories") }}
+                {% if form.categories.errors %}
+                     <div class="invalid-feedback">{{ form.categories.errors|join(', ') }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                {{ form.description.label(class="form-label") }}
+                 {# --- Added is-invalid class handling --- #}
+                {{ form.description(class="form-control" + (' is-invalid' if form.description.errors else ''), rows="3") }}
+                 {% if form.description.errors %}
+                     <div class="invalid-feedback">{{ form.description.errors|join(', ') }}</div>
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                {{ form.location.label(class="form-label") }}
+                 {# --- Added is-invalid class handling --- #}
+                {{ form.location(class="form-select" + (' is-invalid' if form.location.errors else '')) }}
+                {% if form.location.errors %}
+                    <div class="invalid-feedback">{{ form.location.errors|join(', ') }}</div>
+                {% endif %}
+            </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -309,7 +499,6 @@
 </div>
 
 <script>
-    // ... (JavaScript for Tom Select and modal validation remains the same) ...
 document.addEventListener('DOMContentLoaded', function () {
     const postNeedModalElement = document.getElementById('postNeedModal');
     let tomSelectInstance = null; // Variable to hold the TomSelect instance
