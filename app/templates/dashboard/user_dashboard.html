@@ -448,7 +448,7 @@
                                     {% for session in regular_chats %}
                                         {% set other_user = session.user_two if session.user_one_id == current_user.user_id else session.user_one %}
                                         <li class="chat-list-item {% if session.session_id in unread_session_ids %}border-primary{% endif %}">
-                                            <a href="{{ url_for('main.chat', session_id=session.session_id) }}" class="chat-link-area">
+                                            <a href="{{ url_for('main.chat', session_id=session.session_id) }}" class="chat-list-item"></a>
                                                 <img src="{% if session.trade_item and session.trade_item.images %}{{ url_for('static', filename=session.trade_item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" alt="{{ session.trade_item.title if session.trade_item else '' }}" class="chat-item-img">
                                                 <div class="chat-item-content">
                                                     <div class="d-flex justify-content-between">

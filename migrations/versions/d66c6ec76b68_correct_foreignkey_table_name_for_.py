@@ -17,30 +17,24 @@ depends_on = None
 
 
 def upgrade():
-    # Drop the old constraints if they exist (using both potential old names)
-    try:
-        with op.batch_alter_table('chat_sessions', schema=None) as batch_op:
-            batch_op.drop_constraint('chk_chat_subject', type_='check')
-            print("Dropped constraint 'chk_chat_subject'")
-    except Exception as e:
-        print(f"Could not drop constraint 'chk_chat_subject' (may not exist): {e}")
-
-    try:
-        with op.batch_alter_table('chat_sessions', schema=None) as batch_op:
-            batch_op.drop_constraint('chk_chat_subject_exclusive', type_='check')
-            print("Dropped constraint 'chk_chat_subject_exclusive'")
-    except Exception as e:
-        print(f"Could not drop constraint 'chk_chat_subject_exclusive' (may not exist): {e}")
-
-    # Add the new, correct constraint with the correct name
+    print("Starting batch alter for 'chat_sessions'...")
     with op.batch_alter_table('chat_sessions', schema=None) as batch_op:
+        try:
+            # 1. Drop the OLD constraint
+            batch_op.drop_constraint('chk_chat_subject', type_='check')
+            print("Dropped old constraint 'chk_chat_subject'")
+        except Exception as e:
+            print(f"Could not drop constraint 'chk_chat_subject' (may not exist): {e}")
+
+        # 2. Add the NEW, correct constraint
         batch_op.create_check_constraint(
-            'chk_chat_subject_exclusive', # The correct name from the model
+            'chk_chat_subject_exclusive',
             "(CASE WHEN trade_item_id IS NOT NULL THEN 1 ELSE 0 END + "
             " CASE WHEN donation_offer_id IS NOT NULL THEN 1 ELSE 0 END + "
             " CASE WHEN disaster_need_id IS NOT NULL THEN 1 ELSE 0 END) = 1"
         )
-        print("Created constraint 'chk_chat_subject_exclusive'")
+        print("Created new constraint 'chk_chat_subject_exclusive'")
+    print("Batch alter complete.")
 
 
 def downgrade():

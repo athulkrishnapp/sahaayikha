@@ -3983,10 +3983,17 @@ def delete_chat_session(session_id):
 def chat(session_id):
     """Handles displaying and sending messages within a chat session."""
     chat_session = ChatSession.query.options(
-        orm.joinedload(ChatSession.trade_item).joinedload(Item.images), # Eager load related data
+        # Eager load related data - Load owner for items as well
+        orm.joinedload(ChatSession.trade_item).options(
+            orm.joinedload(Item.images),
+            orm.joinedload(Item.owner) # <<< ADDED OWNER LOAD HERE
+        ),
         orm.joinedload(ChatSession.disaster_need), # Eager load need (for old chats)
         # --- ADD THIS LINE to load the new relationship ---
-        orm.joinedload(ChatSession.donation_offer).joinedload(DonationOffer.need),
+        orm.joinedload(ChatSession.donation_offer).options(
+            orm.joinedload(DonationOffer.need), # <<< Also load the need via the offer
+            orm.joinedload(DonationOffer.offered_items) # <<< Load offered items for sidebar context if needed
+        ),
         # Load fcm_token for push notifications
         orm.joinedload(ChatSession.user_one).load_only(User.user_id, User.first_name, User.last_name, User.profile_picture, User.fcm_token),
         orm.joinedload(ChatSession.user_two).load_only(User.user_id, User.first_name, User.last_name, User.profile_picture, User.fcm_token),
@@ -4020,69 +4027,110 @@ def chat(session_id):
              current_app.logger.error(f"Error marking messages read for session {session_id}: {e}")
              db.session.rollback()
 
-    # --- FIX: REVISED LOGIC for Participants and Subject ---
-    the_subject = chat_session.subject # This now returns Item, DonationOffer, or DisasterNeed
-    the_item = None # For user-user trade item
-    donation_offer = None # For user-org donation offer
-    disaster_need = None # For subject display
-    trade_request = None # For user-user trade logic
+    # --- REVISED SUBJECT LOADING ---
+    the_subject = None
+    if chat_session.trade_item_id:
+        # Explicitly load the item, even if status is not 'Active'
+        the_subject = Item.query.options(orm.joinedload(Item.images), orm.joinedload(Item.owner)).get(chat_session.trade_item_id)
+    elif chat_session.donation_offer_id:
+        # Explicitly load the offer and its related need
+        the_subject = DonationOffer.query.options(orm.joinedload(DonationOffer.need)).get(chat_session.donation_offer_id)
+    elif chat_session.disaster_need_id: # Fallback for old chats
+        the_subject = DisasterNeed.query.options(orm.joinedload(DisasterNeed.organization)).get(chat_session.disaster_need_id) # Load org too
+
+    # Initialize variables
+    the_item = None         # For user-user trade item context
+    donation_offer = None # For user-org donation offer context
+    disaster_need = None  # For subject display (often linked from donation_offer)
+    trade_request = None  # For user-user trade logic
 
     other_user, organization_participant = None, None
 
+    # Determine participants and specific context variables
     if chat_session.is_org_chat:
         # This is a User-Org chat
-        if is_org:
-            other_user = chat_session.user_one # Org is viewing chat with User One
-        else: # User is viewing chat with Org
-            organization_participant = chat_session.participant_org
+        organization_participant = chat_session.participant_org # Org is always participant_org
+        other_user = chat_session.user_one                  # User is always user_one
 
-        # Get the donation offer (which is the subject)
+        # Assign based on the explicitly loaded subject
         if isinstance(the_subject, DonationOffer):
             donation_offer = the_subject
             disaster_need = donation_offer.need # Get the need from the offer
-        elif isinstance(the_subject, DisasterNeed):
-            # Fallback for old chats
+        elif isinstance(the_subject, DisasterNeed): # Fallback
             disaster_need = the_subject
-            # Try to find the offer (old, flawed logic, but best we can do)
+            # Try to find offer again if needed (less reliable)
             donation_offer = DonationOffer.query.filter_by(
-                 need_id=disaster_need.need_id,
-                 user_id=chat_session.user_one_id,
-                 org_id=chat_session.participant_org_id
+                need_id=disaster_need.need_id,
+                user_id=chat_session.user_one_id,
+                org_id=chat_session.participant_org_id
             ).first()
-        
-        if not disaster_need and donation_offer: # Ensure need is set if possible
-            disaster_need = donation_offer.need
+        # Ensure org participant is loaded if only need was loaded (fallback)
+        if not organization_participant and disaster_need and disaster_need.organization:
+            organization_participant = disaster_need.organization
+
 
     else:
         # This is a User-User chat
         other_user = chat_session.get_other_user(actor_id) if is_user else None
-        
+
         if isinstance(the_subject, Item):
-            the_item = the_subject # The subject is the item being traded
-            # Find the trade request
-            if other_user: # Ensure other_user was found before querying
+            the_item = the_subject # Assign the explicitly loaded item
+            # Find the trade request (if applicable)
+            if other_user:
                 trade_request = TradeRequest.query.filter(
                     TradeRequest.item_requested_id == the_item.item_id,
                     or_(
-                        (TradeRequest.requester_id == current_user.user_id and TradeRequest.owner_id == other_user.user_id),
-                        (TradeRequest.requester_id == other_user.user_id and TradeRequest.owner_id == current_user.user_id)
+                        (TradeRequest.requester_id == actor_id and TradeRequest.owner_id == other_user.user_id),
+                        (TradeRequest.requester_id == other_user.user_id and TradeRequest.owner_id == actor_id)
                     )
                 ).options(
-                    orm_joinedload(TradeRequest.offered_item).joinedload(Item.images) # Eager load offered item images for sidebar
-                ).first() # Assuming only one active request between two users for an item
-    
+                    orm_joinedload(TradeRequest.offered_item).joinedload(Item.images), # Eager load offered item
+                    orm_joinedload(TradeRequest.requester) # Load requester for sidebar
+                ).first()
+            # Ensure other_user is loaded if only item was loaded (fallback)
+            if not other_user and the_item and the_item.owner:
+                # Determine who the other user is based on who owns the item vs current user
+                other_user_id_temp = the_item.user_id if chat_session.user_one_id == the_item.user_id else chat_session.user_two_id
+                if other_user_id_temp != actor_id:
+                     other_user = User.query.get(other_user_id_temp)
+
+
     # DealProposal logic only for user-user chats
     deal = DealProposal.query.filter_by(chat_session_id=session_id).first() if not chat_session.is_org_chat else None
 
-    # Handle placeholder subject if it was deleted
+    # Handle placeholder subject IF the explicit query failed to find the item/need/offer
     if not the_subject:
+        # Define a simple placeholder class
         class DummySubject:
-            title, images, item_id, need_id, owner, organization, type = "[Deleted Item/Need]", [], 0, 0, None, None, "Unknown"
+            def __init__(self):
+                self.title = "[Details Unavailable]"
+                self.images = []
+                self.item_id = 0
+                self.need_id = 0
+                self.owner = None
+                self.organization = None
+                self.type = "Unknown"
+                # Add any other attributes your template might expect
+                self.status = "Unknown"
+                self.description = ""
+                self.expected_return_category = None
+                self.need = None # Add need attribute for donation offer check
+
+        the_subject = DummySubject() # Use the placeholder
+        # Assign to specific vars if needed by template logic further down
         if chat_session.is_org_chat:
-            disaster_need = DummySubject()
+            disaster_need = the_subject
         else:
-            the_item = DummySubject()
-    # --- END OF REVISED LOGIC ---
+            the_item = the_subject
+            
+    # --- Make sure participant variables are set even if using placeholder ---
+    # These might still be available from chat_session even if subject is gone
+    if chat_session.is_org_chat:
+        if not organization_participant: organization_participant = chat_session.participant_org
+        if not other_user: other_user = chat_session.user_one
+    else: # User-user
+        if not other_user: other_user = chat_session.get_other_user(actor_id)
+
 
     # --- Handle Form Submission ---
     form = ChatForm()
@@ -4118,20 +4166,22 @@ def chat(session_id):
         db.session.add(msg)
         db.session.commit() # Commit message first
 
-        # --- Push Notification Logic (remains the same) ---
+        # --- Push Notification Logic ---
         recipient_token = None
         recipient_id_log = "N/A"
-        recipient_user = None
+        recipient_user = None # Can be User or Org (though Org FCM not implemented)
 
         if chat_session.is_org_chat:
-            if is_user: pass # FCM for Orgs not implemented
+            if is_user: # User sending to Org
+                # recipient_user = organization_participant # Future: Get org token?
+                pass # FCM for Orgs not implemented
             else: # Org sending to User
-                recipient_user = chat_session.user_one
+                recipient_user = other_user # User is always 'other_user' in org chat context here
                 if recipient_user and recipient_user.fcm_token:
                    recipient_token = recipient_user.fcm_token
                    recipient_id_log = f"User {recipient_user.user_id}"
         else: # User-user chat
-            recipient_user = other_user
+            recipient_user = other_user # 'other_user' is correct here
             if recipient_user and recipient_user.fcm_token:
                recipient_token = recipient_user.fcm_token
                recipient_id_log = f"User {recipient_user.user_id}"
@@ -4155,6 +4205,7 @@ def chat(session_id):
 
         return redirect(url_for("main.chat", session_id=session_id)) # Refresh page after sending
 
+
     # --- Fetch Messages ---
     messages = ChatMessage.query.filter_by(session_id=session_id).order_by(ChatMessage.timestamp.asc()).all()
 
@@ -4164,12 +4215,12 @@ def chat(session_id):
         messages=messages,
         form=form,
         session=chat_session,
-        other_user=other_user, # This now correctly holds the other User object in user-user chats
-        organization=organization_participant,
+        other_user=other_user,                # The User object (either other user or user in org chat)
+        organization=organization_participant, # The Org object (only in org chats)
         deal=deal,
-        donation_offer=donation_offer,
-        the_item=(the_item or disaster_need), # Pass the item (for trade) or the need (for offer) as the main subject
-        trade_request=trade_request # <<< Pass the fetched trade_request
+        donation_offer=donation_offer,        # Specific offer context (only in org chats)
+        the_item=the_subject,                 # Pass the loaded subject (Item, Offer, Need, or Dummy)
+        trade_request=trade_request           # Specific trade context (only in user-user trades)
     )
 
 

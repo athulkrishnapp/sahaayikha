@@ -31,15 +31,15 @@
     .chat-header { display: flex; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--card); flex-shrink: 0; }
     .chat-main { display: flex; flex-grow: 1; overflow: hidden; }
     .chat-header-img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 1rem; }
-    .chat-header-info h5 { font-weight: 600; color: var(--foreground); margin-bottom: 0; } /* Removed margin-bottom */
+    .chat-header-info h5 { font-weight: 600; color: var(--foreground); margin-bottom: 0; }
     .chat-header-info p { font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0; }
 
     /* Message Area */
     .chat-messages { flex-grow: 1; padding: 1.5rem; overflow-y: auto; background: var(--background); }
 
     /* Message Bubbles & Actions */
-    .msg { display: flex; align-items: flex-end; gap: 0.75rem; margin-bottom: 1.5rem; max-width: 75%; } /* Align items end */
-    .msg-content { padding: 0.75rem 1rem; border-radius: var(--radius); min-width: 80px; word-wrap: break-word; } /* Added word-wrap */
+    .msg { display: flex; align-items: flex-end; gap: 0.75rem; margin-bottom: 1.5rem; max-width: 75%; }
+    .msg-content { padding: 0.75rem 1rem; border-radius: var(--radius); min-width: 80px; word-wrap: break-word; }
     .msg-meta { font-size: 0.75rem; margin-top: 0.25rem; opacity: 0.8; }
     .msg.sent { margin-left: auto; flex-direction: row-reverse; }
     .msg.sent .msg-content { background: var(--primary); color: var(--primary-foreground); border-bottom-right-radius: 0.25rem; }
@@ -49,11 +49,11 @@
     .msg.received .msg-meta { color: var(--muted-foreground); }
 
     /* Other Styles */
-    .msg-actions { opacity: 0; transition: opacity 0.2s ease; flex-shrink: 0; margin-bottom: 0.25rem; } /* Added margin */
-    .msg:hover .msg-actions { opacity: 1; } /* Show on hover for any message */
-    .delete-msg-btn { background: none; border: none; color: var(--muted-foreground); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; transition: background-color 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; } /* Adjusted size */
+    .msg-actions { opacity: 0; transition: opacity 0.2s ease; flex-shrink: 0; margin-bottom: 0.25rem; }
+    .msg:hover .msg-actions { opacity: 1; }
+    .delete-msg-btn { background: none; border: none; color: var(--muted-foreground); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; transition: background-color 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; }
     .delete-msg-btn:hover { background-color: var(--background); color: var(--bs-danger); }
-    .msg.sent .delete-msg-btn:hover { background-color: var(--primary-light); color: var(--bs-danger); } /* Specific hover for sent */
+    .msg.sent .delete-msg-btn:hover { background-color: var(--primary-light); color: var(--bs-danger); }
     .msg-content-deleted { font-style: italic; color: var(--muted-foreground); opacity: 0.8; }
     .header-action-btn { background-color: transparent; border: none; }
     .header-action-btn:hover { background-color: var(--background); }
@@ -75,7 +75,7 @@
     .chat-image { max-width: 100%; border-radius: var(--radius); margin-top: 0.5rem; cursor: pointer; transition: opacity 0.2s; }
     .chat-image:hover { opacity: 0.8; }
 
-    /* --- Image Lightbox Styles --- */
+    /* Image Lightbox Styles */
     .lightbox-overlay { position: fixed; z-index: 1070; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s ease; }
     .lightbox-overlay.visible { display: flex; opacity: 1; }
     .lightbox-content-wrapper { position: relative; max-width: 90vw; max-height: 90vh; }
@@ -90,64 +90,71 @@
     .confirm-modal-overlay.active .confirm-modal-box { transform: scale(1); }
     .confirm-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.5rem; }
 
-    /* --- TABBED ITEM PREVIEW STYLES --- */
-    .item-preview-tabs {
-        display: flex;
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 1rem;
-    }
-    .item-preview-tab {
-        padding: 0.5rem 1rem;
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-        color: var(--muted-foreground);
-        font-weight: 500;
-        transition: all 0.2s ease;
-    }
-    .item-preview-tab:hover {
-        color: var(--foreground);
-    }
-    .item-preview-tab.active {
-        color: var(--primary);
-        border-bottom-color: var(--primary);
-    }
-    .item-preview-content {
-        display: none;
-    }
-    .item-preview-content.active {
-        display: block;
-        animation: fadeIn 0.3s ease;
-    }
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
+    /* TABBED ITEM PREVIEW STYLES */
+    .item-preview-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+    .item-preview-tab { padding: 0.5rem 1rem; cursor: pointer; border-bottom: 2px solid transparent; color: var(--muted-foreground); font-weight: 500; transition: all 0.2s ease; }
+    .item-preview-tab:hover { color: var(--foreground); }
+    .item-preview-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .item-preview-content { display: none; }
+    .item-preview-content.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 </style>
 
 <div class="container-fluid p-0">
     <div class="chat-container">
         <div class="chat-header">
+            {# --- CORRECTED HEADER (Improved Title Logic) --- #}
+            {% set participant = other_user or organization %}
+            {% set participant_name = (participant.first_name ~ ' ' ~ (participant.last_name or '')) if other_user else participant.name if organization else 'Unknown Participant' %}
+            {% set participant_img = participant.profile_picture if participant and participant.profile_picture is defined else None %}
+            {% set participant_placeholder = 'images/users_placeholder.png' if other_user else 'images/orgs_placeholder.png' %}
+
+            {# --- Determine Subject Title More Robustly --- #}
+            {% set subject_title = '[Topic Unavailable]' %} {# Default #}
+            {% if the_item %}
+                {% if the_item.__class__.__name__ == 'Item' %}
+                    {% set subject_title = the_item.title if the_item.title is defined else '[Item Title Unavailable]' %}
+                {% elif the_item.__class__.__name__ == 'DonationOffer' %}
+                    {% set subject_title = the_item.need.title if the_item.need and the_item.need.title is defined else '[Need Title Unavailable]' %}
+                {% elif the_item.__class__.__name__ == 'DisasterNeed' %}
+                    {% set subject_title = the_item.title if the_item.title is defined else '[Need Title Unavailable]' %}
+                {% elif the_item.__class__.__name__ == 'DummySubject' %}
+                    {% set subject_title = the_item.title %} {# Use title from Dummy #}
+                {% endif %}
+            {% endif %}
+            {# --- End Subject Title Logic --- #}
+
             {% if other_user %}
                 <a href="{{ url_for('main.public_profile', user_id=other_user.user_id) }}" class="d-flex align-items-center text-decoration-none">
-                    <img src="{{ url_for('static', filename=other_user.profile_picture or 'images/users_placeholder.png') }}" alt="{{ other_user.first_name }}" class="chat-header-img">
+                    <img src="{{ url_for('static', filename=participant_img or participant_placeholder) }}" alt="{{ participant_name }}" class="chat-header-img">
                     <div class="chat-header-info">
-                        <h5>{{ other_user.first_name }} {{ other_user.last_name }}</h5>
-                        <p>Discussing: {{ the_item.title }}</p>
+                        <h5>{{ participant_name }}</h5>
+                        <p>Discussing: {{ subject_title }}</p> {# Use the refined title #}
                     </div>
                 </a>
             {% elif organization %}
-                 <div class="d-flex align-items-center text-decoration-none"> {# Not linking org profile for now #}
-                    <img src="{{ url_for('static', filename=organization.profile_picture or 'images/orgs_placeholder.png') }}" alt="{{ organization.name }}" class="chat-header-img">
+                 <div class="d-flex align-items-center text-decoration-none">
+                    <img src="{{ url_for('static', filename=participant_img or participant_placeholder) }}" alt="{{ participant_name }}" class="chat-header-img">
                     <div class="chat-header-info">
-                        <h5>{{ organization.name }}</h5>
-                        <p>Discussing: {{ the_item.title }}</p>
+                        <h5>{{ participant_name }}</h5>
+                        <p>Discussing: {{ subject_title }}</p> {# Use the refined title #}
                     </div>
                 </div>
+            {% else %}
+                 <div class="d-flex align-items-center text-decoration-none">
+                     <img src="{{ url_for('static', filename=participant_placeholder) }}" alt="Unknown" class="chat-header-img">
+                     <div class="chat-header-info">
+                         <h5>{{ participant_name }}</h5>
+                         <p>Discussing: {{ subject_title }}</p> {# Use the refined title #}
+                     </div>
+                 </div>
             {% endif %}
+            {# --- END CORRECTED HEADER --- #}
+
 
             <div class="ms-auto d-flex align-items-center">
-                {# Link to view item, only if it's a trade item chat #}
-                {% if not session.is_org_chat and the_item and the_item.item_id %}
+                {# Link to view item - check if the_item exists and item_id attribute exists and is truthy #}
+                {% if not session.is_org_chat and the_item and the_item.item_id is defined and the_item.item_id %}
                     <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="btn btn-sm btn-outline-secondary">View Item</a>
                 {% endif %}
                 <div class="dropdown ms-2">
@@ -155,7 +162,7 @@
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        {% if not session.is_org_chat %} {# Block/Report User only for user-user chats #}
+                        {% if not session.is_org_chat %}
                             <li>
                                 <form action="{{ url_for('main.block_chat', session_id=session.session_id) }}" method="POST">
                                     <button type="submit" class="dropdown-item text-danger" onclick="return confirm('Blocking this user will prevent further messages in this chat. Are you sure?')">
@@ -188,7 +195,6 @@
                         {% endif %}
                         <div class="msg-meta">{{ (msg.timestamp | localdatetime).strftime('%I:%M %p') }}</div>
                     </div>
-                     {# Show delete button only if it's the sender's own message and not deleted #}
                     {% if ((current_user.__class__.__name__ == 'User' and msg.sender_id == current_user.user_id and msg.sender_type == 'user') or (current_user.__class__.__name__ == 'Organization' and msg.sender_id == current_user.org_id and msg.sender_type == 'org')) and not msg.deleted_at %}
                     <div class="msg-actions">
                         <button type="button" class="delete-msg-btn" data-message-id="{{ msg.message_id }}" title="Delete Message">
@@ -206,140 +212,130 @@
             </div>
 
             <aside class="chat-sidebar">
-                {# --- CORRECTED: Sidebar Logic --- #}
-                {% if not session.is_org_chat and the_item and the_item.item_id %}
-                    {# User-User Chat (Trade or Share) #}
+                 {# --- CORRECTED SIDEBAR LOGIC (Replaced hasattr) --- #}
+                {% if not session.is_org_chat %} {# User-User Chat #}
                     <div class="sidebar-card">
-                        {# Check if it's an item-for-item trade #}
-                        {% if the_item.type == 'Trade' and trade_request and trade_request.offered_item %}
-                            <div class="item-preview-tabs">
-                                <div class="item-preview-tab active" data-target="item-requested">Item Requested</div>
-                                <div class="item-preview-tab" data-target="item-offered">Item Offered</div>
-                            </div>
+                        {# Check if the_item exists and has a truthy item_id #}
+                        {% if the_item and the_item.item_id is defined and the_item.item_id %}
+                            {# Check trade_request carefully #}
+                            {% if the_item.type == 'Trade' and trade_request and trade_request.offered_item is defined and trade_request.offered_item %}
+                                <div class="item-preview-tabs">
+                                    <div class="item-preview-tab active" data-target="item-requested">Item Requested</div>
+                                    <div class="item-preview-tab" data-target="item-offered">Item Offered</div>
+                                </div>
 
-                            {# Item Requested (the_item) #}
-                            <div id="item-requested" class="item-preview-content active">
+                                {# Item Requested - Use safe access #}
+                                <div id="item-requested" class="item-preview-content active">
+                                    <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
+                                        <img src="{{ url_for('static', filename=the_item.images[0].image_url if the_item.images else 'images/item_placeholder.jpg') }}">
+                                        <p>{{ the_item.title }}</p>
+                                        <small class="text-muted d-block">Owned by: {{ the_item.owner.first_name if the_item.owner else 'Unknown' }}</small>
+                                    </a>
+                                </div>
+
+                                {# Item Offered - Use safe access #}
+                                <div id="item-offered" class="item-preview-content">
+                                    <a href="{{ url_for('main.view_item', item_id=trade_request.offered_item.item_id) }}" class="item-preview text-decoration-none">
+                                        <img src="{{ url_for('static', filename=trade_request.offered_item.images[0].image_url if trade_request.offered_item.images else 'images/item_placeholder.jpg') }}">
+                                        <p>{{ trade_request.offered_item.title }}</p>
+                                        <small class="text-muted d-block">Offered by: {{ trade_request.requester.first_name if trade_request.requester else 'Unknown' }}</small>
+                                    </a>
+                                </div>
+                            {% else %}
+                                <h6>
+                                    {% if the_item.type == 'Share' %} Item for Share
+                                    {% elif the_item.type == 'Trade' %} Item for Trade {% if the_item.expected_return_category == 'Money' %}(Money){% endif %}
+                                    {% else %} Item Context {% endif %}
+                                </h6>
                                 <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
                                     <img src="{{ url_for('static', filename=the_item.images[0].image_url if the_item.images else 'images/item_placeholder.jpg') }}">
                                     <p>{{ the_item.title }}</p>
-                                    <small class="text-muted d-block">Owned by: {{ the_item.owner.first_name }}</small>
                                 </a>
-                            </div>
-
-                            {# Item Offered (from trade_request) #}
-                            <div id="item-offered" class="item-preview-content">
-                                <a href="{{ url_for('main.view_item', item_id=trade_request.offered_item.item_id) }}" class="item-preview text-decoration-none">
-                                    <img src="{{ url_for('static', filename=trade_request.offered_item.images[0].image_url if trade_request.offered_item.images else 'images/item_placeholder.jpg') }}">
-                                    <p>{{ trade_request.offered_item.title }}</p>
-                                    <small class="text-muted d-block">Offered by: {{ trade_request.requester.first_name }}</small>
-                                </a>
-                            </div>
-                        {# It's a Share item OR a Trade for Money (no offered item) #}
+                            {% endif %}
                         {% else %}
-                             <h6>
-                                {% if the_item.type == 'Share' %}
-                                    Item for Share
-                                {% elif the_item.type == 'Trade' and the_item.expected_return == 'Money' %}
-                                    Item for Trade (Money)
-                                {% else %}
-                                    Item Context {# Fallback title #}
-                                {% endif %}
-                             </h6>
-                             <a href="{{ url_for('main.view_item', item_id=the_item.item_id) }}" class="item-preview text-decoration-none">
-                                <img src="{{ url_for('static', filename=the_item.images[0].image_url if the_item.images else 'images/item_placeholder.jpg') }}">
-                                <p>{{ the_item.title }}</p>
-                            </a>
+                             <h6>Item Context</h6>
+                             <p class="small text-muted">Item details are no longer available.</p>
                         {% endif %}
                     </div>
-                {% elif session.is_org_chat and the_item and the_item.need_id %}
-                    {# Org-User Chat (Disaster Need) #}
+                     {# --- Deal Panel - Check the_item.type safely --- #}
+                    <div class="sidebar-card">
+                        <h6>{{ the_item.type.capitalize() if the_item and the_item.type is defined else 'Interaction' }} Status</h6>
+                        {% if session.status == 'Active' %}
+                            {% include 'features/_deal_panel.html' with context %}
+                        {% elif session.status == 'Confirmed' %}
+                            <div class="alert alert-success text-center"><i class="fas fa-check-circle me-2"></i>{% if the_item and the_item.type is defined and the_item.type == 'Share' %}Share{% else %}Deal{% endif %} Confirmed!</div>
+                        {% elif session.status == 'Blocked' %}
+                            <div class="alert alert-danger text-center"><i class="fas fa-ban me-2"></i>Chat Blocked</div>
+                        {% endif %}
+                    </div>
+
+                {% elif session.is_org_chat %} {# Org-User Chat #}
                     <div class="sidebar-card">
                         <h6>About this Conversation</h6>
-                        <p class="small text-muted">This chat is regarding the disaster need post: <strong>{{ the_item.title }}</strong>.</p>
-                        {# Optionally link to the need if needed: <a href="#">View Need Details</a> #}
+                        {# Display title safely #}
+                        {% set subject_title = donation_offer.need.title if donation_offer and donation_offer.need and donation_offer.need.title is defined else the_item.title if the_item and the_item.title is defined else '[Topic Unavailable]' %}
+                        <p class="small text-muted">This chat is regarding: <strong>{{ subject_title }}</strong>.</p>
                     </div>
-                {% endif %}
-                {# --- END CORRECTED LOGIC --- #}
 
-
-                {# --- Display Donation Offer Status Panel for Org Chats --- #}
-                {% if session.is_org_chat and donation_offer %}
-                <div class="sidebar-card">
-                    <h6>Donation Offer Status</h6>
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span>Current Status:</span>
-                            {% set status_color = 'secondary' %}
-                            {% if donation_offer.status == 'Pending Review' %} {% set status_color = 'warning text-dark' %}
-                            {% elif donation_offer.status in ['Awaiting Pickup', 'Accepted', 'Partially Accepted'] %} {% set status_color = 'info' %}
-                            {% elif donation_offer.status == 'Donation Pending' %} {% set status_color = 'primary' %}
-                            {% elif donation_offer.status == 'Completed' %} {% set status_color = 'success' %}
-                            {% elif donation_offer.status in ['Rejected', 'Pickup Failed'] %} {% set status_color = 'danger' %}
+                    {# --- Donation Offer Panel - Check donation_offer safely --- #}
+                    {% if donation_offer and donation_offer.offer_id is defined %} {# Check if it's a valid offer object #}
+                    <div class="sidebar-card">
+                        <h6>Donation Offer Status</h6>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Current Status:</span>
+                                {% set status_color = 'secondary' %}
+                                {% if donation_offer.status == 'Pending Review' %} {% set status_color = 'warning text-dark' %}
+                                {% elif donation_offer.status in ['Awaiting Pickup', 'Accepted', 'Partially Accepted'] %} {% set status_color = 'info' %}
+                                {% elif donation_offer.status == 'Donation Pending' %} {% set status_color = 'primary' %}
+                                {% elif donation_offer.status == 'Completed' %} {% set status_color = 'success' %}
+                                {% elif donation_offer.status in ['Rejected', 'Pickup Failed'] %} {% set status_color = 'danger' %}
+                                {% endif %}
+                                <span class="badge bg-{{ status_color }} rounded-pill">{{ donation_offer.status }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Items Offered:</span>
+                                <strong>{{ donation_offer.offered_items|length if donation_offer.offered_items is defined else 0 }}</strong>
+                            </li>
+                            {% if donation_offer.verified_at %}
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Reviewed On:</span>
+                                <small>{{ (donation_offer.verified_at | localdatetime).strftime('%b %d, %Y') }}</small>
+                            </li>
                             {% endif %}
-                            <span class="badge bg-{{ status_color }} rounded-pill">{{ donation_offer.status }}</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span>Items Offered:</span>
-                            <strong>{{ donation_offer.offered_items|length }}</strong>
-                        </li>
-                        {% if donation_offer.verified_at %}
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span>Reviewed On:</span>
-                            <small>{{ (donation_offer.verified_at | localdatetime).strftime('%b %d, %Y') }}</small>
-                        </li>
-                        {% endif %}
-                        {% if donation_offer.picked_up_at %}
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span>Picked Up On:</span>
-                             <small>{{ (donation_offer.picked_up_at | localdatetime).strftime('%b %d, %Y') }}</small>
-                        </li>
-                        {% endif %}
-                         {% if donation_offer.completed_at %}
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span>Completed On:</span>
-                             <small>{{ (donation_offer.completed_at | localdatetime).strftime('%b %d, %Y') }}</small>
-                        </li>
-                        {% endif %}
-                    </ul>
-                    {# Add a link to view the offer #}
-                    {% if donation_offer %} {# Check if offer exists #}
+                            {% if donation_offer.picked_up_at %}
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Picked Up On:</span>
+                                <small>{{ (donation_offer.picked_up_at | localdatetime).strftime('%b %d, %Y') }}</small>
+                            </li>
+                            {% endif %}
+                            {% if donation_offer.completed_at %}
+                            <li class="list-group-item d-flex justify-content-between px-0">
+                                <span>Completed On:</span>
+                                <small>{{ (donation_offer.completed_at | localdatetime).strftime('%b %d, %Y') }}</small>
+                            </li>
+                            {% endif %}
+                        </ul>
                         <div class="mt-3 d-grid">
-                             {% if current_user.__class__.__name__ == 'Organization' %}
-                                 <a href="{{ url_for('main.review_donation_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
-                                     View Offer Details
-                                 </a>
-                             {% elif current_user.__class__.__name__ == 'User' %}
-                                 <a href="{{ url_for('main.view_my_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
-                                     View Offer Details
-                                 </a>
-                             {% endif %}
+                            {% if current_user.__class__.__name__ == 'Organization' %}
+                                <a href="{{ url_for('main.review_donation_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
+                                    View Offer Details
+                                </a>
+                            {% elif current_user.__class__.__name__ == 'User' %}
+                                <a href="{{ url_for('main.view_my_offer', offer_id=donation_offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
+                                    View Offer Details
+                                </a>
+                            {% endif %}
                         </div>
+                    </div>
                     {% endif %}
-                </div>
                 {% endif %}
-                {# --- END SECTION --- #}
-
-
-                {# --- Existing Deal Panel (Only for User-User Chats) --- #}
-                {% if not session.is_org_chat %}
-                <div class="sidebar-card">
-                    {# Use item type from 'the_item' which handles Trade/Share #}
-                    <h6>{{ the_item.type.capitalize() }} Status</h6>
-                    {% if session.status == 'Active' %}
-                        {# Pass the correct 'other_user' variable #}
-                        {% include 'features/_deal_panel.html' with context %}
-                    {% elif session.status == 'Confirmed' %}
-                        <div class="alert alert-success text-center"><i class="fas fa-check-circle me-2"></i>{% if the_item.type == 'Share' %}Share{% else %}Deal{% endif %} Confirmed!</div>
-                    {% elif session.status == 'Blocked' %}
-                        <div class="alert alert-danger text-center"><i class="fas fa-ban me-2"></i>Chat Blocked</div>
-                    {% endif %}
-                </div>
-                {% endif %}
+                {# --- END CORRECTED SIDEBAR LOGIC --- #}
             </aside>
+
         </div>
 
         <div class="chat-form">
-             {# Allow sending messages only if chat status is Active #}
             {% if session.status == 'Active' %}
             <form method="POST" enctype="multipart/form-data" id="chatForm">
                 {{ form.hidden_tag() }}
@@ -373,7 +369,7 @@
     </div>
 </div>
 
-{# --- Image Lightbox --- #}
+{# Image Lightbox #}
 <div id="imageLightbox" class="lightbox-overlay">
     <div class="lightbox-content-wrapper">
         <img class="lightbox-content" id="lightboxImg">
@@ -381,44 +377,33 @@
         <span class="lightbox-close-btn" title="Close">&times;</span>
     </div>
 </div>
-{# --- End Lightbox --- #}
-
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // --- Tab Switching Logic ---
         const tabs = document.querySelectorAll('.item-preview-tab');
         const contents = document.querySelectorAll('.item-preview-content');
-
         tabs.forEach(tab => {
             tab.addEventListener('click', function() {
-                // Remove active class from all tabs and contents
                 tabs.forEach(t => t.classList.remove('active'));
                 contents.forEach(c => c.classList.remove('active'));
-
-                // Add active class to the clicked tab and corresponding content
                 this.classList.add('active');
                 const targetId = this.getAttribute('data-target');
                 const targetContent = document.getElementById(targetId);
-                if (targetContent) {
-                    targetContent.classList.add('active');
-                }
+                if (targetContent) { targetContent.classList.add('active'); }
             });
         });
 
         // --- Scroll chatbox to bottom ---
         const chatBox = document.getElementById('chatBox');
-        if (chatBox) {
-            chatBox.scrollTop = chatBox.scrollHeight;
-        }
+        if (chatBox) { chatBox.scrollTop = chatBox.scrollHeight; }
 
         // --- Image Preview Handling ---
         const imageUpload = document.getElementById('image-upload');
         const imagePreviewContainer = document.getElementById('image-preview-container');
         const imagePreview = document.getElementById('image-preview');
         const removeImageBtn = document.getElementById('remove-image-btn');
-        const messageInput = document.querySelector('input[name="message"]'); // Get message input
-
+        const messageInput = document.querySelector('input[name="message"]');
         if (imageUpload && imagePreviewContainer && imagePreview && removeImageBtn && messageInput) {
             imageUpload.addEventListener('change', function(event) {
                 const file = event.target.files[0];
@@ -427,19 +412,15 @@
                     reader.onload = function(e) {
                         imagePreview.src = e.target.result;
                         imagePreviewContainer.style.display = 'block';
-                        messageInput.disabled = true; // Disable text input when image is selected
-                        messageInput.placeholder = 'Image selected...';
+                        messageInput.disabled = true; messageInput.placeholder = 'Image selected...';
                     }
                     reader.readAsDataURL(file);
                 }
             });
-
             removeImageBtn.addEventListener('click', function() {
-                imageUpload.value = ''; // Clear the file input
-                imagePreview.src = '#';
+                imageUpload.value = ''; imagePreview.src = '#';
                 imagePreviewContainer.style.display = 'none';
-                messageInput.disabled = false; // Re-enable text input
-                messageInput.placeholder = 'Type a message...';
+                messageInput.disabled = false; messageInput.placeholder = 'Type a message...';
             });
         }
 
@@ -448,33 +429,23 @@
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
         let messageIdToDelete = null;
-
         document.querySelectorAll('.delete-msg-btn').forEach(button => {
             button.addEventListener('click', function() {
                 messageIdToDelete = this.getAttribute('data-message-id');
-                if (deleteModal) {
-                    deleteModal.classList.add('active');
-                }
+                if (deleteModal) { deleteModal.classList.add('active'); }
             });
         });
-
         if (cancelDeleteBtn && deleteModal) {
             cancelDeleteBtn.addEventListener('click', function() {
-                deleteModal.classList.remove('active');
-                messageIdToDelete = null;
+                deleteModal.classList.remove('active'); messageIdToDelete = null;
             });
         }
-
         if (confirmDeleteBtn && deleteModal) {
             confirmDeleteBtn.addEventListener('click', function() {
                 if (messageIdToDelete) {
                     fetch(`/message/${messageIdToDelete}/delete`, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            // Add CSRF token header if needed
-                             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value
-                        },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value },
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -485,34 +456,21 @@
                                 if (msgContentDiv) {
                                      msgContentDiv.innerHTML = `<p class="mb-0 msg-content-deleted"><i class="fas fa-ban me-1"></i>Message deleted</p><div class="msg-meta">${msgContentDiv.querySelector('.msg-meta')?.innerHTML || ''}</div>`;
                                 }
-                                const deleteButtonDiv = msgContainer.querySelector('.msg-actions');
-                                if(deleteButtonDiv) {
-                                    deleteButtonDiv.remove();
-                                }
+                                msgContainer.querySelector('.msg-actions')?.remove();
                             }
-                            deleteModal.classList.remove('active');
-                            messageIdToDelete = null;
-                        } else {
-                            alert('Error deleting message: ' + data.error);
-                            deleteModal.classList.remove('active');
-                            messageIdToDelete = null;
-                        }
+                        } else { alert('Error deleting message: ' + data.error); }
                     })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('An error occurred while deleting the message.');
-                        deleteModal.classList.remove('active');
-                        messageIdToDelete = null;
+                    .catch(error => { console.error('Error:', error); alert('An error occurred.'); })
+                    .finally(() => {
+                        deleteModal.classList.remove('active'); messageIdToDelete = null;
                     });
                 }
             });
         }
-         // Close modal if clicking outside the box
          if (deleteModal) {
             deleteModal.addEventListener('click', function(event) {
-                if (event.target === deleteModal) { // Clicked on the overlay itself
-                    deleteModal.classList.remove('active');
-                    messageIdToDelete = null;
+                if (event.target === deleteModal) {
+                    deleteModal.classList.remove('active'); messageIdToDelete = null;
                 }
             });
         }
@@ -520,35 +478,25 @@
         // --- Image Lightbox Logic ---
         const lightbox = document.getElementById('imageLightbox');
         const lightboxImg = document.getElementById('lightboxImg');
-        const lightboxClose = lightbox.querySelector('.lightbox-close-btn');
+        const lightboxClose = lightbox?.querySelector('.lightbox-close-btn'); // Use optional chaining
         const lightboxDownload = document.getElementById('lightboxDownload');
-
         document.querySelectorAll('.chat-image').forEach(img => {
             img.addEventListener('click', function() {
-                lightboxImg.src = this.src;
-                lightboxDownload.href = this.src; // Set download link
-                 // Try to extract a sensible filename
-                try {
-                    const urlParts = this.src.split('/');
-                    const filename = urlParts[urlParts.length - 1];
-                    lightboxDownload.download = filename; // Suggest original filename
-                } catch (e) { lightboxDownload.download = 'chat-image.jpg'; } // Fallback
-
-                lightbox.classList.add('visible');
+                if (lightbox && lightboxImg && lightboxDownload) { // Check elements exist
+                    lightboxImg.src = this.src;
+                    lightboxDownload.href = this.src;
+                    try {
+                        const urlParts = this.src.split('/');
+                        lightboxDownload.download = urlParts[urlParts.length - 1];
+                    } catch (e) { lightboxDownload.download = 'chat-image.jpg'; }
+                    lightbox.classList.add('visible');
+                }
             });
         });
-
-        lightboxClose.addEventListener('click', () => {
-            lightbox.classList.remove('visible');
-        });
-
-        lightbox.addEventListener('click', (e) => {
-            if (e.target === lightbox) { // Click on background only
-                lightbox.classList.remove('visible');
-            }
-        });
-        // --- End Image Lightbox ---
-
+        if (lightbox && lightboxClose) { // Check elements exist before adding listeners
+            lightboxClose.addEventListener('click', () => { lightbox.classList.remove('visible'); });
+            lightbox.addEventListener('click', (e) => { if (e.target === lightbox) { lightbox.classList.remove('visible'); } });
+        }
     });
 </script>
 
