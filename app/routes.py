@@ -1682,7 +1682,7 @@ def dashboard():
         # Use the sorted list
         all_sorted_sessions = [s_data['session'] for s_data in sessions_with_latest_message]
         regular_chats = [s for s in all_sorted_sessions if s.trade_item_id is not None]
-        disaster_chats = [s for s in all_sorted_sessions if s.disaster_need_id is not None]
+        disaster_chats = [s for s in all_sorted_sessions if s.disaster_need_id is not None or s.donation_offer_id is not None]
         # Unread flags are now based on the direct query result
         has_unread_regular = any(s.session_id in unread_session_ids for s in regular_chats)
         has_unread_disaster = any(s.session_id in unread_session_ids for s in disaster_chats)
