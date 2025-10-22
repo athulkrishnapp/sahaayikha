@@ -1736,7 +1736,7 @@ def dashboard():
         if condition: query = query.filter_by(condition=condition)
         filter_type = request.args.get('filter')
         if filter_type == 'Disaster':
-            disaster_needs = DisasterNeed.query.order_by(DisasterNeed.posted_at.desc()).all()
+            disaster_needs = DisasterNeed.query.filter_by(status='Active').order_by(DisasterNeed.posted_at.desc()).all()
             items = []
         else:
             if filter_type in ["Trade", "Share"]:
@@ -2943,7 +2943,7 @@ def category_items(category_name):
 @role_required("user") # Only users view the feed this way
 def disaster_relief_feed():
     """Shows active disaster needs to users."""
-    needs = DisasterNeed.query.order_by(DisasterNeed.posted_at.desc()).all()
+    needs = DisasterNeed.query.filter_by(status='Active').order_by(DisasterNeed.posted_at.desc()).all()
     return render_template("features/disaster_relief_feed.html", needs=needs)
 
 
@@ -3590,38 +3590,31 @@ def edit_disaster_need(need_id):
 @login_required
 @role_required('org')
 def delete_disaster_need(need_id):
-    """Handles deleting a disaster need."""
-    need = DisasterNeed.query.options(orm.joinedload(DisasterNeed.donation_offers)).get_or_404(need_id) # Eager load offers
-    if need.org_id != current_user.org_id: abort(403)
+    """
+    Handles 'soft deleting' (archiving) a disaster need.
+    This keeps the need in the database for historical offer records
+    but removes it from public view (requires queries to be updated).
+    """
+    # Get the need (no eager load needed, which also fixes the previous crash)
+    need = DisasterNeed.query.get_or_404(need_id) 
+    
+    # Security check
+    if need.org_id != current_user.org_id: 
+        abort(403)
 
-    # Prevent deletion if there are active (non-final state) offers
-    active_offer_statuses = ['Pending Review', 'Awaiting Pickup', 'Accepted', 'Partially Accepted', 'Donation Pending']
-    active_offers = [offer for offer in need.donation_offers if offer.status in active_offer_statuses]
-
-    if active_offers:
-        flash(f'Cannot delete need "{need.title}" because it has {len(active_offers)} active donation offer(s). Please resolve or reject them first.', 'danger')
-        return redirect(url_for('main.org_dashboard', filter='needs'))
-
+    # --- NEW LOGIC: Set status instead of deleting ---
+    # NOTE: This assumes your DisasterNeed model has a 'status' field,
+    # just like your Item, User, and Organization models do.
+    # If not, you must add one: status = db.Column(db.String(50), default='Active')
     try:
-        # If no active offers, proceed with deletion
-        # Delete related chat sessions first? Or rely on cascade/set null? Check foreign key constraints.
-        # ChatSession.query.filter_by(disaster_need_id=need_id).delete() # Example if needed
-
-        # Delete associated offers (which should only be in final states like Completed, Rejected, Pickup Failed)
-        for offer in need.donation_offers:
-            # Delete offered items first (cascade should handle this if set up)
-            OfferedItem.query.filter_by(offer_id=offer.offer_id).delete()
-            db.session.delete(offer)
-
-        # Delete the need itself
-        db.session.delete(need)
+        need.status = 'Deleted' # Or 'Archived'
         db.session.commit()
-        flash(f'Disaster need "{need.title}" and its non-active offers have been deleted.', 'success')
+        flash(f'Disaster need "{need.title}" has been removed from public view.', 'success')
     except Exception as e:
-        current_app.logger.error(f"Error deleting disaster need {need_id}: {e}")
+        current_app.logger.error(f"Error soft-deleting disaster need {need_id}: {e}")
         db.session.rollback()
-        flash("An error occurred while deleting the disaster need.", "danger")
-
+        flash("An error occurred while removing the disaster need.", "danger")
+    
     return redirect(url_for('main.org_dashboard', filter='needs'))
 
 
