@@ -482,7 +482,7 @@
                                                 <img src="{% if session.participant_org and session.participant_org.profile_picture %}{{ url_for('static', filename=session.participant_org.profile_picture) }}{% else %}{{ url_for('static', filename='images/orgs_placeholder.png') }}{% endif %}" alt="{{ session.participant_org.name if session.participant_org else '' }}" class="chat-item-img">
                                                 <div class="chat-item-content">
                                                     <div class="d-flex justify-content-between">
-                                                        <span class="chat-item-title">{{ session.disaster_need.title if session.disaster_need else '[Deleted Need]' }}</span>
+                                                        <span class="chat-item-title">{% if session.donation_offer and session.donation_offer.need %}{{ session.donation_offer.need.title }}{% elif session.disaster_need %}{{ session.disaster_need.title }}{% else %}[Topic Unavailable]{% endif %}</span>
                                                         {% if session.session_id in unread_session_ids %}<span class="badge bg-primary">Unread</span>{% endif %}
                                                     </div>
                                                     <div class="chat-item-user">Chat with {{ session.participant_org.name if session.participant_org else '[Deleted Org]'}}</div>
