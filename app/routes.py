@@ -3951,14 +3951,6 @@ def delete_chat_session(session_id):
     if not is_participant: abort(403)
 
     try:
-        # ---> ADD THIS BLOCK TO DELETE DealProposal FIRST <---
-        # Find the associated DealProposal using the relationship or a direct query
-        deal = DealProposal.query.filter_by(chat_session_id=session.session_id).first()
-        if deal:
-            current_app.logger.info(f"Deleting associated DealProposal (ID: {deal.id}) for ChatSession {session_id}")
-            db.session.delete(deal)
-        # ---> END ADDITION <---
-
         # Now delete the chat session (cascade should handle ChatMessages)
         current_app.logger.info(f"Deleting ChatSession {session_id}")
         db.session.delete(session)

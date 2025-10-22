@@ -113,7 +113,6 @@
             {# --- END MOVED PROOF CARD --- #}
 
             {# -- Section Title: Items Offered -- #}
-            {# Conditionally hide title if only proof is shown and no items? (Optional) #}
             <h4 class="mb-3">Item Details</h4>
 
             {# -- Display Items or Form -- #}
@@ -199,7 +198,7 @@
                     </div>
                     {% endfor %}
                 </div>
-                 {# Add Chat Button for non-pending/non-completed states #}
+                 {# Add Chat Button for non-pending/non-completed states - NOW EXCLUDES COMPLETED #}
                  {% if offer.status != 'Pending Review' and offer.status != 'Completed' %}
                     <div class="d-grid gap-2 mt-4">
                        <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-outline-info"><i class="fas fa-comments me-1"></i> Chat with User</a>
@@ -246,9 +245,16 @@
                          {% endif %}
 
                     </ul>
-                    {# Back Button #}
-                    <div class="d-grid mt-4">
+                    {# Action Buttons Area #}
+                    <div class="d-grid gap-2 mt-4">
+                         {# Back Button #}
                          <a href="{{ url_for('main.org_dashboard', filter=request.args.get('ref_filter', 'incoming')) }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Back to Dashboard</a>
+
+                         {# --- ADD CHAT BUTTON FOR COMPLETED STATE --- #}
+                         {% if offer.status == 'Completed' %}
+                            <a href="{{ url_for('main.start_org_chat', offer_id=offer.offer_id) }}" class="btn btn-outline-info"><i class="fas fa-comments me-1"></i> Chat with User</a>
+                         {% endif %}
+                         {# --- END ADDITION --- #}
                     </div>
                 </div>
             </div>

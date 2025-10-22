@@ -6,7 +6,6 @@ from flask_login import UserMixin
 from app import db
 from itsdangerous import URLSafeTimedSerializer as Serializer
 from flask import current_app
-from sqlalchemy import and_, or_ # <-- Added or_
 # --- CORRECTED IMPORT ---
 from sqlalchemy.orm import foreign, reconstructor
 from sqlalchemy import and_, or_, CheckConstraint # Import CheckConstraint here
@@ -159,7 +158,7 @@ class Item(db.Model):
     condition = db.Column(db.String(50))
     urgency_level = db.Column(db.String(50))
     expected_return_category = db.Column(db.String(255), nullable=True) # Category or 'Money' for Trade type
-    expected_return_sub_category = db.Column(db.String(255), nullable=True)    
+    expected_return_sub_category = db.Column(db.String(255), nullable=True)
     location = db.Column(db.String(255), index=True)
     status = db.Column(db.String(50), default="Active", index=True) # Active, Traded, Deleted, etc.
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
@@ -171,14 +170,13 @@ class Item(db.Model):
     histories = db.relationship("ItemHistory", backref="item", lazy="dynamic", cascade="all, delete-orphan")
     bookmarks = db.relationship("Bookmark", backref="item", lazy="dynamic", cascade="all, delete-orphan")
     reports = db.relationship("Report", backref="item", lazy="dynamic") # Keep reports even if item deleted? Check cascade
-    # **** UPDATED LINE ****
     images = db.relationship("ItemImage", backref="item", lazy="select", cascade="all, delete-orphan")
-    # **** END UPDATE ****
     notifications = db.relationship("Notification", backref="item", lazy="dynamic") # Notifications related to this item
     # Trade requests where this item is offered
     trade_requests_offered = db.relationship('TradeRequest', foreign_keys='TradeRequest.item_offered_id', backref='offered_item', lazy='dynamic')
     # Trade requests where this item is requested
     trade_requests_received = db.relationship('TradeRequest', foreign_keys='TradeRequest.item_requested_id', backref='requested_item', lazy='dynamic')
+    # Relationship to ChatSession linked via trade_item_id
     chat_sessions = db.relationship("ChatSession", back_populates="trade_item", foreign_keys="ChatSession.trade_item_id")
 
 
@@ -195,23 +193,23 @@ class TradeRequest(db.Model):
     # relationships defined via backref
 
 
-# Inside app/models.py
-
 class DealProposal(db.Model):
     __tablename__ = "deal_proposals"
     id = db.Column(db.Integer, primary_key=True)
-    # This column remains nullable=False
     chat_session_id = db.Column(db.Integer, db.ForeignKey("chat_sessions.session_id"), nullable=False, unique=True, index=True)
 
-    # Status reflects each participant's decision
     proposer_status = db.Column(db.String(50), default='pending', nullable=False) # pending, confirmed, rejected
     owner_status = db.Column(db.String(50), default='pending', nullable=False) # pending, confirmed, rejected
 
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Relationship defined with backref (no cascade needed for this fix option)
-    session = db.relationship("ChatSession", backref=db.backref("deal_proposal", uselist=False))
-    
+    # Relationship with cascade rule
+    session = db.relationship("ChatSession", backref=db.backref(
+        "deal_proposal",
+        uselist=False,
+        cascade="all, delete-orphan" # Correctly added cascade
+    ))
+
 
 # ---------- ITEM IMAGES ----------
 class ItemImage(db.Model):
@@ -246,8 +244,11 @@ class DisasterNeed(db.Model):
     posted_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     # organization relationship defined via backref
-    donation_offers = db.relationship("DonationOffer", backref="need", lazy="dynamic") # Offers made for this need
+    # Relationship to DonationOffer
+    donation_offers = db.relationship("DonationOffer", backref="need", lazy="dynamic")
+    # Relationship to ChatSession linked via disaster_need_id
     chat_sessions = db.relationship("ChatSession", back_populates="disaster_need", foreign_keys="ChatSession.disaster_need_id")
+    # ** Removed the incorrectly placed donation_offer relationship block **
 
 
 # ---------- DISASTER DONATIONS ----------
@@ -265,8 +266,17 @@ class DonationOffer(db.Model):
     pickup_retries = db.Column(db.Integer, default=0)
     proof_image_url = db.Column(db.String(255), nullable=True)
 
-    # relationships defined via backref
-    offered_items = db.relationship('OfferedItem', backref='offer', cascade="all, delete-orphan") # lazy='dynamic' removed
+    # relationships defined via backref (user, organization, need)
+    offered_items = db.relationship('OfferedItem', backref='offer', cascade="all, delete-orphan")
+
+    # ** Correctly added relationship TO ChatSession with passive_deletes **
+    chat_session = db.relationship(
+    'ChatSession',
+    back_populates='donation_offer',
+    uselist=False,
+    foreign_keys='ChatSession.donation_offer_id', # Reference the FK on ChatSession
+    passive_deletes=True
+    )
 
 class OfferedItem(db.Model):
     __tablename__ = 'offered_items'
@@ -284,7 +294,6 @@ class OfferedItem(db.Model):
     # offer relationship defined via backref
 
 
-
 # ---------- CHAT (MODIFIED) ----------
 class ChatSession(db.Model):
     __tablename__ = "chat_sessions"
@@ -293,9 +302,9 @@ class ChatSession(db.Model):
     # Subject of the chat (Only ONE should be non-NULL)
     trade_item_id = db.Column(db.Integer, db.ForeignKey("items.item_id"), nullable=True, index=True)
     disaster_need_id = db.Column(db.Integer, db.ForeignKey("disaster_needs.need_id"), nullable=True, index=True) # Kept for older chats
-    
-    # --- THIS IS THE CORRECTED ForeignKey ---
-    donation_offer_id = db.Column(db.Integer, db.ForeignKey('donation_offers.offer_id'), nullable=True, unique=True, index=True) # Link to specific offer
+
+    # ** Corrected ForeignKey definition with ondelete **
+    donation_offer_id = db.Column(db.Integer, db.ForeignKey('donation_offers.offer_id', ondelete='SET NULL'), nullable=True, unique=True, index=True)
 
     # Participants (Renamed for clarity)
     user_one_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=False, index=True) # Always the User in User-Org chats
@@ -315,12 +324,13 @@ class ChatSession(db.Model):
     # Relationships to subject using back_populates
     trade_item = db.relationship("Item", back_populates="chat_sessions", foreign_keys=[trade_item_id])
     disaster_need = db.relationship("DisasterNeed", back_populates="chat_sessions", foreign_keys=[disaster_need_id])
+
+    # ** Corrected relationship definition with back_populates and correct foreign_keys string **
     donation_offer = db.relationship(
-        'DonationOffer',
-        # --- Adjusted primaryjoin to use correct table name ---
-        primaryjoin='ChatSession.donation_offer_id == foreign(DonationOffer.offer_id)', # Explicit join using foreign()
-        foreign_keys=[donation_offer_id],
-        backref=db.backref('chat_session', uselist=False)
+    'DonationOffer',
+    # Let SQLAlchemy infer join from ForeignKey and back_populates
+    foreign_keys=[donation_offer_id], # Refer to the column object on this model
+    back_populates='chat_session'
     )
 
     # Constraints (Ensure CheckConstraint is imported: from sqlalchemy import CheckConstraint)
@@ -361,8 +371,6 @@ class ChatSession(db.Model):
         if self.disaster_need_id: return self.disaster_need
         return None
 
-# Add back_populates to DisasterNeed *after* ChatSession is defined
-DisasterNeed.chat_sessions = db.relationship("ChatSession", back_populates="disaster_need", foreign_keys="ChatSession.disaster_need_id")
 
 class ChatMessage(db.Model):
     __tablename__ = "chat_messages"
@@ -376,8 +384,6 @@ class ChatMessage(db.Model):
     is_read = db.Column(db.Boolean, default=False, nullable=True, index=True) # Default False is safer.
     deleted_at = db.Column(db.DateTime, nullable=True) # Timestamp for soft delete
     # session relationship defined via backref
-
-
 
 
 # ---------- FEEDBACK ----------
@@ -424,10 +430,7 @@ class Bookmark(db.Model):
         db.UniqueConstraint('user_id', 'item_id', name='uq_user_item_bookmark'),
         db.UniqueConstraint('org_id', 'item_id', name='uq_org_item_bookmark'),
     )
-    # *** END MODIFICATION ***
-
     # Relationships defined via backref in User/Organization
-    #item = db.relationship("Item", backref="all_bookmarks")
 
 
 # ---------- CATEGORY FOLLOW ----------
