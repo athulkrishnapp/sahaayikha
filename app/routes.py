@@ -90,6 +90,17 @@ def load_user(user_id):
         return Organization.query.get(id_val)
     return None
 
+
+@main.after_request
+def add_header(response):
+    """
+    Add headers to prevent caching of dynamic pages.
+    """
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
 # --- Merged Context Processors ---
 @main.context_processor
 def inject_globals():
@@ -1485,6 +1496,7 @@ def org_dashboard():
             description=form.description.data.strip(),
             location=form.location.data,
             org_id=org.org_id
+            # The status defaults to 'Active' thanks to the model fix
         )
         db.session.add(new_need)
         db.session.commit()
@@ -1561,7 +1573,8 @@ def org_dashboard():
 
     # Fetch other data based on the selected filter
     if current_filter == 'needs':
-        my_needs = DisasterNeed.query.filter_by(org_id=org.org_id).order_by(DisasterNeed.posted_at.desc()).all()
+        # --- *** THIS IS THE CORRECTION *** ---
+        my_needs = DisasterNeed.query.filter_by(org_id=org.org_id, status='Active').order_by(DisasterNeed.posted_at.desc()).all()
     elif current_filter in ['incoming', 'pickup', 'pending_donation', 'completed']:
         offer_query = DonationOffer.query.filter_by(org_id=org.org_id)
         offer_query = offer_query.options(
@@ -1579,7 +1592,8 @@ def org_dashboard():
         offers = offer_query.order_by(DonationOffer.created_at.desc()).all()
     elif current_filter != 'chats': # Handle default or unknown filters (excluding 'chats' handled above)
         current_filter = 'needs' # Ensure filter reflects the default view
-        my_needs = DisasterNeed.query.filter_by(org_id=org.org_id).order_by(DisasterNeed.posted_at.desc()).all()
+        # --- *** THIS IS THE SECOND CORRECTION *** ---
+        my_needs = DisasterNeed.query.filter_by(org_id=org.org_id, status='Active').order_by(DisasterNeed.posted_at.desc()).all()
 
 
     # --- Render the template ---
@@ -3811,18 +3825,20 @@ def notifications():
         status=status_filter
     ).order_by(Notification.sent_at.desc()).all()
 
-    # --- Mark Unread as Read ---
-    # Only mark as read if viewing the 'unread' tab and there are notifications
+    # --- *** THIS IS THE CORRECTED BLOCK *** ---
+    # Mark Unread as Read
+    # This logic now directly updates the objects, which is more reliable.
     if current_filter == 'unread' and user_notifications:
-        ids_to_mark = [n.notification_id for n in user_notifications] # Already filtered to Unread
         try:
-            Notification.query.filter(Notification.notification_id.in_(ids_to_mark))\
-                           .update({Notification.status: 'Read'}, synchronize_session=False)
+            # Iterate through the objects and update their status
+            for n in user_notifications:
+                n.status = 'Read'
+            # Commit the changes to the session
             db.session.commit()
-            # Optionally update unread_count here if needed immediately, though context processor handles next load
         except Exception as e:
             current_app.logger.error(f"Error marking notifications as read for user {current_user.user_id}: {e}")
             db.session.rollback()
+    # --- *** END OF CORRECTION *** ---
 
 
     return render_template("features/notifications.html", notifications=user_notifications, current_filter=current_filter)

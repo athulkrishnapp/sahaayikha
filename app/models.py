@@ -238,11 +238,12 @@ class DisasterNeed(db.Model):
     need_id = db.Column(db.Integer, primary_key=True)
     org_id = db.Column(db.Integer, db.ForeignKey("organizations.org_id"), nullable=False, index=True)
     title = db.Column(db.String(255), nullable=True)
-    categories = db.Column(db.Text, nullable=True) # Comma-separated string
+    categories = db.Column(db.Text, nullable=True) 
     description = db.Column(db.Text, nullable=False)
     location = db.Column(db.String(255), index=True)
     posted_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
+    # --- ADD THIS LINE ---
+    status = db.Column(db.String(50), default="Active", index=True)
     # organization relationship defined via backref
     # Relationship to DonationOffer
     donation_offers = db.relationship("DonationOffer", backref="need", lazy="dynamic")
