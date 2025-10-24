@@ -280,17 +280,19 @@
                  {% if session %}
                     <form action="{{ url_for('main.propose_deal', session_id=session.session_id) }}" method="POST" class="w-100">
                         <div class="btn-group w-100" role="group">
-                            {# Apply active, disabled classes based on my_status #}
+                            {# --- *** MODIFICATION: Removed 'disabled' attributes to allow changing decision *** --- #}
+                            {# The buttons will still appear 'active' but will be clickable to change the decision #}
                             <button type="submit" name="decision" value="confirmed"
-                                    class="btn btn-outline-success {% if my_status == 'confirmed' %}active disabled{% endif %}"
-                                    {% if my_status in ['confirmed', 'rejected'] %}disabled{% endif %}> {# Disable if already chosen #}
+                                    class="btn btn-outline-success {% if my_status == 'confirmed' %}active{% endif %}"
+                                    {# Removed: {% if my_status in ['confirmed', 'rejected'] %}disabled{% endif %} #}>
                                 <i class="fas fa-check"></i> Confirm
                             </button>
                             <button type="submit" name="decision" value="rejected"
-                                    class="btn btn-outline-danger {% if my_status == 'rejected' %}active disabled{% endif %}"
-                                    {% if my_status in ['confirmed', 'rejected'] %}disabled{% endif %}> {# Disable if already chosen #}
+                                    class="btn btn-outline-danger {% if my_status == 'rejected' %}active{% endif %}"
+                                    {# Removed: {% if my_status in ['confirmed', 'rejected'] %}disabled{% endif %} #}>
                                 <i class="fas fa-times"></i> Reject
                             </button>
+                            {# --- *** END MODIFICATION *** --- #}
                         </div>
                     </form>
                  {% endif %} {# End if session exists #}

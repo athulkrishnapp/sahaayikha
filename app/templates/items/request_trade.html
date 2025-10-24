@@ -109,17 +109,26 @@
                         <span class="badge text-bg-secondary me-1">{{ item_to_get.category }}{% if item_to_get.sub_category %} - {{ item_to_get.sub_category }}{% endif %}</span>
                         <span class="badge text-bg-light border text-dark-emphasis">{{ item_to_get.condition }}</span>
                     </p>
+                    
+                    {# --- *** MODIFIED EXPECTED RETURN DISPLAY *** --- #}
+                    {# Only show this block if a valid category (not 'None') is set #}
+                    {% if item_to_get.expected_return_category and item_to_get.expected_return_category != 'None' %}
                     <p class="card-text">
                         <small class="text-muted">Owner is looking for:</small><br>
                         <strong class="text-primary">
                              {{ item_to_get.expected_return_category }}
-                            {% if item_to_get.expected_return_sub_category %}
+                             {# Also hide the sub-category if it's just 'Any Sub-Category' #}
+                            {% if item_to_get.expected_return_sub_category and item_to_get.expected_return_sub_category != 'Any Sub-Category' %}
                                 ({{ item_to_get.expected_return_sub_category }})
-                            {% elif item_to_get.expected_return_category != 'Money' %}
+                            {# Show '(Any Sub-Category)' only if category is NOT Money and sub-category is missing/default #}
+                            {% elif item_to_get.expected_return_category != 'Money' and (not item_to_get.expected_return_sub_category or item_to_get.expected_return_sub_category == 'Any Sub-Category') %}
                                 (Any Sub-Category)
                             {% endif %}
                         </strong>
                     </p>
+                    {% endif %}
+                    {# --- *** END MODIFICATION *** --- #}
+                    
                      <p class="card-text mt-2"><small class="text-muted">Posted by {{ item_to_get.owner.first_name }} in {{ item_to_get.location }}</small></p>
                 </div>
             </div>
