@@ -903,9 +903,73 @@ def logout():
 def public_org_profile(org_id):
     """Displays the public profile page for an organization."""
     organization = Organization.query.get_or_404(org_id)
-    # Fetch active disaster needs posted by this organization
-    needs = DisasterNeed.query.filter_by(org_id=organization.org_id).order_by(DisasterNeed.posted_at.desc()).all()
-    return render_template("public_org_profile.html", organization=organization, needs=needs)
+
+    # --- CORRECTED QUERY START ---
+
+    # 1. Fetch ALL needs posted by this organization, including deleted ones
+    # REMOVED eager loading of donation_offers as it caused an error
+    all_needs_query = DisasterNeed.query.filter( # <-- REMOVED .options(...)
+        DisasterNeed.org_id == organization.org_id
+    ).order_by(
+        # Optional: Sort by status first (Active before Deleted), then by date
+        db.case((DisasterNeed.status == 'Active', 0), else_=1),
+        DisasterNeed.posted_at.desc()
+    )
+    all_needs_objects = all_needs_query.all()
+
+    # 2. Prepare needs data with counts (no model changes)
+    needs_with_counts = []
+    for need in all_needs_objects:
+        # Count offers received for this specific need
+        offers_received_count = db.session.query(func.count(DonationOffer.offer_id)).filter(
+            DonationOffer.need_id == need.need_id
+        ).scalar()
+
+        # Count completed donations for this specific need
+        completed_donations_count = db.session.query(func.count(DonationOffer.offer_id)).filter(
+            DonationOffer.need_id == need.need_id,
+            DonationOffer.status == 'Completed'
+        ).scalar()
+
+        needs_with_counts.append({
+            'need': need, # The original need object
+            'offers_received': offers_received_count,
+            'donations_completed': completed_donations_count
+        })
+
+    # 3. Calculate overall statistics (unchanged from previous version)
+    completed_donations_total = db.session.query(func.count(DonationOffer.offer_id)).filter(
+        DonationOffer.org_id == org_id,
+        DonationOffer.status == 'Completed'
+    ).scalar()
+
+    pending_offers_total = db.session.query(func.count(DonationOffer.offer_id)).filter(
+        DonationOffer.org_id == org_id,
+        DonationOffer.status == 'Pending Review'
+    ).scalar()
+
+    in_progress_offers_total = db.session.query(func.count(DonationOffer.offer_id)).filter(
+        DonationOffer.org_id == org_id,
+        DonationOffer.status.in_(['Awaiting Pickup', 'Donation Pending'])
+    ).scalar()
+
+    # 4. Bundle overall stats into a dictionary
+    stats = {
+        'total_needs': len(all_needs_objects),
+        'active_needs': len([n for n in all_needs_objects if n.status == 'Active']),
+        'completed_donations': completed_donations_total,
+        'pending_offers': pending_offers_total,
+        'in_progress_offers': in_progress_offers_total
+    }
+
+    # 5. Pass needs_with_counts and stats to the template
+    return render_template(
+        "public_org_profile.html",
+        organization=organization,
+        needs_data=needs_with_counts,  # <-- Pass the list of dictionaries
+        stats=stats
+    )
+    # --- CORRECTED QUERY END ---
 
 
 @main.route('/user/<int:user_id>')
@@ -1658,7 +1722,7 @@ def dashboard():
             ChatMessage.is_read == False,
             not_(and_(ChatMessage.sender_id == current_user.user_id, ChatMessage.sender_type == 'user'))
         ).options(orm.load_only(ChatMessage.session_id)) # Optimize query
-        
+
         unread_session_ids = {msg.session_id for msg in unread_messages_query.all()}
         has_unread_chats = len(unread_session_ids) > 0
 
@@ -1803,6 +1867,15 @@ def dashboard():
             items_json = json.dumps(items_for_map)
 
 
+    # --- ADDED: Query for local organizations ---
+    local_organizations = []
+    if current_user.location:
+        local_organizations = Organization.query.filter_by(
+            location=current_user.location,
+            status='Approved' # Only show approved orgs
+        ).order_by(Organization.name).all()
+    # --- END ADDED ---
+
     return render_template(
         "dashboard/user_dashboard.html",
         items=items,
@@ -1819,9 +1892,10 @@ def dashboard():
         items_json=items_json,
         map_center_coords=map_center_coords,
         map_radius_km=map_radius_km,
-        all_locations_coords=json.dumps(GEOCODE_DATA),
+        all_locations_coords=json.dumps(GEOCODE_DATA), #
         current_location_filter=current_location_filter,
-        active_search_term=active_search_term
+        active_search_term=active_search_term,
+        local_organizations=local_organizations # <-- ADD THIS
     )
 
 # =========================
