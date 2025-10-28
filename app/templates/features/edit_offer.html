@@ -166,7 +166,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Load existing data passed from Flask ---
-    const existingData = {{ form.offered_items.data|tojson|safe }};
+    {% if request.method == 'GET' %}
+      // Only serialize the initial data on the GET request
+      const existingData = {{ form.offered_items.data|tojson|safe }};
+    {% else %}
+      // On POST validation failure, WTForms populates the rendered fields.
+      // Initialize existingData as empty for JS logic if needed,
+      // or adjust JS not to rely on it after a POST failure.
+      const existingData = [];
+    {% endif %}
 
     // Populate forms for existing items
     if (existingData && existingData.length > 0) {

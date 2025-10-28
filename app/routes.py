@@ -42,7 +42,7 @@ from app.forms import (
     ItemForm, FeedbackForm, ReportForm, OrganizationReportForm,
     CategoryFollowForm, DisasterNeedForm, DonationOfferForm, ChatForm, # <<< CORRECTED THIS LINE
     SearchForm, OtpForm, ForgotPasswordForm, ResetPasswordForm,
-    ProfileForm, OfferedItemForm,
+    ProfileForm, OfferedItemForm, OrganizationReportForm,
     CATEGORIES, SUB_CATEGORIES
 )
 
@@ -3114,55 +3114,51 @@ def disaster_relief_feed():
 @role_required("user") # Only users make offers
 def make_donation_offer(need_id):
     """Handles users submitting a donation offer for a disaster need."""
-    need = DisasterNeed.query.get_or_404(need_id)
+    need = DisasterNeed.query.options(orm.joinedload(DisasterNeed.organization)).get_or_404(need_id) # Load org too
     form = DonationOfferForm()
 
-    # --- *** THIS IS THE FIX *** ---
-    # Get the specific item form from the field list (assuming JS adds at least one)
-    # This logic applies *before* validation for GET and *during* validation for POST
-    # We must set choices *before* validation is run on POST.
-    # A better way might be to set this in the form's __init__ if we passed the need,
-    # but for this route, we can set it dynamically.
-
-    # Get categories from the specific DisasterNeed
+    # --- Prepare Category Choices ---
+    category_choices = []
     if need.categories:
-        # Split the comma-separated string of categories into a list
         org_categories_list = [cat.strip() for cat in need.categories.split(',') if cat.strip()]
-        # Create the (value, label) tuples for the form
         category_choices = [(cat, cat) for cat in org_categories_list]
-    else:
-        # Provide an empty list as a fallback if the need has no categories
-        category_choices = []
 
-    # Apply these choices to *all* item forms in the FieldList
-    for item_form in form.offered_items.entries:
-        item_form.category.choices = category_choices
-    # --- *** END OF FIX *** ---
+    # Apply these choices to *all* item forms in the FieldList before validation
+    for item_form_entry in form.offered_items.entries:
+        item_form_entry.form.category.choices = category_choices
+    # --- End Prepare Category Choices ---
 
 
     if form.validate_on_submit():
-        # --- Custom Validation for Critical Items ---
+        # --- *** START: Custom Validation for Critical Items *** ---
         critical_categories = ['Medicines', 'Food & Snacks', 'Baby Products', 'Health & Wellness']
         is_custom_valid = True
+        today = date.today() # Get today's date once
+
         for i, item_data in enumerate(form.offered_items.data):
+            # Check if the item belongs to a critical category
             if item_data['category'] in critical_categories:
-                # Check expiry date logic (e.g., must be in the future)
-                if not item_data['expiry_date']:
-                     flash(f"Error in Item #{i+1} ('{item_data['title']}'): Expiry date is required for the '{item_data['category']}' category.", 'danger')
+                expiry_date_obj = item_data.get('expiry_date') # This will be a date object or None
+
+                # 1. Check if expiry date is provided
+                if not expiry_date_obj:
+                     flash(f"❗️ Error in Item #{i+1} ('{item_data.get('title', 'Untitled')}'): Expiry date is required for the '{item_data['category']}' category.", 'danger')
                      is_custom_valid = False
-                elif item_data['expiry_date'] < date.today():
-                     flash(f"Error in Item #{i+1} ('{item_data['title']}'): Expiry date cannot be in the past.", 'danger')
+                # 2. Check if expiry date is in the past (only if it's a valid date object)
+                elif isinstance(expiry_date_obj, date) and expiry_date_obj < today:
+                     flash(f"❗️ Error in Item #{i+1} ('{item_data.get('title', 'Untitled')}'): Expiry date ({expiry_date_obj.strftime('%Y-%m-%d')}) cannot be in the past for '{item_data['category']}'.", 'danger')
                      is_custom_valid = False
                 # Manufacture date optional unless specific logic requires it
 
         if not is_custom_valid:
             # Re-render form with errors if custom validation fails
             # We must re-apply choices on failure
-            for item_form in form.offered_items.entries:
-                item_form.category.choices = category_choices
+            for item_form_entry in form.offered_items.entries:
+                item_form_entry.form.category.choices = category_choices
             return render_template("features/make_offer.html", form=form, need=need)
-        # --- End Custom Validation ---
+        # --- *** END: Custom Validation *** ---
 
+        # --- Proceed with saving if validation passed ---
         # Create the main offer record
         new_offer = DonationOffer(
             user_id=current_user.user_id,
@@ -3175,20 +3171,25 @@ def make_donation_offer(need_id):
 
         # Process each offered item
         items_to_add = []
-        for item_form_data in form.offered_items.data:
+        for i, item_form_data in enumerate(form.offered_items.data): # Use index i
             image_relative_path = None
-            if item_form_data['image']:
+            # --- Handle image upload ---
+            image_field_name = f'offered_items-{i}-image' # Construct field name
+            image_file = request.files.get(image_field_name) if image_field_name in request.files else None
+
+            if image_file and image_file.filename != '':
                 try:
-                    file = item_form_data['image']
                     # Use offer_id and item title for a more unique filename
                     filename_base = secure_filename(f"offer_{new_offer.offer_id}_{item_form_data['title'][:20]}")
-                    filename = f"{filename_base}_{datetime.utcnow().timestamp()}{os.path.splitext(file.filename)[1]}"
-                    filepath = os.path.join(CHAT_UPLOAD_FOLDER, filename) # Using CHAT_UPLOAD for donation images too
-                    file.save(filepath)
+                    filename = f"{filename_base}_{datetime.utcnow().timestamp()}{os.path.splitext(image_file.filename)[1]}"
+                    # Ensure CHAT_UPLOAD_FOLDER is defined globally or imported
+                    filepath = os.path.join(CHAT_UPLOAD_FOLDER, filename)
+                    image_file.save(filepath)
                     image_relative_path = f"images/chat_uploads/{filename}"
                 except Exception as e:
                     current_app.logger.error(f"Failed saving image for offered item '{item_form_data['title']}': {e}")
                     flash(f"Could not save image for item: {item_form_data['title']}", "warning")
+            # --- End image upload ---
 
             offered_item = OfferedItem(
                 offer_id=new_offer.offer_id, # Link using ID
@@ -3199,7 +3200,7 @@ def make_donation_offer(need_id):
                 condition=item_form_data['condition'],
                 image_url=image_relative_path,
                 manufacture_date=item_form_data['manufacture_date'],
-                expiry_date=item_form_data['expiry_date'],
+                expiry_date=item_form_data['expiry_date'], # Save the date object
                 status='Pending' # Initial status for item
             )
             items_to_add.append(offered_item)
@@ -3208,26 +3209,39 @@ def make_donation_offer(need_id):
             db.session.add_all(items_to_add)
 
         db.session.commit()
-        flash('Your donation offer has been successfully sent for review!', 'success')
-        # TODO: Notify organization about the new offer
+        flash('✅ Your donation offer has been successfully sent for review!', 'success')
+
+        # --- Notify organization about the new offer (Example) ---
+        try:
+            org_to_notify = need.organization # Org loaded via joinedload
+            if org_to_notify: # Add notification (check if Orgs have notifications in your model)
+                 # You might need an OrganizationNotification model or similar
+                 # Example:
+                 # org_notification = OrganizationNotification(org_id=org_to_notify.org_id, message=f"New donation offer received from {current_user.first_name} for need '{need.title}'.")
+                 # db.session.add(org_notification)
+                 # db.session.commit()
+
+                 # Send push notification if orgs have FCM tokens
+                 # if org_to_notify.fcm_token:
+                 #    send_push_notification(...)
+                 pass # Placeholder for org notification logic
+            current_app.logger.info(f"Generated notification placeholder for Org {org_to_notify.org_id if org_to_notify else 'N/A'}")
+        except Exception as e:
+            current_app.logger.error(f"Failed to generate notification for organization regarding offer {new_offer.offer_id}: {e}")
+            # Don't rollback here, the offer is already saved.
+        # --- End Notify Organization ---
+
         return redirect(url_for('main.dashboard', view='donations')) # Redirect to "My Donations" view
 
     elif request.method == 'POST': # Handle WTForms validation errors on POST
-        # We must re-apply choices if validation fails
-        for item_form in form.offered_items.entries:
-            item_form.category.choices = category_choices
+        # Re-apply choices if WTForms validation fails, before rendering
+        for item_form_entry in form.offered_items.entries:
+            item_form_entry.form.category.choices = category_choices
 
-        for field, errors in form.errors.items():
-             if field == 'offered_items': # Handle FieldList errors
-                 for i, item_errors in enumerate(errors):
-                     if item_errors:
-                         flash(f"Error in Item #{i+1}:", 'danger')
-                         for item_field, item_messages in item_errors.items():
-                             flash(f"- {item_field.replace('_', ' ').title()}: {', '.join(item_messages)}", 'danger')
-             else: # Handle top-level form errors
-                 flash(f"Error in {getattr(form, field).label.text}: {', '.join(errors)}", "danger")
+        flash("❗️ Please correct the errors below.", "danger") # General error message
+        # WTForms errors are usually displayed next to the fields by the template
 
-
+    # Render for GET request or if POST validation failed
     return render_template("features/make_offer.html", form=form, need=need)
 
 
@@ -3236,7 +3250,10 @@ def make_donation_offer(need_id):
 @role_required("user")
 def edit_donation_offer(offer_id):
     """Handles editing a pending donation offer more efficiently."""
-    offer = DonationOffer.query.options(orm.joinedload(DonationOffer.offered_items)).get_or_404(offer_id)
+    offer = DonationOffer.query.options(
+        orm.joinedload(DonationOffer.offered_items),
+        orm.joinedload(DonationOffer.need) # Eager load the associated need
+    ).get_or_404(offer_id)
 
     # Security & Status Check
     if offer.user_id != current_user.user_id: abort(403)
@@ -3244,21 +3261,28 @@ def edit_donation_offer(offer_id):
         flash('This offer cannot be edited as it has already been reviewed or actioned.', 'warning')
         return redirect(url_for('main.view_my_offer', offer_id=offer_id))
 
-    # Define inline forms to include the existing item ID for processing updates
+    # --- Prepare Category Choices ---
+    category_choices = []
+    need = offer.need
+    if need and need.categories:
+        org_categories_list = [cat.strip() for cat in need.categories.split(',') if cat.strip()]
+        category_choices = [(cat, cat) for cat in org_categories_list]
+    # --- End Prepare Category Choices ---
+
+    # Define inline forms
     class EditOfferedItemForm(OfferedItemForm):
         offered_item_id = IntegerField('Existing ID', validators=[Optional()])
 
     class EditDonationOfferForm(DonationOfferForm):
         offered_items = FieldList(FormField(EditOfferedItemForm), min_entries=0)
 
-
-    # Populate form based on request method
+    # Populate form
     if request.method == 'GET':
         prepared_data = {'offered_items': []}
         for item in offer.offered_items:
             item_dict = {k: v for k, v in item.__dict__.items() if not k.startswith('_')}
             item_dict['offered_item_id'] = item.offered_item_id
-            item_dict['image_url'] = item.image_url # Used by template JS
+            item_dict['image_url'] = item.image_url
             if isinstance(item_dict.get('manufacture_date'), date):
                 item_dict['manufacture_date'] = item_dict['manufacture_date'].isoformat()
             if isinstance(item_dict.get('expiry_date'), date):
@@ -3268,85 +3292,90 @@ def edit_donation_offer(offer_id):
     else: # POST
         form = EditDonationOfferForm()
 
+    # Apply category choices AFTER form initialization
+    for item_form_entry in form.offered_items.entries:
+        item_form_entry.form.category.choices = category_choices
 
     if form.validate_on_submit():
-        # --- Custom Validation for Critical Items ---
+        # --- *** START: Custom Validation for Critical Items *** ---
         critical_categories = ['Medicines', 'Food & Snacks', 'Baby Products', 'Health & Wellness']
         is_custom_valid = True
+        today = date.today() # Get today's date once
+
         for i, item_data in enumerate(form.offered_items.data):
+             # Check if the item belongs to a critical category
              if item_data['category'] in critical_categories:
-                if not item_data['expiry_date']:
-                     flash(f"Error in Item #{i+1} ('{item_data['title']}'): Expiry date is required for the '{item_data['category']}' category.", 'danger')
+                expiry_date_obj = item_data.get('expiry_date') # Date object or None
+
+                # 1. Check if expiry date is provided
+                if not expiry_date_obj:
+                     flash(f"❗️ Error in Item #{i+1} ('{item_data.get('title', 'Untitled')}'): Expiry date is required for the '{item_data['category']}' category.", 'danger')
                      is_custom_valid = False
-                elif isinstance(item_data['expiry_date'], date) and item_data['expiry_date'] < date.today():
-                     flash(f"Error in Item #{i+1} ('{item_data['title']}'): Expiry date cannot be in the past.", 'danger')
+                # 2. Check if expiry date is in the past
+                elif isinstance(expiry_date_obj, date) and expiry_date_obj < today:
+                     flash(f"❗️ Error in Item #{i+1} ('{item_data.get('title', 'Untitled')}'): Expiry date ({expiry_date_obj.strftime('%Y-%m-%d')}) cannot be in the past for '{item_data['category']}'.", 'danger')
                      is_custom_valid = False
 
         if not is_custom_valid:
+            # Re-apply choices on failure
+            for item_form_entry in form.offered_items.entries:
+                item_form_entry.form.category.choices = category_choices
             return render_template("features/edit_offer.html", form=form, offer=offer)
-        # --- End Custom Validation ---
+        # --- *** END: Custom Validation *** ---
 
+        # --- Proceed with saving if validation passed ---
         try:
             existing_items_map = {item.offered_item_id: item for item in offer.offered_items}
             submitted_item_ids = set()
             items_to_add = []
-            files_to_delete = [] # Keep track of old image files to delete
+            files_to_delete = []
 
             # --- Process submitted items ---
             for i, item_form_data in enumerate(form.offered_items.data):
                 existing_item_id = item_form_data.get('offered_item_id')
                 image_field_name = f'offered_items-{i}-image'
                 image_file = request.files.get(image_field_name) if image_field_name in request.files else None
-                # ## REMOVED remove_image_flag logic ##
-                image_relative_path = None # Final path for DB
-                old_image_to_delete = None # Path of file to delete if replaced
+
+                image_relative_path = None
+                old_image_to_delete = None
 
                 item_being_updated = existing_items_map.get(existing_item_id) if existing_item_id else None
                 current_image_url = item_being_updated.image_url if item_being_updated else None
 
                 # --- Handle Image Logic ---
                 if image_file and image_file.filename != '':
-                    # User uploaded a new image, replacing the old one (if any)
                     try:
-                        # Save new image
                         filename_base = secure_filename(f"offer_{offer.offer_id}_{item_form_data['title'][:20]}")
                         filename = f"{filename_base}_{datetime.utcnow().timestamp()}{os.path.splitext(image_file.filename)[1]}"
                         filepath = os.path.join(CHAT_UPLOAD_FOLDER, filename)
                         image_file.save(filepath)
-                        image_relative_path = f"images/chat_uploads/{filename}" # Set DB value to new path
-
-                        # If there was an old image, mark it for deletion
+                        image_relative_path = f"images/chat_uploads/{filename}"
                         if current_image_url:
                             old_image_to_delete = current_image_url
                         current_app.logger.info(f"Uploaded new image {image_relative_path}, replacing {current_image_url or 'nothing'} (item ID: {existing_item_id}).")
-
                     except Exception as e:
                         current_app.logger.error(f"Failed saving image during edit for offered item '{item_form_data['title']}': {e}")
                         flash(f"Could not save updated image for item: {item_form_data['title']}", "warning")
-                        image_relative_path = current_image_url # Fallback: Keep old URL if save failed
+                        image_relative_path = current_image_url
                 else:
-                    # No new upload: Keep the existing image URL
                     image_relative_path = current_image_url
 
-                # Add the old file path to the list for deletion if needed
                 if old_image_to_delete:
                     files_to_delete.append(old_image_to_delete)
 
                 # --- Update existing or create new ---
                 if item_being_updated:
-                    # Update existing item
                     item_being_updated.title = item_form_data['title']
                     item_being_updated.category = item_form_data['category']
                     item_being_updated.description = item_form_data['description']
                     item_being_updated.quantity = item_form_data['quantity']
                     item_being_updated.condition = item_form_data['condition']
                     item_being_updated.manufacture_date = item_form_data['manufacture_date']
-                    item_being_updated.expiry_date = item_form_data['expiry_date']
-                    item_being_updated.image_url = image_relative_path # Update DB field with new path or keep old
-                    item_being_updated.status = 'Pending' # Reset status
+                    item_being_updated.expiry_date = item_form_data['expiry_date'] # Save date object
+                    item_being_updated.image_url = image_relative_path
+                    item_being_updated.status = 'Pending'
                     submitted_item_ids.add(existing_item_id)
                 else:
-                    # Add as a new item
                     new_offered_item = OfferedItem(
                         offer_id=offer.offer_id,
                         title=item_form_data['title'],
@@ -3354,9 +3383,9 @@ def edit_donation_offer(offer_id):
                         description=item_form_data['description'],
                         quantity=item_form_data['quantity'],
                         condition=item_form_data['condition'],
-                        image_url=image_relative_path, # Path if uploaded, else None
+                        image_url=image_relative_path,
                         manufacture_date=item_form_data['manufacture_date'],
-                        expiry_date=item_form_data['expiry_date'],
+                        expiry_date=item_form_data['expiry_date'], # Save date object
                         status='Pending'
                     )
                     items_to_add.append(new_offered_item)
@@ -3366,10 +3395,8 @@ def edit_donation_offer(offer_id):
             for item_id, item in existing_items_map.items():
                 if item_id not in submitted_item_ids:
                     items_to_remove.append(item)
-                    if item.image_url:
-                        # Ensure removed item's image file is also marked for deletion
-                        if item.image_url not in files_to_delete:
-                            files_to_delete.append(item.image_url)
+                    if item.image_url and item.image_url not in files_to_delete:
+                        files_to_delete.append(item.image_url)
 
             # Perform database operations
             if items_to_remove:
@@ -3378,7 +3405,8 @@ def edit_donation_offer(offer_id):
             if items_to_add:
                 db.session.add_all(items_to_add)
 
-            offer.created_at = datetime.utcnow() # Update timestamp to reflect edit
+            offer.created_at = datetime.utcnow() # Update timestamp
+
             db.session.commit()
 
             # --- Delete old image files AFTER commit ---
@@ -3394,29 +3422,23 @@ def edit_donation_offer(offer_id):
                 except Exception as e:
                     current_app.logger.error(f"Error deleting old image file {image_path_rel}: {e}")
 
-
-            flash('Your donation offer has been updated successfully!', 'success')
+            flash('✅ Your donation offer has been updated successfully!', 'success')
             return redirect(url_for('main.view_my_offer', offer_id=offer_id))
 
         except Exception as e:
-            current_app.logger.error(f"Error editing donation offer {offer_id}: {e}")
+            current_app.logger.error(f"Error processing edit for donation offer {offer_id}: {e}")
             db.session.rollback()
-            flash("An error occurred while updating the offer.", "danger")
+            flash("An error occurred while updating the offer. Please try again.", "danger")
 
     elif request.method == 'POST' and form.errors: # Handle WTForms validation errors
-         for field, errors in form.errors.items():
-             if field == 'offered_items':
-                 for i, item_errors in enumerate(errors):
-                     if item_errors:
-                         flash(f"Error in Item #{i+1}:", 'danger')
-                         for item_field, item_messages in item_errors.items():
-                             label = getattr(getattr(form.offered_items[i], item_field, None), 'label', None)
-                             display_name = label.text if label else item_field.replace('_', ' ').title()
-                             flash(f"- {display_name}: {', '.join(item_messages)}", 'danger')
-             else:
-                 flash(f"Error in {getattr(form, field).label.text}: {', '.join(errors)}", "danger")
+         # Re-apply choices on WTForms validation failure
+         for item_form_entry in form.offered_items.entries:
+             item_form_entry.form.category.choices = category_choices
 
-    # Pass existing items data (for GET) or submitted data (on POST validation error)
+         flash("❗️ Please correct the errors below.", "danger") # General error message
+         # WTForms errors handled by template
+
+    # Render for GET or if POST validation failed
     return render_template("features/edit_offer.html", form=form, offer=offer)
 
 
