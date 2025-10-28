@@ -1664,28 +1664,31 @@ def org_dashboard():
                 DonationOffer.need_id,              # Order by need for grouping
                 DonationOffer.completed_at.desc()   # Sort within the group
             )
-            
+
             all_completed_offers = completed_offers_query.all()
-            
+
             # 2. Process into the grouped dictionary that the template expects
             grouped_offers = {} # Use a dict
             if all_completed_offers:
                 for offer in all_completed_offers:
                     # Use the actual need object as the key (or None if need was deleted)
-                    need_obj = offer.need if offer.need else None 
-                    
+                    need_obj = offer.need if offer.need else None
+
                     if need_obj not in grouped_offers:
                         grouped_offers[need_obj] = [] # Create a new list for this need
-                    
+
                     grouped_offers[need_obj].append(offer) # Add the offer to its need's list
-            
+
             # 3. Set 'offers' to an empty list since we used 'grouped_offers'
             offers = []
-        
-        else: # <-- ADD THIS 'else'
-            # This 'else' catches 'incoming', 'pickup', 'pending_donation'
-            # and runs the original query logic.
+
+        # --- START FIX ---
+        # This 'if' block is NOT an 'else'. It will run for 'incoming', 'pickup',
+        # and 'pending_donation', but skip 'completed'.
+        if current_filter != 'completed':
             offers = offer_query.order_by(DonationOffer.created_at.desc()).all()
+        # --- END FIX ---
+
     elif current_filter != 'chats': # Handle default or unknown filters (excluding 'chats' handled above)
         current_filter = 'needs' # Ensure filter reflects the default view
         # --- *** THIS IS THE SECOND CORRECTION *** ---
