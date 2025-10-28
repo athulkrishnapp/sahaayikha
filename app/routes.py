@@ -1621,14 +1621,18 @@ def org_dashboard():
 
         # Create list of dictionaries for easier sorting
         for session, latest_timestamp in sessions_with_time:
+            # Ensure latest_activity is always a datetime for proper sorting, fall back to epoch if needed
+            latest_activity_time = latest_timestamp or session.started_at or datetime.min
             sessions_with_latest_message.append({
                 'session': session,
-                'latest_activity': latest_timestamp or session.started_at, # Fallback to start time
+                'latest_activity': latest_activity_time, # Use guaranteed datetime
                 'is_unread': session.session_id in unread_session_ids
             })
 
-        # Sort: Unread first, then by latest activity timestamp descending
-        sessions_with_latest_message.sort(key=lambda x: (not x['is_unread'], x['latest_activity']), reverse=True)
+        # --- *** SORTING CHANGE: Sort ONLY by latest activity timestamp descending *** ---
+        sessions_with_latest_message.sort(key=lambda x: x['latest_activity'], reverse=True)
+        # --- *** END SORTING CHANGE *** ---
+
 
         # Assign the sorted sessions if the filter is 'chats'
         if current_filter == 'chats':
@@ -1682,7 +1686,7 @@ def org_dashboard():
             # 3. Set 'offers' to an empty list since we used 'grouped_offers'
             offers = []
 
-        # --- START FIX ---
+        # --- START FIX --- (This was the previous fix, keeping it)
         # This 'if' block is NOT an 'else'. It will run for 'incoming', 'pickup',
         # and 'pending_donation', but skip 'completed'.
         if current_filter != 'completed':
@@ -1705,13 +1709,11 @@ def org_dashboard():
         grouped_offers=grouped_offers, # <-- ADD THIS
         form=form,
         current_filter=current_filter,
-        unread_session_ids=unread_session_ids, # Pass the set of IDs
-        has_unread_chats=has_unread_chats
+        unread_session_ids=unread_session_ids, # Pass the set of IDs (still needed for UI)
+        has_unread_chats=has_unread_chats      # Pass flag (still needed for UI)
     )
 
-# =========================
-# USER DASHBOARD
-# =========================
+
 # =========================
 # USER DASHBOARD
 # =========================
@@ -1790,16 +1792,20 @@ def dashboard():
         #    (from 'all_user_sessions' which already has the .need data)
         for session in all_user_sessions: # <-- Use the already-loaded sessions
             latest_timestamp = latest_times_map.get(session.session_id)
+            # Ensure latest_activity is always a datetime for proper sorting, fall back to epoch if needed
+            latest_activity_time = latest_timestamp or session.started_at or datetime.min
             sessions_with_latest_message.append({
                 'session': session, # <-- This is the good, eagerly-loaded object
-                'latest_activity': latest_timestamp or session.started_at, # Fallback to start time
+                'latest_activity': latest_activity_time, # Use guaranteed datetime
                 'is_unread': session.session_id in unread_session_ids
             })
         # --- *** MODIFICATION END *** ---
 
 
-        # Sort: Unread first, then by latest activity timestamp descending
-        sessions_with_latest_message.sort(key=lambda x: (not x['is_unread'], x['latest_activity']), reverse=True)
+        # --- *** SORTING CHANGE: Sort ONLY by latest activity timestamp descending *** ---
+        sessions_with_latest_message.sort(key=lambda x: x['latest_activity'], reverse=True)
+        # --- *** END SORTING CHANGE *** ---
+
 
     # --- *** MODIFICATION END *** ---
 
@@ -1810,7 +1816,7 @@ def dashboard():
         all_sorted_sessions = [s_data['session'] for s_data in sessions_with_latest_message]
         regular_chats = [s for s in all_sorted_sessions if s.trade_item_id is not None]
         disaster_chats = [s for s in all_sorted_sessions if s.disaster_need_id is not None or s.donation_offer_id is not None]
-        # Unread flags are now based on the direct query result
+        # Unread flags are now based on the direct query result (still needed for UI highlighting)
         has_unread_regular = any(s.session_id in unread_session_ids for s in regular_chats)
         has_unread_disaster = any(s.session_id in unread_session_ids for s in disaster_chats)
 
@@ -1960,10 +1966,10 @@ def dashboard():
         my_offers=my_offers,
         regular_chats=regular_chats,
         disaster_chats=disaster_chats,
-        unread_session_ids=unread_session_ids, # Pass the set of IDs
-        has_unread_regular=has_unread_regular,
-        has_unread_disaster=has_unread_disaster,
-        has_unread_chats=has_unread_chats,
+        unread_session_ids=unread_session_ids, # Pass the set of IDs (still needed for UI)
+        has_unread_regular=has_unread_regular,   # Pass flag (still needed for UI)
+        has_unread_disaster=has_unread_disaster, # Pass flag (still needed for UI)
+        has_unread_chats=has_unread_chats,       # Pass flag (still needed for UI)
         form=form,
         items_json=items_json,
         map_center_coords=map_center_coords,
