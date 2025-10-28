@@ -99,41 +99,46 @@
     {# --- Item Being Requested --- #}
      <div class="mb-4 requested-item-card shadow-sm">
         <div class="row g-0">
+            {# Image Column #}
             <div class="col-md-3 d-flex align-items-center justify-content-center p-2">
-                 <img src="{% if item_to_get.images %}{{ url_for('static', filename=item_to_get.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" class="img-fluid rounded" alt="{{ item_to_get.title }}">
+                 <img src="{% if item_to_get.images %}{{ url_for('static', filename=item_to_get.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" class="img-fluid" alt="{{ item_to_get.title }}">
             </div>
+            {# Content Column #}
             <div class="col-md-9">
-                <div class="card-body">
-                    <h5 class="card-title fw-bold">{{ item_to_get.title }}</h5>
-                    <p class="card-text mb-2">
+                <div class="card-body p-3"> {# Reduced padding slightly #}
+                    <h5 class="card-title fw-bold mb-1">{{ item_to_get.title }}</h5>
+                    <p class="card-text mb-2 text-muted small">
+                        Posted by {{ item_to_get.owner.first_name }} in {{ item_to_get.location }}
+                    </p>
+                    <div class="mb-2"> {# Wrapper for badges #}
                         <span class="badge text-bg-secondary me-1">{{ item_to_get.category }}{% if item_to_get.sub_category %} - {{ item_to_get.sub_category }}{% endif %}</span>
                         <span class="badge text-bg-light border text-dark-emphasis">{{ item_to_get.condition }}</span>
-                    </p>
-                    
-                    {# --- *** MODIFIED EXPECTED RETURN DISPLAY *** --- #}
-                    {# Only show this block if a valid category (not 'None') is set #}
+                        {% if item_to_get.urgency_level == 'Urgent' %}
+                            <span class="badge bg-danger">Urgent</span>
+                        {% endif %}
+                    </div>
+
+                    {# Expected Return Info (Only if applicable) #}
                     {% if item_to_get.expected_return_category and item_to_get.expected_return_category != 'None' %}
-                    <p class="card-text">
-                        <small class="text-muted">Owner is looking for:</small><br>
-                        <strong class="text-primary">
-                             {{ item_to_get.expected_return_category }}
-                             {# Also hide the sub-category if it's just 'Any Sub-Category' #}
-                            {% if item_to_get.expected_return_sub_category and item_to_get.expected_return_sub_category != 'Any Sub-Category' %}
-                                ({{ item_to_get.expected_return_sub_category }})
-                            {# Show '(Any Sub-Category)' only if category is NOT Money and sub-category is missing/default #}
-                            {% elif item_to_get.expected_return_category != 'Money' and (not item_to_get.expected_return_sub_category or item_to_get.expected_return_sub_category == 'Any Sub-Category') %}
-                                (Any Sub-Category)
-                            {% endif %}
-                        </strong>
-                    </p>
+                    <div class="alert alert-info py-1 px-2 small mt-2 mb-0 d-inline-block" role="alert" style="font-size: 0.8em;">
+                         <i class="fas fa-info-circle me-1"></i> Owner prefers:
+                         <strong>
+                              {{ item_to_get.expected_return_category }}
+                             {% if item_to_get.expected_return_sub_category and item_to_get.expected_return_sub_category != 'Any Sub-Category' %}
+                                 ({{ item_to_get.expected_return_sub_category }})
+                             {% elif item_to_get.expected_return_category != 'Money' and (not item_to_get.expected_return_sub_category or item_to_get.expected_return_sub_category == 'Any Sub-Category') %}
+                                 (Any Sub-Category)
+                             {% endif %}
+                         </strong>
+                    </div>
                     {% endif %}
-                    {# --- *** END MODIFICATION *** --- #}
-                    
-                     <p class="card-text mt-2"><small class="text-muted">Posted by {{ item_to_get.owner.first_name }} in {{ item_to_get.location }}</small></p>
+                    {# End Expected Return #}
+
                 </div>
             </div>
         </div>
     </div>
+    {# --- End Item Being Requested --- #}
 
     {# --- Form to Select Item to Offer --- #}
     <div class="offer-item-selection">
@@ -185,35 +190,83 @@
 </div>
 
 <script>
-    // Function to visually select the card when the label area is clicked
-    function selectOfferItemCard(labelElement) {
-        // Find the radio button within this label
-        const radio = labelElement.querySelector('input[type="radio"]');
-        if (radio) {
-            // Deselect all other cards visually
-            document.querySelectorAll('.offer-item-card').forEach(card => {
-                card.classList.remove('selected');
-                card.style.borderColor = ''; // Reset border color
-            });
-            // Select this card visually
-            labelElement.classList.add('selected');
-            labelElement.style.borderColor = 'var(--bs-success)'; // Use success color border
-
-            // Ensure the radio button is checked programmatically (though click usually handles it)
-            radio.checked = true;
-        }
+    // Function to update visual styles based on the CURRENT checked state of ALL radio buttons
+    function updateVisualSelection() {
+        document.querySelectorAll('.offer-item-card input[type="radio"]').forEach(radio => {
+            const labelElement = radio.closest('.offer-item-card');
+            if (labelElement) {
+                if (radio.checked) {
+                    labelElement.classList.add('selected');
+                    labelElement.style.borderColor = 'var(--bs-success)'; // Use success color border
+                } else {
+                    labelElement.classList.remove('selected');
+                    labelElement.style.borderColor = ''; // Reset border color
+                }
+            }
+        });
     }
 
-     // Optional: If a radio is checked on page load (e.g., after validation error), select its card
-     document.addEventListener('DOMContentLoaded', () => {
-         const checkedRadio = document.querySelector('input[name="item_to_offer"]:checked');
-         if (checkedRadio) {
-             const parentLabel = checkedRadio.closest('.offer-item-card');
-             if (parentLabel) {
-                 selectOfferItemCard(parentLabel);
-             }
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- RELIABLE SELECT/DESELECT LOGIC ---
+        let previouslyCheckedRadio = null; // Keep track of the radio that was checked *before* the click
+
+        document.querySelectorAll('.offer-item-card').forEach(labelElement => {
+            // Listen on 'mousedown' - this fires BEFORE the 'click' and 'change' events
+            labelElement.addEventListener('mousedown', (event) => {
+                const radio = labelElement.querySelector('input[type="radio"]');
+                if (radio) {
+                    // Store the currently checked radio just before the click happens
+                    previouslyCheckedRadio = radio.checked ? radio : null;
+                }
+            });
+
+            // Listen on 'click' - this fires AFTER 'mousedown'
+            labelElement.addEventListener('click', (event) => {
+                const radio = labelElement.querySelector('input[type="radio"]');
+                if (!radio) return;
+
+                // Check if the radio we clicked IS the one that was previously checked
+                if (radio === previouslyCheckedRadio) {
+                    // If yes, this is a deselect attempt.
+                    // Prevent the default click action (which would select/re-select)
+                    event.preventDefault();
+                    // Manually uncheck the radio
+                    radio.checked = false;
+                    // Reset the tracker
+                    previouslyCheckedRadio = null;
+                } else {
+                    // If no, this is a select action (either selecting the first time,
+                    // or selecting a different one). Let the default click action
+                    // handle checking the radio. Reset the tracker AFTER the click.
+                    // The 'change' event will handle the visual update.
+                    // (We could update previouslyCheckedRadio here, but the change listener is cleaner)
+                }
+                // Always update visuals immediately after our logic runs
+                updateVisualSelection();
+            });
+        });
+
+        // Add a CHANGE event listener to ensure visuals update when selection changes
+        // (This primarily handles the case where a NEW item is selected)
+        const offerGrid = document.querySelector('.row.g-3.mb-4'); // Target the row containing the items
+         if (offerGrid) {
+             offerGrid.addEventListener('change', (event) => {
+                 if (event.target.type === 'radio' && event.target.name === 'item_to_offer') {
+                     // Update the tracker
+                     previouslyCheckedRadio = event.target;
+                     // Update visuals
+                     updateVisualSelection();
+                 }
+             });
          }
-     });
+
+
+        // Initial visual update on page load
+        updateVisualSelection();
+        // Initialize the tracker on load
+        previouslyCheckedRadio = document.querySelector('input[name="item_to_offer"]:checked');
+
+    });
 </script>
 
 {% endblock %}

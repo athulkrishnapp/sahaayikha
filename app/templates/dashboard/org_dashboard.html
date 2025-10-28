@@ -69,7 +69,7 @@
     .item-content-main { flex-grow: 1; min-width: 0; /* Prevent text overflow issues */ }
     .item-title-main { font-weight: 600; margin-bottom: 0.25rem; }
     .item-user { font-size: 0.875rem; color: var(--muted-foreground); }
-    .needs-actions { margin-left: auto; /* Push actions to the right */ display: flex; gap: 0.5rem; flex-shrink: 0; padding-top: 0.5rem; /* Add space when wrapped */ width: 100%; justify-content: flex-end; /* Align actions right when wrapped */ }
+    .needs-actions { margin-left: auto; /* Push actions to the right */ display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; padding-top: 0.5rem; /* Add space when wrapped */ width: 100%; justify-content: flex-end; /* Align actions right when wrapped */ }
      @media (min-width: 576px) { .needs-actions { width: auto; padding-top: 0; } } /* Align inline on larger screens */
 
     .empty-state { text-align: center; padding: 3rem 0; background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius); }
@@ -139,6 +139,34 @@
     #postNeedModal .modal-body {
         padding: 1.5rem;
     }
+    
+    /* Style for the collapse toggle header */
+    .collapse-toggle-header {
+        text-decoration: none;
+        color: var(--foreground);
+        display: block;
+        background: var(--secondary); /* Lighter than card */
+        padding: 0.75rem 1.25rem;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        transition: all 0.2s ease;
+    }
+    .collapse-toggle-header:hover {
+        border-color: var(--primary);
+        background: var(--muted);
+    }
+    .collapse-toggle-header .fas {
+        transition: transform 0.3s ease;
+    }
+    /* Rotate chevron when not collapsed (aria-expanded="true") */
+    .collapse-toggle-header[aria-expanded="true"] .fas {
+        transform: rotate(180deg);
+    }
+    
+    /* Add a bit of top margin to the collapsed list */
+    .needs-list-collapse {
+        margin-top: 1rem;
+    }
 
 </style>
 
@@ -196,10 +224,10 @@
                 {% if view == 'completed' %}
                     {% set total_completed = 0 %}
                     {% if grouped_offers %}
-                        {% for need, offers_in_group in grouped_offers %}
+                        {% for need, offers_in_group in grouped_offers.items() %}
                             {% set total_completed = total_completed + offers_in_group|length %}
                         {% endfor %}
-                    {% endif %} {# <<< Correctly closed endif #}
+                    {% endif %}
                     {{ total_completed }}
                 {% elif view in ['incoming', 'pickup', 'pending_donation'] %}{{ offers|length }}
                 {% elif view == 'needs' %}{{ my_items|length }} {# my_items holds needs #}
@@ -277,36 +305,56 @@
                 <div class="empty-state"><i class="fas fa-inbox"></i><h3>No offers in this category.</h3></div>
             {% endif %}
 
-        {# --- CORRECTED: Display Completed Offers (using grouped_offers) --- #}
+        {# --- ===== START COLLAPSIBLE COMPLETED BLOCK ===== --- #}
         {% elif view == 'completed' %}
-            {# Check the new grouped_offers variable passed from the route #}
             {% if grouped_offers %}
                 {# Loop 1: Iterate over each group (Need, [list of offers]) #}
-                {% for need, offers_in_group in grouped_offers %}
-                    <div class="mb-4">
-                        {# Display the Disaster Need title as a header #}
-                        <h4 class="mb-2 p-2 bg-light border rounded">
-                            {% if need %}{{ need.title }}{% else %}Offers for a Deleted Need{% endif %}
-                        </h4>
-                        <div class="list-group">
-                            {# Loop 2: Iterate over the offers *for this group* #}
-                            {% for offer in offers_in_group %}
-                                <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="list-group-item list-group-item-action">
-                                    <div class="d-flex w-100 justify-content-between">
-                                        <h5 class="mb-1">Offer from {{ offer.user.first_name if offer.user else '[Deleted User]' }}</h5>
-                                        <small>Completed: {{ offer.completed_at.strftime('%Y-%m-%d') if offer.completed_at }}</small>
+                {% for need, offers_in_group in grouped_offers.items() %}
+                    <div class="mb-3"> {# Reduced margin-bottom #}
+                        
+                        {# 1. Define a unique ID for the collapse target #}
+                        {% set collapse_id = "need-collapse-" ~ (need.need_id if need else loop.index) %}
+                        
+                        {# 2. Make the header a clickable toggle #}
+                        <a href="#{{ collapse_id }}" 
+                           data-bs-toggle="collapse" 
+                           role="button" 
+                           aria-expanded="false" 
+                           aria-controls="{{ collapse_id }}" 
+                           class="collapse-toggle-header">
+                            
+                            <h4 class="mb-0 d-flex justify-content-between align-items-center">
+                                <span> {% if need %}{{ need.title }}{% else %}Offers for a Deleted Need{% endif %}
+                                    <span class="badge bg-secondary ms-2">{{ offers_in_group|length }} offer(s)</span>
+                                </span>
+                                <i class="fas fa-chevron-down ms-2" style="font-size: 0.8em;"></i> </h4>
+                        </a>
+
+                        {# 3. Wrap the list in the collapsible div #}
+                        <div class="collapse" id="{{ collapse_id }}">
+                            <ul class="needs-list needs-list-collapse"> {# Added new class for margin #}
+                                {% for offer in offers_in_group %}
+                                <li class="needs-list-item"> 
+                                    <i class="fas fa-check-circle needs-icon text-success"></i> 
+                                    <div class="item-content-main">
+                                        <div class="item-title-main">Offer from {{ offer.user.first_name if offer.user else '[Deleted User]' }}</div>
+                                        <div class="item-user">
+                                            Completed: {{ offer.completed_at.strftime('%Y-%m-%d') if offer.completed_at }} | Donated {{ offer.offered_items|length }} item(s).
+                                        </div>
                                     </div>
-                                    <p class="mb-1">
-                                        Donated {{ offer.offered_items|length }} item(s).
+                                    <div class="needs-actions"> 
                                         {% if offer.proof_image_url %}
-                                            <span class="badge bg-success">Proof Uploaded</span>
+                                            <span class="badge bg-success me-2">Proof Uploaded</span>
                                         {% endif %}
-                                    </p>
-                                    {# Removed actions - the link itself is 'View Details' #}
-                                </a>
-                            {% endfor %}
-                        </div> {# End list-group #}
-                    </div> {# End mb-4 #}
+                                        <a href="{{ url_for('main.review_donation_offer', offer_id=offer.offer_id) }}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-eye me-1"></i> View Details
+                                        </a>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul> 
+                        </div>
+                    </div> 
                 {% endfor %}
             {% else %}
                 <div class="empty-state">
@@ -315,6 +363,7 @@
                     <p>There are no completed donation offers to display.</p>
                 </div>
             {% endif %}
+        {# --- ===== END COLLAPSIBLE COMPLETED BLOCK ===== --- #}
 
         {# --- Display Chats --- #}
         {% elif view == 'chats' %}
@@ -377,7 +426,7 @@
                             <a href="{{ url_for('main.edit_disaster_need', need_id=need.need_id) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-edit"></i> Edit</a>
                             {# --- CORRECTED ONSUBMIT MESSAGE --- #}
                             <form action="{{ url_for('main.delete_disaster_need', need_id=need.need_id) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this need from public view? Existing offers will remain.');">
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Remove Post</button>
+                                <button type-="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt"></i> Remove Post</button>
                             </form>
                         </div>
                     </li>

@@ -1,455 +1,451 @@
 {% extends "base.html" %}
-{% from 'includes/_form_macros.html' import render_field, render_select_field, render_multiple_select_field %}
+{% from "includes/_form_macros.html" import render_field_with_icon, render_field %}
 
 {% block content %}
+{# --- Leaflet CSS & JS --- #}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+{# ------------------------- #}
+{# --- Tom Select --- #}
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+{# ---------------- #}
+
 <style>
-    /* Styles for the search results page - Adopted from Dashboard where applicable */
-    .filter-section {
-        background-color: var(--bs-light); /* Slightly off-white background */
-        border-radius: 0.75rem;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-         border: 1px solid var(--bs-border-color);
+    /* --- Root Variables (Same as Dashboard) --- */
+    :root {
+        --primary: hsl(260, 84%, 60%);
+        --primary-foreground: hsl(0, 0%, 100%);
+        --secondary: hsl(240, 4.8%, 95.9%);
+        --secondary-foreground: hsl(240, 5.9%, 10%);
+        --background: hsl(0, 0%, 100%);
+        --foreground: hsl(240, 10%, 3.9%);
+        --card: hsl(0, 0%, 100%);
+        --card-foreground: hsl(240, 10%, 3.9%);
+        --border: hsl(240, 5.9%, 90%);
+        --muted: hsl(240, 4.8%, 95.9%);
+        --muted-foreground: hsl(240, 3.8%, 46.1%);
+        --shadow-card: 0 10px 30px -5px hsl(240 10% 50% / 0.1);
+        --radius: 0.75rem;
     }
-    .dark-mode .filter-section {
-         background-color: var(--bs-dark); /* Darker background in dark mode */
-         border-color: var(--bs-border-color-translucent);
-    }
-
-    /* Styles for the mini-map */
-    #miniMapContainer {
-        height: 250px; /* Made slightly taller */
-        width: 100%;
-        border-radius: 0.5rem;
-        margin-top: 0.5rem; /* Reduced top margin as label is added */
-        border: 1px solid var(--bs-border-color);
-        background-color: var(--bs-secondary-bg); /* Placeholder background */
-    }
-     .dark-mode #miniMapContainer {
-         border-color: var(--bs-border-color-translucent);
-     }
-
-
-    /* Reusing item card styles */
-     .item-card {
-        border: 1px solid var(--bs-border-color);
-        border-radius: 0.75rem;
-        overflow: hidden;
-        transition: box-shadow 0.3s ease-in-out, transform 0.3s ease-in-out;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-    }
-     .dark-mode .item-card {
-         background-color: var(--bs-dark-bg-subtle);
-         border-color: var(--bs-border-color-translucent);
-     }
-    .item-card:hover {
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
-        transform: translateY(-3px);
-    }
-     .dark-mode .item-card:hover {
-         box-shadow: 0 0.5rem 1rem rgba(255, 255, 255, 0.05);
-     }
-    .item-card-image-container {
-        height: 200px;
-        overflow: hidden;
-        position: relative;
-    }
-    .item-card-image {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-     .item-card-body {
-        padding: 1rem;
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-    }
-    .item-card-title {
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        min-height: 2.5em; /* Ensure space for 2 lines */
-        line-height: 1.25em;
-    }
-     .item-card-details {
-        font-size: 0.9rem;
-        color: var(--bs-secondary-text);
-        margin-bottom: 1rem;
-        flex-grow: 1; /* Pushes footer down */
-    }
-    .item-card-footer {
-        padding: 0 1rem 1rem 1rem;
-        margin-top: auto; /* Aligns button to bottom */
-        border-top: none;
-        background-color: transparent;
+    .dark-mode {
+        --primary: hsl(260, 84%, 70%);
+        --secondary: hsl(240, 3.7%, 15.9%);
+        --secondary-foreground: hsl(0, 0%, 98%);
+        --background: hsl(240, 10%, 3.9%);
+        --foreground: hsl(0, 0%, 98%);
+        --card: hsl(240, 3.7%, 15.9%);
+        --card-foreground: hsl(0, 0%, 98%);
+        --border: hsl(240, 3.7%, 25%);
+        --muted: hsl(240, 3.7%, 15.9%);
+        --muted-foreground: hsl(240, 5%, 64.9%);
     }
 
-    /* Adjust grid gap */
-     .results-grid {
-        row-gap: 1.5rem; /* Vertical gap between cards */
-    }
+    /* --- General Layout & Buttons --- */
+    .search-container { max-width: 1400px; margin: 0 auto; padding: 1rem 1.5rem; }
+    .btn-dashboard { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: var(--radius); font-size: 0.875rem; font-weight: 500; border: none; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
+    .btn-primary-dashboard { background: var(--primary); color: var(--primary-foreground); }
+    .btn-primary-dashboard:hover { background: hsl(260, 84%, 55%); }
+    .btn-outline-dashboard { background: transparent; color: var(--foreground); border: 1px solid var(--border); }
+    .btn-outline-dashboard:hover { background: var(--secondary); }
+    .badge-dashboard { padding: 0.25rem 0.6rem; background: var(--secondary); color: var(--secondary-foreground); border-radius: 0.5rem; font-size: 0.75rem; font-weight: 500; }
 
-    /* Tom Select styles */
-     .ts-wrapper .ts-control {
-        border-radius: 0.375rem; /* Match Bootstrap inputs */
-        border-color: var(--bs-border-color);
-        background-color: var(--bs-body-bg); /* Match background */
-        min-height: calc(1.5em + 0.75rem + 2px); /* Match BS input height */
-        padding: 0.375rem 0.75rem;
-        color: var(--bs-body-color); /* Match text color */
+    /* --- Filter Section --- */
+    .filter-section { margin-bottom: 1.5rem; }
+    .filter-toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .filter-toggle-btn { flex-shrink: 0; }
+    .search-filters-collapse { background-color: var(--secondary); padding: 1.5rem; border-radius: var(--radius); margin-top: 0.75rem; border: 1px solid var(--border); }
+    .dark-mode .search-filters-collapse { background-color: var(--muted); }
+    .search-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.5rem; align-items: flex-start; }
+    .search-form-main { grid-column: span 8; min-width: 0; }
+    .search-form-map-area { grid-column: span 4; width: 100%; }
+    @media (max-width: 992px) {
+        .search-form-main, .search-form-map-area { grid-column: span 12; }
+        .search-form-map-area { margin-top: 1.5rem; }
     }
-     .dark-mode .ts-wrapper .ts-control {
-         border-color: var(--bs-border-color-translucent);
-     }
-    /* Ensure TomSelect dropdown matches dark/light mode */
-    .ts-wrapper .ts-dropdown {
-        background: var(--bs-body-bg);
-        border-color: var(--bs-border-color);
-        color: var(--bs-body-color);
-    }
-    .dark-mode .ts-wrapper .ts-dropdown {
-         border-color: var(--bs-border-color-translucent);
-    }
-    .ts-wrapper .ts-dropdown .active {
-        background-color: var(--bs-primary);
-        color: white;
-    }
-    .ts-wrapper .ts-dropdown .option:hover {
-         background-color: var(--bs-secondary-bg);
-    }
-    .dark-mode .ts-wrapper .ts-dropdown .option:hover {
-         background-color: rgba(255, 255, 255, 0.1); /* Lighter hover for dark mode */
-    }
-    /* Style for selected items in multi-select */
-     .ts-wrapper.multi .ts-control > div {
-         background: var(--bs-secondary-bg);
-         color: var(--bs-emphasis-color);
-         border-color: var(--bs-border-color);
-         border-radius: 0.25rem;
-         margin: 0.1rem;
-     }
-      .dark-mode .ts-wrapper.multi .ts-control > div {
-         background: var(--bs-dark-bg-subtle);
-         border-color: var(--bs-border-color-translucent);
-     }
+    .search-actions { margin-top: 1rem; grid-column: span 12; }
+    .filter-toggle-btn .fa-chevron-down { transition: transform 0.3s ease; }
+    .filter-toggle-btn[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
 
+    /* Mini Map */
+    #mini-map { height: 200px; width: 100%; border-radius: var(--radius); border: 1px solid var(--border); }
+    .map-marker-icon i { color: var(--primary); font-size: 1.5rem;}
+
+    /* Category Modal & Button */
+    #categorySelectModal .modal-body { max-height: 60vh; overflow-y: auto; }
+    #categorySelectModal .form-check { margin-bottom: 0.75rem; }
+    #categorySelectModal .form-check-label { cursor: pointer; }
+    #category-select-button { text-align: left; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 2rem; position: relative; background-color: var(--background); border-color: var(--border); color: var(--foreground); }
+    #category-select-button::after { content: '\f078'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); color: var(--muted-foreground); }
+    .dark-mode #category-select-button { background-color: #3a3a4a; border-color: #495057; color: white; }
+    .current-category-badge { font-size: 0.8rem; font-weight: 500; }
+
+    /* Current Filter Display */
+    .current-filter-display { font-size: 0.85rem; color: var(--muted-foreground); margin-left: 0.5rem; font-weight: normal; display: inline-block; }
+    .current-filter-display .badge { font-size: 0.8em; vertical-align: middle; margin-left: 0.3rem; padding: 0.3em 0.6em; }
+
+    /* --- Results Section --- */
+    .results-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem 1rem; margin-bottom: 1.5rem; }
+    .results-header h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0; flex-grow: 1; }
+
+    /* --- Item Grid & Card Styles (Copied AND Refined from Dashboard) --- */
+    .item-grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    @media (min-width: 1400px) { .item-grid { grid-template-columns: repeat(5, 1fr); } }
+
+    .dashboard-item-card {
+        background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; transition: all 0.3s ease; display: flex; flex-direction: column; height: 100%; position: relative; text-decoration: none; color: inherit;
+    }
+    .dashboard-item-card:hover { transform: translateY(-5px); box-shadow: var(--shadow-card); }
+    .item-image { aspect-ratio: 16 / 9; background: var(--muted); position: relative; /* Crucial for badges */ }
+    .item-image img { width: 100%; height: 100%; object-fit: cover; }
+    /* Badges ON the image */
+    .item-image .item-badges {
+        position: absolute; top: 0.75rem; left: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; /* Added wrap */
+    }
+    .item-image .badge-dashboard {
+        padding: 0.25rem 0.6rem; background: hsla(0, 0%, 0%, 0.5); color: white; backdrop-filter: blur(4px); border-radius: 0.5rem; font-size: 0.75rem; font-weight: 500;
+    }
+    .urgent-badge {
+         position: absolute; top: 0.75rem; right: 0.75rem; background-color: var(--bs-danger); color: white; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 0.25rem; font-weight: bold; z-index: 2;
+    }
+    .dashboard-item-card.urgent-item { border-color: var(--bs-danger); }
+
+    /* Card Content Area */
+    .item-content { padding: 1rem; flex-grow: 1; display: flex; flex-direction: column; }
+    .item-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .item-location { font-size: 0.875rem; color: var(--muted-foreground); margin-bottom: 0.75rem; }
+    /* Badges UNDER the title/location */
+    .item-content .item-badges { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .item-content .badge-dashboard { background: var(--secondary); color: var(--secondary-foreground); } /* Use default badge style here */
+
+    .item-actions { display: flex; gap: 0.5rem; align-items: center; margin-top: auto; border-top: 1px solid var(--border); padding-top: 1rem; }
+    .item-actions .btn-primary-dashboard { justify-content: space-between; flex-grow: 1; }
+
+    /* Empty State */
+    .empty-state { text-align: center; padding: 3rem 0; background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius); margin-top: 2rem; }
+    .empty-state i { font-size: 3rem; color: var(--muted-foreground); margin-bottom: 1rem; }
+    .empty-state h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+
+    /* Tom Select */
+    .ts-control { font-size: 0.875rem !important; padding: 0.375rem 0.75rem !important; border-radius: var(--bs-border-radius) !important; border: 1px solid var(--border) !important; background-color: var(--bs-body-bg); color: var(--bs-body-color); }
+    .dark-mode .ts-control { background-color: #3a3a4a !important; border-color: #495057 !important; color: white !important; }
+    .ts-dropdown { border-color: var(--border) !important; background-color: var(--card) !important; z-index: 1040; }
+    .dark-mode .ts-dropdown { background: #2c2c3a !important; border-color: #495057 !important; }
+    .dark-mode .ts-dropdown .option { color: white !important; }
+    .dark-mode .ts-dropdown .active { background-color: #4dabf7 !important; color: black !important; }
 
 </style>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+<div class="search-container">
 
+    {# --- Filter Section --- #}
+    <section class="section filter-section">
+        <form method="GET" action="{{ url_for('main.items_list') }}" id="searchForm">
+            <input type="hidden" name="view" value="all"> {# Keep consistent if needed elsewhere #}
 
-<div class="container mt-4">
-    <h1 class="mb-4">Search Items</h1>
+            <div class="filter-toggle-row">
+                 <h2>
+                    Search Items
+                    {% if form.search.data %}
+                        <span class="current-filter-display">
+                           for <span class="badge bg-secondary text-dark">{{ form.search.data }}</span>
+                        </span>
+                    {% endif %}
+                    {% if form.location.data %}
+                        <span class="current-filter-display">
+                           in <i class="fas fa-map-marker-alt fa-xs"></i> {{ form.location.data }}
+                           {% if form.radius.data %} (+{{ form.radius.data }}km) {% endif %}
+                        </span>
+                    {% endif %}
+                </h2>
+                <button class="btn btn-outline-secondary btn-sm filter-toggle-btn" type="button" data-bs-toggle="collapse" data-bs-target="#searchFiltersCollapse" aria-expanded="false" aria-controls="searchFiltersCollapse">
+                    <i class="fas fa-filter me-1"></i> Filters <i class="fas fa-chevron-down fa-xs ms-1"></i>
+                </button>
+            </div>
 
-    <div class="mb-3 d-flex justify-content-end">
-        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
-            <i class="fas fa-filter me-1"></i> Filters & Map
-        </button>
-    </div>
-
-    <div class="collapse mb-4" id="filterCollapse">
-        <div class="filter-section shadow-sm"> {# Added shadow-sm #}
-            <form method="GET" action="{{ url_for('main.items_list') }}" id="filterForm">
-                 <div class="row g-3">
-                     {# --- Filter Fields Column --- #}
-                     <div class="col-lg-8">
-                        <div class="row g-3">
-                             <div class="col-md-6">
-                                {{ render_field(form.search, placeholder='Search by keyword...', label_visible=True, id='searchFilter', value=request.args.get('search', '')) }} {# Use request.args #}
+            <div class="collapse" id="searchFiltersCollapse">
+                <div class="search-filters-collapse">
+                    <div class="search-grid">
+                        <div class="search-form-main">
+                            <div class="row g-2">
+                                <div class="col-md-12 mb-2">
+                                    <label class="form-label small">Keyword</label>
+                                    {{ form.search(class="form-control form-control-sm", placeholder="Search title or description...") }}
+                                </div>
+                                <div class="col-md-12 mb-2">
+                                     <label class="form-label small">Categories</label>
+                                     <button type="button" class="form-control form-control-sm" id="category-select-button" data-bs-toggle="modal" data-bs-target="#categorySelectModal">
+                                         Select Categories...
+                                     </button>
+                                     {{ form.categories(id="categories-hidden-select", class="d-none") }} {# Hidden select #}
+                                </div>
+                                <div class="col-md-12 mb-2">
+                                     <label for="sub_category_select" class="form-label small">Sub-category (Select Main Category First)</label>
+                                     {{ form.sub_category(class="form-select form-select-sm", id="sub_category_select", disabled=True) }}
+                                </div>
+                                <div class="col-sm-8">
+                                    {{ form.location.label(class="form-label small") }}
+                                    {{ form.location(class="form-select form-select-sm", id="location-select") }}
+                                </div>
+                                <div class="col-sm-4">
+                                    {{ form.radius.label(class="form-label small") }}
+                                    {{ form.radius(class="form-select form-select-sm", id="radius-select") }}
+                                </div>
+                                <div class="col-sm-4">
+                                    {{ form.urgency.label(class="form-label small") }}
+                                    {{ form.urgency(class="form-select form-select-sm") }}
+                                </div>
+                                <div class="col-sm-4">
+                                    {{ form.condition.label(class="form-label small") }}
+                                    {{ form.condition(class="form-select form-select-sm") }}
+                                </div>
+                                 <div class="col-sm-4">
+                                    {{ form.sort_by.label(class="form-label small") }}
+                                    {{ form.sort_by(class="form-select form-select-sm") }}
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                 {{ render_select_field(form.location, label_visible=True, id='locationFilter') }}
-                            </div>
-                             <div class="col-md-6">
-                                 {{ render_select_field(form.radius, label_visible=True, id='radiusFilter') }}
-                            </div>
-                             <div class="col-md-6">
-                                 {{ render_select_field(form.sort_by, label_visible=True) }}
-                             </div>
-                             <div class="col-md-6">
-                               {# Give the main category select an ID #}
-                               {{ render_multiple_select_field(form.categories, label_visible=True, id='categoryFilter', placeholder='Select categories...') }}
-                            </div>
-                             <div class="col-md-6" id="sub-category-filter-wrapper" style="display: none;">
-                                {{ render_select_field(form.sub_category, label_visible=True, id='subCategoryFilter') }}
-                            </div>
-                            <div class="col-md-6">
-                                 {{ render_select_field(form.condition, label_visible=True) }}
-                             </div>
-                             <div class="col-md-6"> {# Adjusted column size #}
-                                 {{ render_select_field(form.urgency, label_visible=True) }}
-                             </div>
                         </div>
-                         <div class="mt-4 d-flex justify-content-start flex-wrap gap-2"> {# Added flex-wrap and gap #}
-                             <button type="submit" class="btn btn-primary"><i class="fas fa-search me-1"></i> Apply Filters</button>
-                             <a href="{{ url_for('main.items_list') }}" class="btn btn-outline-secondary"><i class="fas fa-undo me-1"></i> Reset Filters</a>
-                         </div>
+
+                        <div class="search-form-map-area">
+                            <label class="form-label small mb-1">Area</label>
+                            <div id="mini-map"></div>
+                            <div id="map-data"
+                                 data-items="{{ items_json|safe }}"
+                                 data-map-center="{{ map_center_coords|tojson|safe if map_center_coords else 'null' }}"
+                                 data-map-radius="{{ map_radius_km|tojson|safe if map_radius_km is not none else 'null' }}"
+                                 data-all-locations="{{ all_locations_coords|safe }}">
+                            </div>
+                        </div>
                     </div>
 
-                     {# --- Map Column --- #}
-                     <div class="col-lg-4">
-                         <label class="form-label">Location Preview</label>
-                         <div id="miniMapContainer">
-                             {# Map will be initialized here by JS #}
-                         </div>
-                     </div>
+                    <div class="d-flex gap-2 search-actions">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1">Apply Filters</button>
+                        <a href="{{ url_for('main.items_list') }}" class="btn btn-outline-secondary btn-sm flex-grow-1">Clear All</a>
+                    </div>
                 </div>
-            </form>
-        </div>
-    </div>
+            </div>
+        </form>
+    </section>
 
-    {# --- Results View --- #}
-    <div id="resultsView">
+    {# --- Results Section --- #}
+    <section class="section pt-0">
+        <div class="results-header">
+            {# Header removed, integrated into filter toggle row #}
+            <span class="badge-dashboard">{{ items|length }} item(s) found</span>
+        </div>
+
         {% if items %}
-            <p class="text-muted mb-3">Found {{ items|length }} item(s).</p>
-            <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4 results-grid">
+            {# --- *** START REVISED CARD VIEW *** --- #}
+            <div class="item-grid">
                 {% for item in items %}
-                    <div class="col d-flex align-items-stretch">
-                        <div class="card item-card"> {# Removed hover class, can add back if desired #}
-                            <div class="item-card-image-container bg-light">
-                                <a href="{{ url_for('main.view_item', item_id=item.item_id) }}">
-                                    <img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" class="item-card-image" alt="{{ item.title }}">
-                                </a>
+                    <div class="dashboard-item-card {% if item.urgency_level == 'Urgent' %}urgent-item{% endif %}">
+                         {# Link covers the image and content separately for better structure #}
+                        <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="text-decoration-none">
+                            <div class="item-image">
+                                {% if item.urgency_level == 'Urgent' %}
+                                    <span class="urgent-badge">Urgent</span>
+                                {% endif %}
+                                <img src="{% if item.images %}{{ url_for('static', filename=item.images[0].image_url) }}{% else %}{{ url_for('static', filename='images/item_placeholder.jpg') }}{% endif %}" alt="{{ item.title }}">
+                                <div class="item-badges"> {# Badges ON image #}
+                                    <span class="badge-dashboard">{{ item.type }}</span>
+                                    <span class="badge-dashboard">{{ item.condition }}</span>
+                                </div>
                             </div>
-                            <div class="item-card-body">
-                                <h5 class="card-title item-card-title">{{ item.title }}</h5>
-                                <div class="item-card-details">
-                                     <span class="badge rounded-pill text-bg-{{ 'primary' if item.type == 'Trade' else 'success' }} me-1">{{ item.type }}</span>
-                                    <span class="badge rounded-pill text-bg-secondary">{{ item.category }}{% if item.sub_category %} - {{ item.sub_category }}{% endif %}</span>
-                                    <p class="card-text small mt-2 mb-0">
-                                        <i class="fas fa-map-marker-alt me-1 text-muted"></i>{{ item.location }} <br>
-                                        <i class="fas fa-clock me-1 text-muted"></i>Posted {{ (item.created_at | localdatetime).strftime('%b %d') }}
-                                        {# Optional Distance Display #}
-                                        {# {% if item.distance is defined and item.distance != none and item.distance != float('inf') %} <br> <i class="fas fa-route me-1 text-muted"></i> {{ "%.1f"|format(item.distance) }} km away {% endif %} #}
-                                    </p>
-                                </div>
-                                <div class="item-card-footer">
-                                    <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="btn btn-sm btn-outline-dark w-100">View Details</a>
-                                </div>
+                        </a>
+                        <div class="item-content">
+                             {# Link the title #}
+                            <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="text-decoration-none text-reset">
+                               <h3 class="item-title">{{ item.title }}</h3>
+                            </a>
+                            <p class="item-location"><i class="fas fa-map-marker-alt me-1"></i> {{ item.location }}</p>
+                            <div class="item-badges"> {# Badges UNDER title/location #}
+                               <span class="badge-dashboard">{{ item.category }}</span>
+                               {% if item.sub_category %}
+                                  <span class="badge-dashboard">{{ item.sub_category }}</span>
+                               {% endif %}
+                            </div>
+                            <div class="item-actions">
+                                <a href="{{ url_for('main.view_item', item_id=item.item_id) }}" class="btn-primary-dashboard btn-dashboard">
+                                    <span>View Details</span>
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                                {# Optional Action Buttons #}
+                                {% if item.type == 'Trade' and current_user.is_authenticated and current_user.user_id != item.user_id %}
+                                    <a href="{{ url_for('main.request_trade', item_id=item.item_id) }}" class="btn btn-sm btn-outline-success ms-auto" title="Request Trade"><i class="fas fa-exchange-alt"></i></a> {# Use ms-auto to push right #}
+                                {% elif item.type == 'Share' and current_user.is_authenticated and current_user.user_id != item.user_id %}
+                                    {# <a href="{{ url_for('main.start_share_chat', item_id=item.item_id) }}" class="btn btn-sm btn-outline-info ms-auto" title="Request Item"><i class="fas fa-hand-holding-heart"></i></a> #}
+                                {% endif %}
                             </div>
                         </div>
                     </div>
                 {% endfor %}
             </div>
+             {# --- *** END REVISED CARD VIEW *** --- #}
         {% else %}
-            <div class="alert alert-secondary text-center shadow-sm" role="alert"> {# Changed to secondary, added shadow #}
-               <i class="fas fa-info-circle me-2"></i> No items found matching your criteria. Try adjusting your filters.
+            <div class="empty-state">
+                <i class="fas fa-search"></i>
+                <h3>No items found matching your criteria.</h3>
+                <p>Try adjusting your search filters or <a href="{{ url_for('main.items_list') }}">resetting them</a>.</p>
             </div>
         {% endif %}
-    </div>
-
+    </section>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+{# --- Category Selection Modal --- #}
+<div class="modal fade" id="categorySelectModal" tabindex="-1" aria-labelledby="categorySelectModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categorySelectModalLabel">Select Categories</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+          <div class="modal-body">
+              <div class="mb-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="selectAllCategories">Select All</button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllCategories">Deselect All</button>
+              </div>
+               <hr class="mt-1 mb-3">
+               {% for value, label in form.categories.choices %}
+                    {% if value %}
+                        <div class="form-check">
+                           <input class="form-check-input category-checkbox" type="checkbox" value="{{ value }}" id="search-cat-{{ value }}">
+                           <label class="form-check-label w-100" for="search-cat-{{ value }}">
+                                {{ label }}
+                           </label>
+                       </div>
+                   {% endif %}
+               {% endfor %}
+          </div>
+          <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="button" class="btn btn-primary" id="apply-categories-btn" data-bs-dismiss="modal">Apply Filters</button>
+          </div>
+        </div>
+    </div>
+</div>
+{# --- End Category Selection Modal --- #}
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // --- Initialize Tom Select for Multi-Category ---
-        const categoryMultiSelectEl = document.getElementById('categoryFilter');
-        let categoryTomSelect = null;
-        if (categoryMultiSelectEl) {
-            categoryTomSelect = new TomSelect(categoryMultiSelectEl,{
-                plugins: ['remove_button'], // Optional: allow easy removal of selected items
-                create: false
-            });
-        }
+    const subCategoriesData = {{ sub_categories_json|safe }};
 
-        // --- Initialize Tom Select for other dropdowns (Single Select) ---
-        const locationSelectEl = document.getElementById('locationFilter');
-        let locationTomSelect = locationSelectEl ? new TomSelect(locationSelectEl, { create: false }) : null;
+    document.addEventListener('DOMContentLoaded', function () {
 
-        const radiusSelectEl = document.getElementById('radiusFilter');
-        let radiusTomSelect = radiusSelectEl ? new TomSelect(radiusSelectEl, { create: false }) : null;
+        // --- Category Modal Logic (Keep as is) ---
+        const categoryModal = document.getElementById('categorySelectModal');
+        const categoryButton = document.getElementById('category-select-button');
+        const hiddenSelect = document.getElementById('categories-hidden-select');
+        const applyCategoriesBtn = document.getElementById('apply-categories-btn');
+        const selectAllBtn = document.getElementById('selectAllCategories');
+        const deselectAllBtn = document.getElementById('deselectAllCategories');
+        const subCategorySelect = document.getElementById('sub_category_select');
 
-        // --- Sub-Category Logic ---
-        const subCategoryFilterSelect = document.getElementById('subCategoryFilter');
-        const subCategoryFilterWrapper = document.getElementById('sub-category-filter-wrapper');
-        const subCategories = JSON.parse('{{ sub_categories_json | safe }}');
-        const previouslySelectedSub = "{{ request.args.get('sub_category', '') }}"; // Get from request args
+        if (categoryModal && categoryButton && hiddenSelect && applyCategoriesBtn && subCategorySelect) {
+            const checkboxes = categoryModal.querySelectorAll('.category-checkbox');
 
-        // Initialize TomSelect for Sub-Category (do this once)
-        let subCategoryTomSelect = subCategoryFilterSelect ? new TomSelect(subCategoryFilterSelect, { create: false }) : null;
+            const updateCategoryButtonText = () => { /* ... Keep this function as is ... */
+                const selectedCheckboxes = categoryModal.querySelectorAll('.category-checkbox:checked');
+                let selectedValues = [];
+                selectedCheckboxes.forEach(cb => selectedValues.push(cb.value));
 
-
-        function updateSearchSubCategories() {
-            if (!categoryTomSelect || !subCategoryTomSelect) return;
-
-            const selectedMainCategories = categoryTomSelect.getValue(); // This is an array for multi-select
-            let showSubCategory = false;
-            let optionsToAdd = [];
-
-            // Only show/populate sub-category if exactly ONE main category is selected
-            if (selectedMainCategories.length === 1) {
-                const selectedMain = selectedMainCategories[0];
-                const subCatsForMain = subCategories[selectedMain];
-
-                if (selectedMain && subCatsForMain && subCatsForMain.length > 0) {
-                     // Add the "Any" option first
-                     optionsToAdd.push({ value: "", text: "Any Sub-Category" });
-
-                    let hasValidSubCats = false;
-                    subCatsForMain.forEach(function(option) {
-                        if (option[0] === '') return; // Skip the defined placeholder ('Select Sub-Category...')
-                        optionsToAdd.push({ value: option[0], text: option[1] });
-                        hasValidSubCats = true;
-                    });
-                    showSubCategory = hasValidSubCats; // Only show if there are actual sub-cats
-                }
-            }
-
-            // Update TomSelect options
-            subCategoryTomSelect.clearOptions(); // Clear existing options
-            subCategoryTomSelect.addOption(optionsToAdd); // Add the new options
-            subCategoryTomSelect.setValue(showSubCategory ? previouslySelectedSub : '', true); // Set value, silent=true prevents event loop
-            subCategoryTomSelect.refreshOptions(false); // Refresh dropdown display
-
-            // Show/hide wrapper
-            subCategoryFilterWrapper.style.display = showSubCategory ? 'block' : 'none';
-        }
-
-        // Add event listener to main category TomSelect
-        if (categoryTomSelect) {
-            categoryTomSelect.on('change', updateSearchSubCategories);
-        }
-
-        // Run once on page load to set initial state
-        updateSearchSubCategories();
-
-
-        // --- Mini Map Initialization ---
-        const mapContainer = document.getElementById('miniMapContainer');
-        const filterCollapseElement = document.getElementById('filterCollapse');
-        let miniMap = null;
-        let radiusCircle = null;
-        let centerMarker = null;
-        const defaultCenter = [10.8505, 76.2711]; // Center of Kerala approx.
-        const defaultZoom = 7;
-        const allLocations = JSON.parse('{{ all_locations_coords | safe }}');
-
-        function initializeMap() {
-             if (!mapContainer || miniMap) return; // Don't re-initialize
-             try {
-                miniMap = L.map(mapContainer).setView(defaultCenter, defaultZoom);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    maxZoom: 18,
-                    attribution: '&copy; OSM contributors'
-                }).addTo(miniMap);
-                updateMapViewAndCircle(); // Set initial view based on filters
-            } catch (e) {
-                console.error("Error initializing mini map:", e);
-                if (mapContainer) mapContainer.innerHTML = '<p class="text-danger text-center small p-2">Map could not be loaded.</p>';
-            }
-        }
-
-        function updateMapViewAndCircle(forceResize = false) {
-             if (!miniMap) return; // Don't update if map not initialized
-
-            const selectedLocationName = locationTomSelect ? locationTomSelect.getValue() : null;
-            const selectedRadiusKmStr = radiusTomSelect ? radiusTomSelect.getValue() : null;
-            let centerCoords = defaultCenter;
-            let zoomLevel = defaultZoom;
-            let radiusMeters = null;
-
-            if (selectedLocationName && allLocations[selectedLocationName]) {
-                centerCoords = allLocations[selectedLocationName];
-                // Adjust zoom based on whether radius is selected
-                zoomLevel = selectedRadiusKmStr ? 10 : 12; // Zoom in more if no radius
-            }
-
-            if (selectedRadiusKmStr) {
-                try {
-                    const radiusKm = parseFloat(selectedRadiusKmStr);
-                    if (radiusKm > 0) {
-                        radiusMeters = radiusKm * 1000;
-                        // Adjust zoom based on radius size
-                        if (radiusKm <= 5) zoomLevel = 13;
-                        else if (radiusKm <= 15) zoomLevel = 11;
-                        else if (radiusKm <= 50) zoomLevel = 9;
-                        else zoomLevel = 8;
-                    }
-                } catch (e) { radiusMeters = null; }
-            }
-
-            // Update map view
-            miniMap.setView(centerCoords, zoomLevel);
-
-            // Update or remove center marker
-             if (centerMarker) {
-                miniMap.removeLayer(centerMarker);
-                centerMarker = null;
-            }
-            if (centerCoords !== defaultCenter) { // Only add marker if not default center
-                 centerMarker = L.circleMarker(centerCoords, { radius: 5, color: '#0d6efd', fillColor: '#0d6efd', fillOpacity: 0.6 }).addTo(miniMap);
-                 if (!radiusMeters) { // Add popup only if no radius circle
-                    centerMarker.bindPopup(selectedLocationName || 'Selected Location').openPopup();
-                    setTimeout(() => { if (centerMarker && miniMap.hasLayer(centerMarker)) centerMarker.closePopup(); }, 3000);
-                }
-            }
-
-
-            // Update or remove radius circle
-            if (radiusCircle) {
-                miniMap.removeLayer(radiusCircle);
-                radiusCircle = null;
-            }
-            if (radiusMeters && centerCoords !== defaultCenter) {
-                radiusCircle = L.circle(centerCoords, {
-                    radius: radiusMeters,
-                    color: '#0d6efd',
-                    fillColor: '#0d6efd',
-                    fillOpacity: 0.1,
-                    weight: 1 // Thin line
-                }).addTo(miniMap);
-            }
-
-            // Invalidate Size if forced (e.g., after collapse shown)
-            if (forceResize) {
-                setTimeout(() => {
-                    if (miniMap) {
-                        miniMap.invalidateSize();
-                        // Re-center after invalidation might be needed if bounds change drastically
-                        // miniMap.setView(centerCoords, zoomLevel);
-                    }
-                 }, 200); // Small delay for collapse animation
-            }
-        }
-
-        // Event Listener for Collapse show
-        if (filterCollapseElement) {
-            filterCollapseElement.addEventListener('shown.bs.collapse', function () {
-                if (!miniMap) {
-                    initializeMap(); // Initialize map on first show
+                if (selectedValues.length === 0) {
+                    categoryButton.textContent = 'Any Category';
+                    subCategorySelect.disabled = true;
+                    subCategorySelect.innerHTML = '<option value="">-- Select Main Category First --</option>';
+                } else if (selectedValues.length === 1) {
+                    categoryButton.textContent = selectedCheckboxes[0].nextElementSibling.textContent.trim();
+                    populateSubCategories(selectedValues[0]);
                 } else {
-                    updateMapViewAndCircle(true); // Force resize on subsequent shows
+                    categoryButton.textContent = `${selectedValues.length} categories selected`;
+                    subCategorySelect.disabled = true;
+                    subCategorySelect.innerHTML = '<option value="">-- Multiple Categories Selected --</option>';
                 }
+            };
+            const populateSubCategories = (mainCategory) => { /* ... Keep this function as is ... */
+                subCategorySelect.innerHTML = '<option value="">All Sub-categories</option>'; // Default option
+                if (mainCategory && subCategoriesData[mainCategory]) {
+                    subCategoriesData[mainCategory].forEach(subCat => {
+                        const option = new Option(subCat[1], subCat[0]);
+                        if (subCat[0] === '{{ form.sub_category.data }}') {
+                            option.selected = true;
+                        }
+                        subCategorySelect.add(option);
+                    });
+                    subCategorySelect.disabled = false; // Enable dropdown
+                } else {
+                    subCategorySelect.disabled = true; // Disable if no subs
+                    subCategorySelect.innerHTML = '<option value="">-- No Sub-categories --</option>';
+                }
+            };
+
+            categoryModal.addEventListener('show.bs.modal', () => { /* ... Keep this as is ... */
+                const selectedValues = Array.from(hiddenSelect.selectedOptions).map(opt => opt.value);
+                checkboxes.forEach(cb => { cb.checked = selectedValues.includes(cb.value); });
+                updateCategoryButtonText();
             });
+             checkboxes.forEach(checkbox => { /* ... Keep this as is ... */
+                checkbox.addEventListener('change', updateCategoryButtonText);
+            });
+            applyCategoriesBtn.addEventListener('click', () => { /* ... Keep this as is ... */
+                const selectedValues = Array.from(categoryModal.querySelectorAll('.category-checkbox:checked')).map(cb => cb.value);
+                Array.from(hiddenSelect.options).forEach(option => {
+                    option.selected = selectedValues.includes(option.value);
+                });
+                document.getElementById('searchForm').submit();
+            });
+            selectAllBtn?.addEventListener('click', () => { checkboxes.forEach(cb => cb.checked = true); updateCategoryButtonText(); });
+            deselectAllBtn?.addEventListener('click', () => { checkboxes.forEach(cb => cb.checked = false); updateCategoryButtonText(); });
+
+            // Initialize on page load (Keep as is)
+            const initialSelectedValues = Array.from(hiddenSelect.options).filter(opt => opt.selected).map(opt => opt.value);
+            if (initialSelectedValues.length === 0) {
+                categoryButton.textContent = 'Any Category';
+                subCategorySelect.disabled = true;
+            } else if (initialSelectedValues.length === 1) {
+                categoryButton.textContent = hiddenSelect.options[hiddenSelect.selectedIndex].text;
+                populateSubCategories(initialSelectedValues[0]); // Populate subs on load
+            } else {
+                categoryButton.textContent = `${initialSelectedValues.length} categories selected`;
+                 subCategorySelect.disabled = true;
+                 subCategorySelect.innerHTML = '<option value="">-- Multiple Categories Selected --</option>';
+            }
         }
+        // --- End Category Modal Logic ---
 
-        // Initial map setup ONLY if the collapse starts open
-        // if (mapContainer && filterCollapseElement && !filterCollapseElement.classList.contains('show')) {
-        // Remove this initial call if collapse starts closed
-        //     initializeMap();
-        // }
+        // --- Mini Map Logic (Keep as is) ---
+        const miniMapElement = document.getElementById('mini-map');
+        const mapDataElement = document.getElementById('map-data');
+        const locationSelect = document.getElementById('location-select');
+        const radiusSelect = document.getElementById('radius-select');
+        let miniMap;
+        let currentCircle = null;
+        let currentMarkers = L.featureGroup();
+        let allLocationsCoords = {};
 
-
-        // Update map visuals when location or radius changes (no resize needed)
-        if (locationTomSelect) {
-            locationTomSelect.on('change', () => updateMapViewAndCircle(false));
+        if (miniMapElement && mapDataElement) { /* ... Keep entire Mini Map Logic block as is ... */
+             try { allLocationsCoords = JSON.parse(mapDataElement.dataset.allLocations || '{}'); } catch (e) { console.error("Error parsing allLocationsCoords data:", e); allLocationsCoords = {}; }
+             function getCoordsForLocation(locationName) { if (!locationName) return null; const mainDistrict = locationName.split(' - ')[0]; return allLocationsCoords[mainDistrict] || null; }
+             function updateMiniMap(centerCoords, radiusKm, itemsData) { if (!miniMap || !centerCoords) return; const centerLatLng = L.latLng(centerCoords[0], centerCoords[1]); miniMap.setView(centerLatLng, radiusKm ? (radiusKm <= 5 ? 12 : (radiusKm <= 20 ? 10 : 8)) : 9); if (currentCircle) { miniMap.removeLayer(currentCircle); currentCircle = null; } currentMarkers.clearLayers(); if (radiusKm) { currentCircle = L.circle(centerLatLng, { radius: radiusKm * 1000, color: 'blue', weight: 1, opacity: 0.5, fillOpacity: 0.1 }).addTo(miniMap); } let bounds = L.latLngBounds(); try { const items = JSON.parse(itemsData || '[]'); items.forEach(item => { if (item.latitude && item.longitude) { const itemLatLng = L.latLng(item.latitude, item.longitude); if (!radiusKm || centerLatLng.distanceTo(itemLatLng) <= radiusKm * 1000) { L.marker(itemLatLng).addTo(currentMarkers); bounds.extend(itemLatLng); } } }); currentMarkers.addTo(miniMap); if (currentCircle && !bounds.isValid()) { miniMap.setView(centerLatLng, miniMap.getZoom()); } else if (bounds.isValid()) { if (items.length > 1 || !currentCircle) { miniMap.fitBounds(bounds.pad(0.1)); } else { miniMap.setView(centerLatLng, miniMap.getZoom()); } } } catch(e) { console.error("Error processing map items:", e); } }
+             function initializeMiniMap() { if (miniMap) return; try { miniMap = L.map('mini-map'); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '&copy; OpenStreetMap' }).addTo(miniMap); const initialCenter = JSON.parse(mapDataElement.dataset.mapCenter || 'null'); const initialRadius = JSON.parse(mapDataElement.dataset.mapRadius || 'null'); const initialItems = mapDataElement.dataset.items; if (initialCenter && initialCenter.length === 2) { updateMiniMap(initialCenter, initialRadius, initialItems); } else { miniMap.setView([10.8505, 76.2711], 7); } if (locationSelect) locationSelect.addEventListener('change', handleFilterChange); if (radiusSelect) radiusSelect.addEventListener('change', handleFilterChange); } catch (e) { console.error("Leaflet map initialization failed:", e); miniMapElement.innerHTML = '<p class="text-danger text-center small">Map could not be loaded.</p>'; } }
+             function handleFilterChange() { const selectedLocation = locationSelect ? locationSelect.value : null; const selectedRadius = radiusSelect ? (radiusSelect.value ? parseFloat(radiusSelect.value) : null) : null; const centerCoords = getCoordsForLocation(selectedLocation); const itemsData = mapDataElement.dataset.items; if (centerCoords) { updateMiniMap(centerCoords, selectedRadius, itemsData); } else if (selectedLocation) { console.warn(`No coordinates found for ${selectedLocation}`); } }
+             const filterCollapseElement = document.getElementById('searchFiltersCollapse'); if (filterCollapseElement) { filterCollapseElement.addEventListener('shown.bs.collapse', initializeMiniMap, { once: true }); filterCollapseElement.addEventListener('shown.bs.collapse', function () { if (miniMap) { setTimeout(() => { try { miniMap.invalidateSize() } catch(e){} }, 50); } }); if (filterCollapseElement.classList.contains('show')) { setTimeout(initializeMiniMap, 150); } } else { setTimeout(initializeMiniMap, 150); }
         }
-        if (radiusTomSelect) {
-            radiusTomSelect.on('change', () => updateMapViewAndCircle(false));
-        }
+        // --- End Mini Map Logic ---
 
+         // --- TomSelect for Location (Keep as is) ---
+         try {
+             const locSelect = document.getElementById('location-select');
+             if (locSelect) {
+                let allOption = new Option("All Locations", ""); locSelect.add(allOption);
+                for (const locationName in allLocationsCoords) { let option = new Option(locationName, locationName); locSelect.add(option); }
+                locSelect.value = '{{ form.location.data or "" }}';
+                new TomSelect(locSelect, { create: false, placeholder: 'Select location...' });
+             }
+         } catch(e) { console.error("Error init location TomSelect:", e); }
+         // --- End TomSelect ---
     });
 </script>
 

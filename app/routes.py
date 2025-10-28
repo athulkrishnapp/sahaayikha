@@ -1576,6 +1576,7 @@ def org_dashboard():
     current_filter = request.args.get('filter', 'needs')
     my_needs, offers = [], []
     chat_sessions = [] # Will be populated by sorted list later
+    grouped_offers = None # Will be populated by sorted list later
     has_unread_chats = False
     unread_session_ids = set()
 
@@ -1652,8 +1653,39 @@ def org_dashboard():
         elif current_filter == 'pending_donation':
             offer_query = offer_query.filter(DonationOffer.status == 'Donation Pending')
         elif current_filter == 'completed':
-            offer_query = offer_query.filter(DonationOffer.status == 'Completed')
-        offers = offer_query.order_by(DonationOffer.created_at.desc()).all()
+            # 1. Fetch completed offers, eager-loading the 'need' and 'user'
+            completed_offers_query = DonationOffer.query.filter(
+                DonationOffer.org_id == org.org_id,
+                DonationOffer.status == 'Completed'
+            ).options(
+                orm.joinedload(DonationOffer.need),      # Eager load the need
+                orm.joinedload(DonationOffer.user)      # Eager load the user
+            ).order_by(
+                DonationOffer.need_id,              # Order by need for grouping
+                DonationOffer.completed_at.desc()   # Sort within the group
+            )
+            
+            all_completed_offers = completed_offers_query.all()
+            
+            # 2. Process into the grouped dictionary that the template expects
+            grouped_offers = {} # Use a dict
+            if all_completed_offers:
+                for offer in all_completed_offers:
+                    # Use the actual need object as the key (or None if need was deleted)
+                    need_obj = offer.need if offer.need else None 
+                    
+                    if need_obj not in grouped_offers:
+                        grouped_offers[need_obj] = [] # Create a new list for this need
+                    
+                    grouped_offers[need_obj].append(offer) # Add the offer to its need's list
+            
+            # 3. Set 'offers' to an empty list since we used 'grouped_offers'
+            offers = []
+        
+        else: # <-- ADD THIS 'else'
+            # This 'else' catches 'incoming', 'pickup', 'pending_donation'
+            # and runs the original query logic.
+            offers = offer_query.order_by(DonationOffer.created_at.desc()).all()
     elif current_filter != 'chats': # Handle default or unknown filters (excluding 'chats' handled above)
         current_filter = 'needs' # Ensure filter reflects the default view
         # --- *** THIS IS THE SECOND CORRECTION *** ---
@@ -1667,12 +1699,16 @@ def org_dashboard():
         my_items=my_needs, # Pass needs as my_items
         offers=offers,
         chat_sessions=chat_sessions, # Pass the sorted list
+        grouped_offers=grouped_offers, # <-- ADD THIS
         form=form,
         current_filter=current_filter,
         unread_session_ids=unread_session_ids, # Pass the set of IDs
         has_unread_chats=has_unread_chats
     )
 
+# =========================
+# USER DASHBOARD
+# =========================
 # =========================
 # USER DASHBOARD
 # =========================
@@ -1696,6 +1732,7 @@ def dashboard():
     map_radius_km = None
     current_location_filter = None
     active_search_term = request.args.get('search', '').strip()
+    disaster_need_titles = {} # <-- ***** FIX: INITIALIZE HERE *****
 
     # --- Query User's Chats ---
     user_sessions_query = ChatSession.query.filter(
@@ -1705,8 +1742,12 @@ def dashboard():
         orm_joinedload(ChatSession.user_two),
         orm_joinedload(ChatSession.participant_org),
         orm_joinedload(ChatSession.trade_item),
-        orm_joinedload(ChatSession.disaster_need)
+        orm_joinedload(ChatSession.disaster_need), # Keep for fallback
+        # --- ADD THIS LINE ---
+        orm_joinedload(ChatSession.donation_offer).options(orm_joinedload(DonationOffer.need))
+        # --- END ADDITION ---
     ) # Eager load participants and subjects
+
 
     # --- *** MODIFICATION START: Fetch latest message times and unread status *** ---
     sessions_with_latest_message = []
@@ -1734,20 +1775,25 @@ def dashboard():
          .group_by(ChatMessage.session_id)\
          .subquery()
 
-        # Join sessions with their latest message timestamp
-        sessions_with_time = db.session.query(
-            ChatSession, latest_messages_subquery.c.latest_timestamp
-        ).outerjoin(latest_messages_subquery, ChatSession.session_id == latest_messages_subquery.c.session_id)\
-         .filter(ChatSession.session_id.in_(session_ids))\
-         .all() # Returns list of tuples (ChatSession, latest_timestamp | None)
+        # --- *** MODIFICATION START *** ---
+        # 1. Fetch the latest timestamps into a dictionary
+        latest_times_q = db.session.query(
+            latest_messages_subquery.c.session_id,
+            latest_messages_subquery.c.latest_timestamp
+        ).all()
+        latest_times_map = dict(latest_times_q) # Creates {session_id: timestamp}
 
-        # Create list of dictionaries for easier sorting
-        for session, latest_timestamp in sessions_with_time:
+        # 2. Create list of dictionaries using the *eagerly-loaded* sessions
+        #    (from 'all_user_sessions' which already has the .need data)
+        for session in all_user_sessions: # <-- Use the already-loaded sessions
+            latest_timestamp = latest_times_map.get(session.session_id)
             sessions_with_latest_message.append({
-                'session': session,
+                'session': session, # <-- This is the good, eagerly-loaded object
                 'latest_activity': latest_timestamp or session.started_at, # Fallback to start time
                 'is_unread': session.session_id in unread_session_ids
             })
+        # --- *** MODIFICATION END *** ---
+
 
         # Sort: Unread first, then by latest activity timestamp descending
         sessions_with_latest_message.sort(key=lambda x: (not x['is_unread'], x['latest_activity']), reverse=True)
@@ -1764,6 +1810,33 @@ def dashboard():
         # Unread flags are now based on the direct query result
         has_unread_regular = any(s.session_id in unread_session_ids for s in regular_chats)
         has_unread_disaster = any(s.session_id in unread_session_ids for s in disaster_chats)
+
+        # --- *** START OF NEW FIX *** ---
+        # The eager-load for session.donation_offer.need will fail if the
+        # relationship in models.py filters for status='Active'.
+        # We must manually fetch the titles for deleted needs.
+
+        # 1. Find all need_ids from disaster chats that are missing the .need object
+        need_ids_to_fetch = set()
+        for chat in disaster_chats:
+            # Check if offer exists, but the .need relationship is broken (None)
+            if chat.donation_offer and not chat.donation_offer.need and chat.donation_offer.need_id:
+                need_ids_to_fetch.add(chat.donation_offer.need_id)
+
+        # 2. Fetch all missing needs in one query
+        # disaster_need_titles is already initialized at the top
+        if need_ids_to_fetch:
+            # Query DisasterNeed table directly, bypassing the broken relationship
+            missing_needs = DisasterNeed.query.filter(
+                DisasterNeed.need_id.in_(need_ids_to_fetch)
+            ).options(
+                orm.load_only(DisasterNeed.need_id, DisasterNeed.title) # Only get what we need
+            ).all()
+
+            disaster_need_titles = {need.need_id: need.title for need in missing_needs}
+
+        # --- *** END OF NEW FIX (Part 1) *** ---
+
 
     elif view == "mine":
         # ... (rest of the 'mine' view logic remains the same) ...
@@ -1895,7 +1968,8 @@ def dashboard():
         all_locations_coords=json.dumps(GEOCODE_DATA), #
         current_location_filter=current_location_filter,
         active_search_term=active_search_term,
-        local_organizations=local_organizations # <-- ADD THIS
+        local_organizations=local_organizations, # <-- ADD THIS
+        disaster_need_titles=disaster_need_titles # <-- *** ADD THIS LINE ***
     )
 
 # =========================
