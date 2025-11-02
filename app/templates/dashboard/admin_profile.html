@@ -31,17 +31,6 @@
             <form method="POST" novalidate>
                 {{ form.hidden_tag() }}
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        {{ form.first_name.label(class="form-label") }}
-                        {{ form.first_name(class="form-control") }}
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        {{ form.last_name.label(class="form-label") }}
-                        {{ form.last_name(class="form-control") }}
-                    </div>
-                </div>
-
                 <div class="mb-3">
                     {{ form.email.label(class="form-label") }}
                     {{ form.email(class="form-control") }}
